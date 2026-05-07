@@ -68,7 +68,7 @@ const sendInvitationEmail = async (email, token, frontendUrl, ccEmail = null) =>
   const activationUrl = `${frontendUrl}/activate?token=${token}`;
   
   const htmlContent = `
-    <h2>Bienvenue sur CASiBIO!</h2>
+    <h2>Bienvenue sur CVTEK!</h2>
     <p>Vous avez été invité(e) à rejoindre notre plateforme.</p>
     <p>Cliquez sur le lien ci-dessous pour créer votre compte:</p>
     <a href="${activationUrl}" style="
@@ -95,7 +95,7 @@ const sendInvitationEmail = async (email, token, frontendUrl, ccEmail = null) =>
     const mailOptions = {
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to: email,
-      subject: 'Invitation CASiBIO - Créez votre compte',
+      subject: 'Invitation CVTEK - Créez votre compte',
       html: htmlContent,
       text: `Cliquez sur ce lien pour créer votre compte:\n${activationUrl}\n\nCe lien expire dans 48 heures.`
     };
@@ -135,7 +135,7 @@ const sendPasswordResetEmail = async (email, token, frontendUrl, ccEmail = null)
   
   const htmlContent = `
     <h2>Réinitialisation de votre mot de passe</h2>
-    <p>Vous avez demandé une réinitialisation de mot de passe pour votre compte CASiBIO.</p>
+    <p>Vous avez demandé une réinitialisation de mot de passe pour votre compte CVTEK.</p>
     <p>Cliquez sur le lien ci-dessous pour définir un nouveau mot de passe:</p>
     <a href="${resetUrl}" style="
       display: inline-block;
@@ -161,7 +161,7 @@ const sendPasswordResetEmail = async (email, token, frontendUrl, ccEmail = null)
     const mailOptions = {
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to: email,
-      subject: 'CASiBIO - Réinitialisation de votre mot de passe',
+      subject: 'CVTEK - Réinitialisation de votre mot de passe',
       html: htmlContent,
       text: `Cliquez sur ce lien pour réinitialiser votre mot de passe:\n${resetUrl}\n\nCe lien expire dans 1 heure.`
     };

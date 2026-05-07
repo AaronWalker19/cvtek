@@ -3,7 +3,7 @@
 
 echo "╔════════════════════════════════════════════════════════════════╗"
 echo "║   Vérification du système d'invitation par email               ║"
-echo "║   CASiBIO - Gestion des membres                               ║"
+echo "║   CVTEK - Gestion des membres                               ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -117,7 +117,7 @@ if [ $CHECKS_FAILED -eq 0 ]; then
   echo ""
   echo "Prochaines étapes:"
   echo "1. ✅ Exécuter la migration BD:"
-  echo "   mysql -h localhost -u root casibio < db/migrate-add-user-activation.sql"
+  echo "   mysql -h localhost -u root cvtek < db/migrate-add-user-activation.sql"
   echo ""
   echo "2. ✅ Configurer les emails (optionnel):"
   echo "   Copier .env.email.example dans .env et remplir les valeurs"

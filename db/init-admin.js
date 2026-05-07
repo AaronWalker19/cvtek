@@ -1,5 +1,5 @@
 const bcrypt = require("bcryptjs");
-const db = require("./database");
+const dbModule = require("./database");
 
 const SALT_ROUNDS = 10;
 
@@ -12,11 +12,16 @@ const initializeAdmin = async () => {
   const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
 
   try {
+    // Attendre que la DB soit prête
+    await dbModule.waitForDB();
+    
+    const db = dbModule.getDatabase();
+
     // Vérifier si l'admin existe déjà
-    const checkStmt = db.prepare(
+    const checkStmt = dbModule.prepare(
       "SELECT id FROM users WHERE username = ? LIMIT 1"
     );
-    const existingUser = await checkStmt.get(adminUsername);
+    const existingUser = checkStmt.get(adminUsername);
 
     if (existingUser) {
       console.log(`✓ Admin existe déjà: ${adminUsername}`);
@@ -27,12 +32,12 @@ const initializeAdmin = async () => {
     const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
 
     // Créer l'admin
-    const stmt = db.prepare(
+    const stmt = dbModule.prepare(
       `INSERT INTO users (username, email, password_hash, role)
        VALUES (?, ?, ?, ?)`
     );
     
-    await stmt.run(adminUsername, adminEmail, passwordHash, "admin");
+    stmt.run(adminUsername, adminEmail, passwordHash, "admin");
 
     console.log(
       `✓ Admin créé avec succès\n  Username: ${adminUsername}\n  Email: ${adminEmail}\n  Password: ${adminPassword}`

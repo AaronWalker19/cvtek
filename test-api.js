@@ -7,7 +7,7 @@
  * Exemples:
  * - Node: npm start (puis dans une autre fenêtre)
  * - Local: node test-api.js http://localhost:3000
- * - Production: node test-api.js https://casibio.alwaysdata.net
+ * - Production: node test-api.js https://cvtek.alwaysdata.net
  */
 
 const http = require('http');
@@ -42,7 +42,7 @@ async function fetch(url, options = {}) {
 async function runTests() {
   const baseUrl = process.argv[2] || 'http://localhost:3000';
   
-  console.log('\n🔧 TEST D\'API CASiBIO');
+  console.log('\n🔧 TEST D\'API CVTEK');
   console.log('═'.repeat(50));
   console.log(`📍 URL de base: ${baseUrl}\n`);
   

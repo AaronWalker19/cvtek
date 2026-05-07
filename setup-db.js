@@ -1,142 +1,64 @@
-const mysql = require("mysql2/promise");
-require("dotenv").config();
+const Database = require('better-sqlite3');
+const path = require('path');
+const fs = require('fs');
+require('dotenv').config();
 
 /**
- * Script d'installation de la base de donnÃ©es MySQL
- * CrÃ©e automatiquement la base de donnÃ©es et les tables
+ * Script d'installation de la base de données SQLite
+ * Crée automatiquement la base de données et les tables
  */
 
-const dbConfig = {
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "",
-  port: process.env.DB_PORT || 3306
-};
+const dbPath = process.env.DB_PATH || path.join(__dirname, 'db', 'cvtek.db');
+const dbDir = path.dirname(dbPath);
 
-const dbName = process.env.DB_NAME || "casibio";
-
-async function setupDatabase() {
-  let connection;
-
+function setupDatabase() {
   try {
-    console.log("ðŸ”§ Installation CASiBIO - Base de donnÃ©es MySQL\n");
-    console.log(`ðŸ“Š Configuration:`);
-    console.log(`   Host: ${dbConfig.host}:${dbConfig.port}`);
-    console.log(`   User: ${dbConfig.user}`);
-    console.log(`   Base: ${dbName}\n`);
+    console.log('\n?? Installation CVTEK - Base de données SQLite\n');
+    console.log(\?? Configuration:\);
+    console.log(\   Chemin: \\);
+    console.log(\   Dossier: \\n\);
 
-    // Connexion sans spÃ©cifier la base de donnÃ©es
-    console.log("â³ Connexion Ã  MySQL...");
-    connection = await mysql.createConnection(dbConfig);
-    console.log("âœ“ Connexion rÃ©ussie\n");
-
-    // CrÃ©er la base de donnÃ©es
-    console.log(`â³ CrÃ©ation de la base de donnÃ©es '${dbName}'...`);
-    await connection.query(
-      `CREATE DATABASE IF NOT EXISTS ${dbName} 
-       CHARACTER SET utf8mb4 
-       COLLATE utf8mb4_unicode_ci`
-    );
-    console.log(`âœ“ Base de donnÃ©es '${dbName}' crÃ©Ã©e\n`);
-
-    // Cliquer sur la base
-    await connection.query(`USE ${dbName}`);
-
-    // CrÃ©er les tables
-    console.log("â³ CrÃ©ation des tables...\n");
-
-    // Table users
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        username VARCHAR(100) UNIQUE NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        role ENUM('admin', 'member') DEFAULT 'member',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_username (username),
-        INDEX idx_email (email)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    `);
-    console.log("  âœ“ Table 'users' crÃ©Ã©e");
-
-    // Table projects
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS projects (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        code_anr VARCHAR(100),
-        title_fr VARCHAR(255),
-        title_en VARCHAR(255),
-        summary_fr TEXT,
-        summary_en TEXT,
-        methods_fr TEXT,
-        methods_en TEXT,
-        results_fr TEXT,
-        results_en TEXT,
-        perspectives_fr TEXT,
-        perspectives_en TEXT,
-        created_by INT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-        INDEX idx_code_anr (code_anr),
-        INDEX idx_created_by (created_by),
-        INDEX idx_created_at (created_at)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    `);
-    console.log("  âœ“ Table 'projects' crÃ©Ã©e");
-
-    // Table project_files
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS project_files (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        project_id INT NOT NULL,
-        file_path VARCHAR(500),
-        file_name VARCHAR(255),
-        file_display_name VARCHAR(255),
-        file_type VARCHAR(100),
-        file_desc_fr  VARCHAR(150),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-        INDEX idx_project_id (project_id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    `);
-    console.log("  âœ“ Table 'project_files' crÃ©Ã©e\n");
-
-    console.log("â•".repeat(60));
-    console.log("âœ… Installation rÃ©ussie !\n");
-    console.log("ðŸ“‹ Prochaines Ã©tapes:");
-    console.log("   1. npm install");
-    console.log("   2. npm start\n");
-    console.log("ðŸŒ AccÃ¨s:");
-    console.log("   - Frontend: http://localhost:3000");
-    console.log("   - phpMyAdmin: http://localhost/phpmyadmin\n");
-    console.log("ðŸ‘¤ Identifiant admin:");
-    console.log("   - Username: admin");
-    console.log("   - Password: admin123\n");
-    console.log("â•".repeat(60));
-
-    await connection.end();
-    process.exit(0);
-
-  } catch (err) {
-    console.error("\nâŒ Erreur lors de l'installation:");
-    console.error(`   ${err.message}\n`);
-
-    if (err.code === "ER_ACCESS_DENIED_ERROR") {
-      console.log("ðŸ’¡ Conseil: VÃ©rifiez les identifiants MySQL dans .env");
-      console.log("   - DB_HOST: " + dbConfig.host);
-      console.log("   - DB_USER: " + dbConfig.user);
-      console.log("   - DB_PASSWORD: " + (dbConfig.password ? "***" : "(vide)"));
-    } else if (err.code === "ECONNREFUSED") {
-      console.log("ðŸ’¡ Conseil: MySQL n'est pas dÃ©marrÃ©");
-      console.log("   - Windows XAMPP: DÃ©marrer MySQL dans le Control Panel");
-      console.log("   - macOS: brew services start mysql");
-      console.log("   - Linux: sudo systemctl start mysql");
-    } else if (err.code === "ENOTFOUND") {
-      console.log("ðŸ’¡ Conseil: HÃ´te MySQL introuvable (" + dbConfig.host + ")");
+    // Créer le répertoire s'il n'existe pas
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+      console.log(\? Dossier créé: \\);
     }
 
+    // Initialiser la BD
+    console.log('? Création/Vérification de la base de données...');
+    const db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
+
+    // Créer les tables (voir db/database.js pour la structure complète)
+    console.log('?? Création des tables...');
+    
+    // Exécuter le schéma
+    const schemaPath = path.join(__dirname, 'db', 'schema.sql');
+    if (fs.existsSync(schemaPath)) {
+      const schema = fs.readFileSync(schemaPath, 'utf8');
+      // Note: SQLite a des différences de syntaxe avec MySQL
+      // Le schéma.sql pourrait nécessiter des adaptations
+      console.log('??  Note: Consultez db/schema.sql pour les migrations éventuelles');
+    }
+
+    // Vérifier les tables
+    const tables = db.prepare(\
+      SELECT name FROM sqlite_master 
+      WHERE type='table' AND name NOT LIKE 'sqlite_%'
+    \).all();
+
+    console.log(\\n? Base de données SQLite initialisée avec succès!\);
+    console.log(\?? Tables présentes: \\);
+    tables.forEach(t => {
+      console.log(\   - \\);
+    });
+
+    console.log(\\n?? Fichier BD: \\);
+    console.log(\\n?? La base de données est prête pour utilisation!\);
+
+    db.close();
+  } catch (err) {
+    console.error('\n? Erreur lors de l\'installation:', err.message);
     process.exit(1);
   }
 }

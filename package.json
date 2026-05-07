@@ -12,7 +12,7 @@
     "quick-start": "node QUICK_START.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test-api": "node test-api.js http://localhost:3000",
-    "test-api-prod": "node test-api.js https://casibio.alwaysdata.net"
+    "test-api-prod": "node test-api.js https://cvtek.alwaysdata.net"
   },
   "keywords": [],
   "author": "",
@@ -31,11 +31,11 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
-    "mysql2": "^3.6.5",
     "node-fetch": "^2.7.0",
     "nodemailer": "^8.0.5",
     "pdfkit": "^0.18.0",
     "sanitize-html": "^2.17.2",
+    "sql.js": "^1.14.1",
     "strip-html": "^1.0.2"
   },
   "devDependencies": {

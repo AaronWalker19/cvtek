@@ -1,5 +1,5 @@
 /**
- * Palette de couleurs du site ANR CASiBIO
+ * Palette de couleurs du site CVTEK
  * Centralisée et utilisable en JavaScript/TypeScript
  * 
  * Usage:
