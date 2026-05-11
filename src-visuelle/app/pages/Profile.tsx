@@ -14,7 +14,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="bg-white content-stretch flex items-start relative size-full">
+    <div className="bg-[#ffffff] content-stretch flex items-start relative size-full">
       <Sidebar bgColor={currentUser.role === 'student' ? 'bg-[#b51621]' : 'bg-[#4b575f]'} showAdmin={currentUser.role === 'professor'} />
 
       <div className="flex-[1_0_0] h-full min-w-px relative">
@@ -32,7 +32,7 @@ export default function Profile() {
             <div className="content-stretch flex flex-col gap-[30px] items-start relative shrink-0 w-full max-w-[600px]">
               <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-full">
                 <p className="font-['Inter:Medium',sans-serif] font-medium leading-[normal] not-italic text-[#36302a] text-[20px]">Nom</p>
-                <div className="bg-white content-stretch flex items-center p-[10px] relative rounded-[10px] shrink-0 w-full">
+                <div className="bg-[#ffffff] content-stretch flex items-center p-[10px] relative rounded-[10px] shrink-0 w-full">
                   <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[10px]" />
                   <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic text-[#36302a] text-[18px]">{currentUser.name}</p>
                 </div>
@@ -40,7 +40,7 @@ export default function Profile() {
 
               <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-full">
                 <p className="font-['Inter:Medium',sans-serif] font-medium leading-[normal] not-italic text-[#36302a] text-[20px]">Email</p>
-                <div className="bg-white content-stretch flex items-center p-[10px] relative rounded-[10px] shrink-0 w-full">
+                <div className="bg-[#ffffff] content-stretch flex items-center p-[10px] relative rounded-[10px] shrink-0 w-full">
                   <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[10px]" />
                   <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic text-[#36302a] text-[18px]">{currentUser.email}</p>
                 </div>
@@ -48,7 +48,7 @@ export default function Profile() {
 
               <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-full">
                 <p className="font-['Inter:Medium',sans-serif] font-medium leading-[normal] not-italic text-[#36302a] text-[20px]">Rôle</p>
-                <div className="bg-white content-stretch flex items-center p-[10px] relative rounded-[10px] shrink-0 w-full">
+                <div className="bg-[#ffffff] content-stretch flex items-center p-[10px] relative rounded-[10px] shrink-0 w-full">
                   <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[10px]" />
                   <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic text-[#36302a] text-[18px] capitalize">{currentUser.role === 'student' ? 'Étudiant' : currentUser.role === 'professor' ? 'Professeur' : 'Administrateur'}</p>
                 </div>
@@ -57,7 +57,7 @@ export default function Profile() {
               {currentUser.license && (
                 <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-full">
                   <p className="font-['Inter:Medium',sans-serif] font-medium leading-[normal] not-italic text-[#36302a] text-[20px]">Licence</p>
-                  <div className="bg-white content-stretch flex items-center p-[10px] relative rounded-[10px] shrink-0 w-full">
+                  <div className="bg-[#ffffff] content-stretch flex items-center p-[10px] relative rounded-[10px] shrink-0 w-full">
                     <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[10px]" />
                     <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic text-[#36302a] text-[18px]">{currentUser.license}</p>
                   </div>
@@ -72,7 +72,7 @@ export default function Profile() {
                     <button
                       key={user.id}
                       onClick={() => handleRoleChange(user.id)}
-                      className={`flex-1 p-[10px] rounded-[10px] ${currentUser.id === user.id ? 'bg-[#4b575f] text-white' : 'bg-white text-[#36302a]'}`}
+                      className={`flex-1 p-[10px] rounded-[10px] ${currentUser.id === user.id ? 'bg-[#4b575f] text-white' : 'bg-[#ffffff] text-[#36302a]'}`}
                     >
                       <div aria-hidden="true" className={`absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[10px] ${currentUser.id === user.id ? 'hidden' : ''}`} />
                       <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic text-[16px]">

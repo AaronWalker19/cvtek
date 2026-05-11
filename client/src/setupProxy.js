@@ -1,25 +1,9 @@
-const { createProxyMiddleware } = require('http-proxy-middleware');
+// ⚠️  SETUPPROXY DISABLED - Using direct API calls to http://localhost:5000 instead
+// Direct requests from client.ts are simpler and more reliable
 
 module.exports = function(app) {
-  app.use(
-    '/api',
-    createProxyMiddleware({
-      target: 'http://localhost:3000',
-      changeOrigin: true,
-      pathRewrite: {
-        '^/api': '/api'
-      }
-    })
-  );
-
-  app.use(
-    '/uploads',
-    createProxyMiddleware({
-      target: 'http://localhost:3000',
-      changeOrigin: true,
-      pathRewrite: {
-        '^/uploads': '/uploads'
-      }
-    })
-  );
+  console.log('\n🔧 ========================================');
+  console.log('   SETUP PROXY - DISABLED');
+  console.log('   Direct API calls to http://localhost:5000');
+  console.log('   ========================================\n');
 };

@@ -26,7 +26,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="bg-white content-stretch flex items-start relative h-full ml-[225px]">
+    <div className="bg-[#ffffff] content-stretch flex items-start relative h-full ml-[225px]">
       <Sidebar bgColor="bg-[#4b575f]" showAdmin />
 
       <div className="flex-[1_0_0] h-screen overflow-y-auto w-full min-w-px relative">
@@ -40,7 +40,7 @@ export default function AdminDashboard() {
 
             {/* Add User Form */}
             <div className="content-stretch flex gap-[10px] items-center justify-center relative shrink-0">
-              <div className="bg-white content-stretch flex gap-[10px] items-center p-[10px] relative rounded-[20px] shrink-0 w-[564px]">
+              <div className="bg-[#ffffff] content-stretch flex gap-[10px] items-center p-[10px] relative rounded-[20px] shrink-0 w-[564px]">
                 <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[20px]" />
                 <input
                   type="email"

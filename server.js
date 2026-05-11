@@ -3,11 +3,25 @@ const path = require("path");
 const cors = require("cors");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
-require("dotenv").config();
+const mime = require("mime-types");
+const fs = require("fs");
+
+// Charger les variables d'env en fonction de NODE_ENV
+const envFile = process.env.NODE_ENV === 'production' 
+  ? '.env.production' 
+  : '.env.development';
+require("dotenv").config({ path: envFile });
+
+// Si le fichier n'existe pas, charger le .env par défaut
+if (!fs.existsSync(envFile)) {
+  require("dotenv").config();
+}
 
 const app = express();
 
 console.log("🚀 SERVER START - SQLITE VERSION");
+console.log(`📋 Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`⚙️  Loaded env file: ${envFile}\n`);
 
 // ===== SÉCURITÉ: Headers de sécurité =====
 app.use(helmet({
@@ -39,7 +53,7 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5173',
-  'https://cvtek.alwaysdata.net' // ✅ AJOUT ICI
+  'https://mmi.unilim.fr/~valin6/cvtek' // ✅ AJOUT ICI
 ];
 
 app.use(cors({
@@ -89,12 +103,22 @@ const { apiLimiter } = require("./middleware/security");
 app.use("/api/", apiLimiter);
 
 // ===== SERVE UPLOADS FOLDER =====
-// Middleware pour logger les demandes
+// Middleware pour vérifier et logger les demandes de fichiers
 app.use("/uploads", (req, res, next) => {
   console.log(`\n📁 UPLOAD REQUEST: ${req.method} ${req.path}`);
   console.log(`   Full URL: ${req.originalUrl}`);
   const filePath = path.join(__dirname, "uploads", req.path);
   console.log(`   File path: ${filePath}`);
+  
+  // Vérifier si le fichier existe
+  if (!fs.existsSync(filePath)) {
+    console.log(`   ❌ File not found`);
+    return res.status(404).json({ 
+      error: 'Fichier non trouvé', 
+      path: req.path 
+    });
+  }
+  
   next();
 });
 
@@ -102,13 +126,20 @@ app.use("/uploads", (req, res, next) => {
 app.use("/uploads", express.static(
   path.join(__dirname, "uploads"),
   {
-    // Ajouter les headers CORS et Content-Type
+    // Détecter le Content-Type dynamiquement selon l'extension
     setHeaders: (res, filePath, stat) => {
       console.log(`   ✅ Serving file: ${filePath}`);
-      res.setHeader('Content-Type', 'application/pdf');
+      
+      // Détecter le type MIME selon l'extension
+      const ext = path.extname(filePath).toLowerCase();
+      const mimeType = mime.lookup(ext) || 'application/octet-stream';
+      
+      res.setHeader('Content-Type', mimeType);
       res.setHeader('Content-Length', stat.size);
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cache-Control', 'public, max-age=3600');
+      
+      console.log(`   📄 MIME Type: ${mimeType}`);
     },
   }
 ));

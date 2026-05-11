@@ -160,7 +160,7 @@ function Frame2() {
 
 export default function PageDeFichier() {
   return (
-    <div className="bg-white content-stretch flex items-start relative size-full" data-name="page de fichier">
+    <div className="bg-[#ffffff] content-stretch flex items-start relative size-full" data-name="page de fichier">
       <Frame />
       <Frame2 />
     </div>

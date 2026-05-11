@@ -15,7 +15,7 @@ export default function ProfessorDashboard() {
   );
 
   return (
-    <div className="bg-white content-stretch flex items-start relative h-full ml-[225px]">
+    <div className="bg-[#ffffff] content-stretch flex items-start relative h-full ml-[225px]">
       <Sidebar bgColor="bg-[#4b575f]" />
 
       <div className="flex-[1_0_0] h-screen overflow-y-auto w-full min-w-px relative">
@@ -29,7 +29,7 @@ export default function ProfessorDashboard() {
 
             {/* Search and Filter */}
             <div className="content-stretch flex gap-[17px] items-center relative shrink-0 w-full">
-              <div className="bg-white flex-[1_0_0] min-w-px relative rounded-[51px]">
+              <div className="bg-[#ffffff] flex-[1_0_0] min-w-px relative rounded-[51px]">
                 <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[51px]" />
                 <div className="flex flex-row items-center size-full">
                   <div className="content-stretch flex gap-[10px] items-center p-[10px] relative size-full">

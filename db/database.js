@@ -84,6 +84,7 @@ function createTables() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         nom_fichier TEXT NOT NULL,
+        titre TEXT,
         type_fichier TEXT NOT NULL CHECK(type_fichier IN ('cv', 'portfolio', 'autre')),
         url_fichier TEXT NOT NULL,
         description TEXT,

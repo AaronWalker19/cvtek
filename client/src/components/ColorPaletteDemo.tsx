@@ -27,7 +27,7 @@ function ColorBox({ name, hex, variable }: ColorBoxProps) {
  */
 export function ColorPaletteDemo() {
   return (
-    <div className="p-8 bg-white">
+    <div className="p-8 bg-[#ffffff]">
       <h1 className="text-3xl font-bold mb-2 text-primary">
         🎨 Palette de Couleurs
       </h1>
@@ -257,23 +257,23 @@ export function ColorPaletteDemo() {
         <ul className="text-sm text-gray-600 space-y-1">
           <li>
             • Fichier de configuration:{' '}
-            <code className="bg-white px-2 py-1 rounded">
+            <code className="bg-[#ffffff] px-2 py-1 rounded">
               src/styles/theme.css
             </code>
           </li>
           <li>
             • Variables JavaScript:{' '}
-            <code className="bg-white px-2 py-1 rounded">
+            <code className="bg-[#ffffff] px-2 py-1 rounded">
               src/styles/colors.ts
             </code>
           </li>
           <li>
             • Configuration Tailwind:{' '}
-            <code className="bg-white px-2 py-1 rounded">tailwind.config.js</code>
+            <code className="bg-[#ffffff] px-2 py-1 rounded">tailwind.config.js</code>
           </li>
           <li>
             • Documentation:{' '}
-            <code className="bg-white px-2 py-1 rounded">
+            <code className="bg-[#ffffff] px-2 py-1 rounded">
               COULEURS_DOCUMENTATION.md
             </code>
           </li>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
+import NewVersionModal from '../components/NewVersionModal';
 import svgPaths from '../../imports/PageDeBase/svg-m4lsbi1cy8';
 import { apiFetch } from '../../api/client';
 
@@ -9,6 +10,7 @@ interface Document {
   id: number;
   user_id: number;
   nom_fichier: string;
+  titre?: string;
   type_fichier: string;
   url_fichier: string;
   description?: string;
@@ -27,6 +29,7 @@ export default function StudentDashboard() {
   const [sourceType, setSourceType] = useState('fichier'); // 'fichier' or 'url'
   const [newFileUrl, setNewFileUrl] = useState('');
   const [newFileName, setNewFileName] = useState('');
+  const [newFileTitle, setNewFileTitle] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [newFileType, setNewFileType] = useState('');
   const [newFileDescription, setNewFileDescription] = useState('');
@@ -35,6 +38,13 @@ export default function StudentDashboard() {
   const [isDragging, setIsDragging] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; docId: number | null }>({ show: false, docId: null });
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [newVersionModal, setNewVersionModal] = useState<{ show: boolean; doc: Document | null }>({ show: false, doc: null });
+  const [newVersionFile, setNewVersionFile] = useState<File | null>(null);
+  const [isDraggingVersion, setIsDraggingVersion] = useState(false);
+  const [uploadingVersion, setUploadingVersion] = useState(false);
+  const newVersionFileInputRef = useRef<HTMLInputElement>(null);
+  const [documentVersions, setDocumentVersions] = useState<{ [docId: number]: any[] }>({});
+  const [openVersionDropdown, setOpenVersionDropdown] = useState<number | null>(null);
 
   // Charger les documents au démarrage
   useEffect(() => {
@@ -47,12 +57,38 @@ export default function StudentDashboard() {
       const response = await apiFetch(`/api/documents?user_id=${currentUser.id}`);
       if (response.ok) {
         const data = await response.json();
-        setDocuments(data);
+        // Grouper les documents par nom_fichier et garder que la version la plus récente
+        const latestVersions = data.reduce((acc: any, doc: Document) => {
+          const existing = acc.find((d: Document) => d.nom_fichier === doc.nom_fichier);
+          if (!existing || doc.version > existing.version) {
+            if (existing) {
+              acc = acc.filter((d: Document) => d.nom_fichier !== doc.nom_fichier);
+            }
+            acc.push(doc);
+          }
+          return acc;
+        }, []);
+        setDocuments(latestVersions);
       }
     } catch (err) {
       console.error('Erreur chargement documents:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadVersionsForDocument = async (docId: number) => {
+    try {
+      const response = await apiFetch(`/api/documents/${docId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setDocumentVersions(prev => ({
+          ...prev,
+          [docId]: data.versions || []
+        }));
+      }
+    } catch (err) {
+      console.error('Erreur chargement versions:', err);
     }
   };
 
@@ -124,7 +160,7 @@ export default function StudentDashboard() {
         const formData = new FormData();
         formData.append('file', selectedFile);
 
-        const uploadResponse = await fetch('http://localhost:3000/api/upload', {
+        const uploadResponse = await fetch('http://localhost:5000/api/upload', {
           method: 'POST',
           body: formData,
         });
@@ -145,6 +181,7 @@ export default function StudentDashboard() {
         body: JSON.stringify({
           user_id: currentUser.id,
           nom_fichier: sourceType === 'fichier' ? selectedFile!.name : newFileUrl,
+          titre: newFileTitle,
           type_fichier: newFileType,
           url_fichier: fileUrl,
           description: newFileDescription,
@@ -154,6 +191,7 @@ export default function StudentDashboard() {
       if (response.ok) {
         alert(`Fichier "${selectedFile?.name || newFileUrl}" ajouté avec succès!`);
         setNewFileName('');
+        setNewFileTitle('');
         setSelectedFile(null);
         setNewFileType('');
         setNewFileDescription('');
@@ -191,13 +229,105 @@ export default function StudentDashboard() {
     }
   };
 
+  const handleVersionDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingVersion(true);
+  };
+
+  const handleVersionDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingVersion(false);
+  };
+
+  const handleVersionDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingVersion(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      setNewVersionFile(files[0]);
+    }
+  };
+
+  const handleNewVersion = async () => {
+    if (!newVersionFile) {
+      alert('Veuillez sélectionner un fichier');
+      return;
+    }
+
+    if (!newVersionModal.doc) {
+      alert('Erreur: document non trouvé');
+      return;
+    }
+
+    try {
+      setUploadingVersion(true);
+      // Uploader le nouveau fichier
+      const formData = new FormData();
+      formData.append('file', newVersionFile);
+
+      const uploadResponse = await fetch('http://localhost:5000/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const error = await uploadResponse.json();
+        alert(`Erreur upload: ${error.error}`);
+        return;
+      }
+
+      const uploadData = await uploadResponse.json();
+      const fileUrl = uploadData.url;
+
+      // Créer la nouvelle version
+      const response = await apiFetch(`/api/documents/${newVersionModal.doc.id}/version`, {
+        method: 'POST',
+        body: JSON.stringify({
+          url_fichier: fileUrl,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`Nouvelle version ${data.version}.0 créée avec succès!`);
+        setNewVersionModal({ show: false, doc: null });
+        setNewVersionFile(null);
+        setIsDraggingVersion(false);
+        if (newVersionFileInputRef.current) {
+          newVersionFileInputRef.current.value = '';
+        }
+        await loadDocuments();
+      } else {
+        const error = await response.json();
+        alert(`Erreur: ${error.error}`);
+      }
+    } catch (err) {
+      console.error('Erreur création nouvelle version:', err);
+      alert('Erreur lors de la création de la nouvelle version');
+    } finally {
+      setUploadingVersion(false);
+    }
+  };
+
+  const handleCloseVersionModal = () => {
+    setNewVersionModal({ show: false, doc: null });
+    setNewVersionFile(null);
+    setIsDraggingVersion(false);
+    if (newVersionFileInputRef.current) {
+      newVersionFileInputRef.current.value = '';
+    }
+  };
+
   return (
-    <div className="bg-white content-stretch flex items-start relative h-full ml-[225px]">
+    <div className="bg-[#ffffff] content-stretch flex items-start relative h-full ml-[225px]">
       <Sidebar bgColor="bg-[#b51621]" />
 
       <div className="flex-[1_0_0] h-screen overflow-y-auto w-full min-w-px relative">
-        <div className="flex flex-col items-stretch w-full h-full">
-          <div className="content-stretch flex flex-col gap-[50px] items-stretch p-[40px] relative w-full h-full">
+        <div className="flex flex-col items-stretch w-full">
+          <div className="content-stretch flex flex-col gap-[50px] items-stretch p-[40px] relative w-full">
             {/* Add File Section */}
             <div className="relative w-full flex flex-col">
               <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic text-[#b51621] text-[32px] pb-[10px]">Ajouter un fichier</p>
@@ -295,8 +425,18 @@ export default function StudentDashboard() {
                             <option value="autre">autre</option>
                           </select>
                         </div>
+                        <div className="content-stretch flex gap-[5px] items-center p-[10px] relative rounded-[4px] shrink-0 flex-1">
+                          <div aria-hidden="true" className="absolute border border-[#36302a] border-solid inset-0 pointer-events-none rounded-[4px]" />
+                          <input
+                            type="text"
+                            value={newFileTitle}
+                            onChange={(e) => setNewFileTitle(e.target.value)}
+                            placeholder="Titre (optionnel)"
+                            className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic bg-transparent outline-none text-[#36302a] text-[16px] w-full"
+                          />
+                        </div>
                       </div>
-                      <div className="bg-white h-[103px] relative rounded-[20px] shrink-0 w-full">
+                      <div className="h-[103px] relative rounded-[20px] shrink-0 w-full">
                         <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[20px]" />
                         <textarea
                           value={newFileDescription}
@@ -353,7 +493,7 @@ export default function StudentDashboard() {
                       to={`/file/${doc.id}`}
                       className="flex-[2] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px] hover:text-[#b51621] cursor-pointer truncate"
                     >
-                      {doc.nom_fichier}
+                      {doc.titre || doc.nom_fichier}
                     </Link>
 
                     {/* Type */}
@@ -377,11 +517,67 @@ export default function StudentDashboard() {
                       </p>
                     </div>
 
-                    {/* Version avec dropdown */}
-                    <div className="flex-1 text-center">
-                      <p className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px]">
-                        {doc.version || 1}.0
-                      </p>
+                    {/* Version avec dropdown (seulement si plusieurs versions) */}
+                    <div className="flex-1 text-center relative">
+                      {documentVersions[doc.id] && documentVersions[doc.id].length > 1 ? (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setOpenVersionDropdown(openVersionDropdown === doc.id ? null : doc.id);
+                            }}
+                            className="inline-flex items-center gap-2 px-3 py-1 hover:bg-[#f0f0f0] rounded transition-colors"
+                          >
+                            <span className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px]">
+                              {doc.version || 1}.0
+                            </span>
+                            <svg
+                              width="24"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              stroke="#36302a"
+                              strokeWidth="2"
+                              className={`transition-transform ${openVersionDropdown === doc.id ? 'rotate-180' : ''}`}
+                            >
+                              <polyline points="6 10 12 4 18 10" />
+                            </svg>
+                          </button>
+
+                          {/* Version dropdown menu */}
+                          {openVersionDropdown === doc.id && (
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-[#ffffff] border-2 border-[#36302a] rounded shadow-lg z-50 min-w-max overflow-hidden">
+                              {documentVersions[doc.id].map((version: any) => (
+                                <Link
+                                  key={version.id}
+                                  to={`/file/${version.id}`}
+                                  onClick={() => setOpenVersionDropdown(null)}
+                                  className="block px-4 py-2 text-[#36302a] text-[14px] hover:bg-[#f0f0f0] border-b border-[#e0e0e0] last:border-b-0 bg-white"
+                                >
+                                  {version.version}.0
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (!documentVersions[doc.id]) {
+                              loadVersionsForDocument(doc.id);
+                            }
+                          }}
+                          onMouseEnter={() => {
+                            if (!documentVersions[doc.id]) {
+                              loadVersionsForDocument(doc.id);
+                            }
+                          }}
+                          className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px] hover:bg-[#f0f0f0] px-3 py-1 rounded transition-colors"
+                        >
+                          {doc.version || 1}.0
+                        </button>
+                      )}
                     </div>
 
                     {/* Menu Actions (3 dots) */}
@@ -400,24 +596,24 @@ export default function StudentDashboard() {
                       
                       {/* Dropdown menu */}
                       {openMenuId === doc.id && (
-                        <div className="absolute -right-8 top-full mt-1 bg-white border border-[#36302a] rounded shadow-lg z-50 min-w-max">
+                        <div className="absolute -right-8 top-full mt-1 bg-[#f7f7f7] border-2 border-[#36302a] rounded shadow-xl z-50 min-w-max overflow-hidden">
                           <button
                             onClick={(e) => {
                               e.preventDefault();
                               alert('Modifier le fichier');
                               setOpenMenuId(null);
                             }}
-                            className="w-full text-left px-4 py-2 text-[#36302a] text-[14px] hover:bg-[#f0f0f0] border-b border-gray-200"
+                            className="w-full text-left px-4 py-2 text-[#36302a] text-[14px] hover:bg-[#ebebeb] border-b border-[#e0e0e0] bg-[#ffffff]"
                           >
                             Modifier
                           </button>
                           <button
                             onClick={(e) => {
                               e.preventDefault();
-                              alert('Proposer une nouvelle version');
+                              setNewVersionModal({ show: true, doc });
                               setOpenMenuId(null);
                             }}
-                            className="w-full text-left px-4 py-2 text-[#36302a] text-[14px] hover:bg-[#f0f0f0] border-b border-gray-200"
+                            className="w-full text-left px-4 py-2 text-[#36302a] text-[14px] hover:bg-[#ebebeb] border-b border-[#e0e0e0] bg-[#ffffff]"
                           >
                             Nouvelle version
                           </button>
@@ -427,7 +623,7 @@ export default function StudentDashboard() {
                               setDeleteConfirm({ show: true, docId: doc.id });
                               setOpenMenuId(null);
                             }}
-                            className="w-full text-left px-4 py-2 text-red-600 text-[14px] hover:bg-[#f0f0f0]"
+                            className="w-full text-left px-4 py-2 text-red-600 text-[14px] hover:bg-[#fff5f5] bg-[#ffffff]"
                           >
                             Supprimer
                           </button>
@@ -443,14 +639,14 @@ export default function StudentDashboard() {
 
         {/* Modal de confirmation suppression */}
         {deleteConfirm.show && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 shadow-lg max-w-sm">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+            <div className="bg-[#f7f7f7]  rounded-lg p-8 shadow-2xl max-w-sm border border-[#36302a]">
               <h3 className="text-xl font-bold text-[#36302a] mb-4">Confirmer la suppression</h3>
               <p className="text-[#36302a] mb-6">Êtes-vous sûr de vouloir supprimer ce fichier ? Cette action est irréversible.</p>
               <div className="flex gap-4">
                 <button
                   onClick={() => setDeleteConfirm({ show: false, docId: null })}
-                  className="flex-1 px-4 py-2 bg-gray-300 text-[#36302a] rounded hover:bg-gray-400"
+                  className="flex-1 px-4 py-2 bg-gray-300 text-[#36302a] rounded hover:bg-gray-400 font-medium"
                 >
                   Annuler
                 </button>
@@ -461,7 +657,7 @@ export default function StudentDashboard() {
                     }
                     setDeleteConfirm({ show: false, docId: null });
                   }}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium"
                 >
                   Supprimer
                 </button>
@@ -469,6 +665,22 @@ export default function StudentDashboard() {
             </div>
           </div>
         )}
+
+        {/* Modal de nouvelle version */}
+        <NewVersionModal
+          show={newVersionModal.show}
+          doc={newVersionModal.doc}
+          selectedFile={newVersionFile}
+          isDragging={isDraggingVersion}
+          uploadingVersion={uploadingVersion}
+          accentColor="#b51621"
+          onClose={handleCloseVersionModal}
+          onFileSelected={setNewVersionFile}
+          onUpload={handleNewVersion}
+          onDragOver={handleVersionDragOver}
+          onDragLeave={handleVersionDragLeave}
+          onDrop={handleVersionDrop}
+        />
       </div>
     </div>
   );

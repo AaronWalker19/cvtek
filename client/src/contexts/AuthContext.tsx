@@ -32,13 +32,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const verifyAuth = async () => {
       try {
         // Essayer d'abord la route /verify
-        let response = await fetch('/api/auth/verify', {
+        let response = await fetch('http://localhost:5000/api/auth/verify', {
           credentials: 'include',
         });
         
         // Si 404, essayer /me comme fallback
         if (response.status === 404) {
-          response = await fetch('/api/auth/me', {
+          response = await fetch('http://localhost:5000/api/auth/me', {
             credentials: 'include',
           });
         }
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       // Appeler la route logout pour effacer le cookie et la session
-      await fetch('/api/auth/logout', {
+      await fetch('http://localhost:5000/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });

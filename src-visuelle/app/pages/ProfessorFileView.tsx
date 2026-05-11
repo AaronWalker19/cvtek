@@ -29,7 +29,7 @@ export default function ProfessorFileView() {
   };
 
   return (
-    <div className="bg-white content-stretch flex items-start relative size-full">
+    <div className="bg-[#ffffff] content-stretch flex items-start relative size-full">
       <Sidebar bgColor="bg-[#4b575f]" showAdmin />
 
       <div className="flex-[1_0_0] h-full min-w-px relative">

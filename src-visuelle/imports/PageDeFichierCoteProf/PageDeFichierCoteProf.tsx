@@ -197,7 +197,7 @@ function Frame2() {
 
 export default function PageDeFichierCoteProf() {
   return (
-    <div className="bg-white content-stretch flex items-start relative size-full" data-name="page de fichier coté prof">
+    <div className="bg-[#ffffff] content-stretch flex items-start relative size-full" data-name="page de fichier coté prof">
       <Frame />
       <Frame2 />
     </div>

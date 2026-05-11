@@ -101,7 +101,7 @@ function Frame2() {
         <div className="content-stretch flex flex-col gap-[50px] items-center p-[40px] relative size-full">
           <Frame1 />
           <div className="content-stretch flex gap-[10px] items-center justify-center relative shrink-0">
-            <div className="bg-white content-stretch flex gap-[10px] items-center p-[10px] relative rounded-[20px] shrink-0 w-[564px]">
+            <div className="bg-[#ffffff] content-stretch flex gap-[10px] items-center p-[10px] relative rounded-[20px] shrink-0 w-[564px]">
               <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[20px]" />
               <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[20px] text-[rgba(75,87,95,0.5)] whitespace-nowrap">mail du nouvelle utilisateur</p>
             </div>
@@ -190,7 +190,7 @@ function Frame2() {
 
 export default function PageAdmin() {
   return (
-    <div className="bg-white content-stretch flex items-start relative size-full" data-name="page admin">
+    <div className="bg-[#ffffff] content-stretch flex items-start relative size-full" data-name="page admin">
       <Frame />
       <Frame2 />
     </div>

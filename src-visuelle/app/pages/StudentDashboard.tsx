@@ -30,7 +30,7 @@ export default function StudentDashboard() {
   };
 
   return (
-    <div className="bg-white content-stretch flex items-start relative size-full">
+    <div className="bg-[#ffffff] content-stretch flex items-start relative size-full">
       <Sidebar bgColor="bg-[#b51621]" />
 
       <div className="flex-[1_0_0] h-full min-w-px relative">
@@ -83,7 +83,7 @@ export default function StudentDashboard() {
                           />
                         </div>
                       </div>
-                      <div className="bg-white h-[103px] relative rounded-[20px] shrink-0 w-full">
+                      <div className="bg-[#ffffff] h-[103px] relative rounded-[20px] shrink-0 w-full">
                         <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[20px]" />
                         <textarea
                           value={newFileDescription}
