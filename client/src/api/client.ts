@@ -7,12 +7,10 @@
 
 // Déterminer l'URL de base de l'API
 function getApiBaseUrl(): string {
-  // En production, utiliser des URLs relatives
   if (process.env.NODE_ENV === 'production') {
-    return '';
+    return 'http://mmi.unilim.fr:3000';
   }
 
-  // En développement, appel direct vers le serveur Node
   return 'http://localhost:5000';
 }
 

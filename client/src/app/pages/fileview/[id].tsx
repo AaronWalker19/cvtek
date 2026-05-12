@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import NewVersionModal from '../../components/NewVersionModal';
+import NewVersionModal from '../../../components/NewVersionModal';
 import { apiFetch } from '../../../api/client';
 import Sidebar from '../../components/Sidebar';
 import studentSvgPaths from '../../../imports/PageDeFichier/svg-g1nozp2mpd';

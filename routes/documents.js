@@ -65,6 +65,43 @@ router.get("/", requireDB, (req, res) => {
   }
 });
 
+// GET tous les documents (pour les profs) - avec infos utilisateur
+router.get("/all", requireDB, (req, res) => {
+  try {
+    const stmt = dbModule.prepare(
+      `SELECT d.*, u.name as user_name, u.license 
+       FROM documents d 
+       LEFT JOIN users u ON d.user_id = u.id 
+       ORDER BY d.created_at DESC`
+    );
+    const documents = stmt.all();
+
+    // Ajouter le nombre de commentaires pour chaque document
+    const documentsWithComments = documents.map(doc => {
+      try {
+        const commentsStmt = dbModule.prepare(
+          "SELECT COUNT(*) as count FROM comments WHERE document_id = ?"
+        );
+        const commentCount = commentsStmt.get(doc.id);
+        return {
+          ...doc,
+          comment_count: commentCount?.count || 0
+        };
+      } catch (err) {
+        return {
+          ...doc,
+          comment_count: 0
+        };
+      }
+    });
+
+    res.json(documentsWithComments);
+  } catch (err) {
+    console.error("Erreur GET all documents:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST créer un nouveau document
 router.post("/", requireDB, (req, res) => {
   try {
@@ -214,6 +251,38 @@ router.delete("/:id", requireDB, (req, res) => {
     res.json({ message: "Document supprimé avec succès" });
   } catch (err) {
     console.error("Erreur DELETE document:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT modifier un document (titre et description)
+router.put("/:id", requireDB, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { titre, description } = req.body;
+
+    // Récupérer le document actuel
+    const getStmt = dbModule.prepare("SELECT * FROM documents WHERE id = ?");
+    const document = getStmt.get(id);
+
+    if (!document) {
+      return res.status(404).json({ error: "Document non trouvé" });
+    }
+
+    // Mettre à jour le titre et la description
+    const updateStmt = dbModule.prepare(
+      "UPDATE documents SET titre = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    );
+    updateStmt.run(titre || null, description || null, id);
+
+    res.json({
+      id,
+      titre: titre || null,
+      description: description || null,
+      message: "Document modifié avec succès"
+    });
+  } catch (err) {
+    console.error("Erreur PUT document:", err);
     res.status(500).json({ error: err.message });
   }
 });

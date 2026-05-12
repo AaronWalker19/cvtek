@@ -10,7 +10,7 @@ const { generateToken, authenticateToken, requireAdmin } = require("../middlewar
 // Service d'emails (optionnel)
 let sendInvitationEmail, sendPasswordResetEmail;
 try {
-  const emailService = require("../services/emailService");
+  //const emailService = require("../services/emailService");
   sendInvitationEmail = emailService.sendInvitationEmail;
   sendPasswordResetEmail = emailService.sendPasswordResetEmail;
 } catch (err) {

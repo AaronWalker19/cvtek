@@ -396,7 +396,7 @@ async function startServer() {
       console.error("❌ Erreur lecture projets:", err.message);
     }
 
-    app.listen(port, () => {
+    app.listen(port, '0.0.0.0', () => {
       console.log(`\n✓ Server running on port ${port}`);
       console.log(`🌐 Access: http://localhost:${port}`);
       console.log(`🔗 API: http://localhost:${port}/api/health\n`);

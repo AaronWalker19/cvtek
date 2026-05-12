@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
-import NewVersionModal from '../components/NewVersionModal';
+import NewVersionModal from '../../components/NewVersionModal';
+import EditDocumentModal from '../../components/EditDocumentModal';
 import svgPaths from '../../imports/PageDeBase/svg-m4lsbi1cy8';
 import { apiFetch } from '../../api/client';
 
@@ -45,6 +46,8 @@ export default function StudentDashboard() {
   const newVersionFileInputRef = useRef<HTMLInputElement>(null);
   const [documentVersions, setDocumentVersions] = useState<{ [docId: number]: any[] }>({});
   const [openVersionDropdown, setOpenVersionDropdown] = useState<number | null>(null);
+  const [editModal, setEditModal] = useState<{ show: boolean; doc: Document | null }>({ show: false, doc: null });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Charger les documents au démarrage
   useEffect(() => {
@@ -321,6 +324,45 @@ export default function StudentDashboard() {
     }
   };
 
+  const handleSaveEdit = async (titre: string, description: string) => {
+    if (!editModal.doc) {
+      alert('Erreur: document non trouvé');
+      return;
+    }
+
+    try {
+      setIsSavingEdit(true);
+      const response = await apiFetch(`/api/documents/${editModal.doc.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          titre,
+          description,
+        }),
+      });
+
+      if (response.ok) {
+        alert('Fichier modifié avec succès');
+        await loadDocuments();
+        setEditModal({ show: false, doc: null });
+      } else {
+        const error = await response.json();
+        alert(`Erreur: ${error.error}`);
+      }
+    } catch (err) {
+      console.error('Erreur modification fichier:', err);
+      alert('Erreur lors de la modification du fichier');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  // Déterminer les options disponibles basées sur les documents existants
+  const getAvailableFileTypes = () => {
+    const existingTypes = new Set(documents.map(doc => doc.type_fichier));
+    const availableTypes = ['cv', 'portfolio', 'autre'];
+    return availableTypes.filter(type => !existingTypes.has(type) || type === 'autre');
+  };
+
   return (
     <div className="bg-[#ffffff] content-stretch flex items-start relative h-full ml-[225px]">
       <Sidebar bgColor="bg-[#b51621]" />
@@ -420,9 +462,9 @@ export default function StudentDashboard() {
                             className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic bg-transparent outline-none text-[#36302a] text-[16px] w-[120px]"
                           >
                             <option value="">Sélectionner</option>
-                            <option value="cv">cv</option>
-                            <option value="portfolio">portfolio</option>
-                            <option value="autre">autre</option>
+                            {getAvailableFileTypes().map(type => (
+                              <option key={type} value={type}>{type}</option>
+                            ))}
                           </select>
                         </div>
                         <div className="content-stretch flex gap-[5px] items-center p-[10px] relative rounded-[4px] shrink-0 flex-1">
@@ -600,7 +642,7 @@ export default function StudentDashboard() {
                           <button
                             onClick={(e) => {
                               e.preventDefault();
-                              alert('Modifier le fichier');
+                              setEditModal({ show: true, doc });
                               setOpenMenuId(null);
                             }}
                             className="w-full text-left px-4 py-2 text-[#36302a] text-[14px] hover:bg-[#ebebeb] border-b border-[#e0e0e0] bg-[#ffffff]"
@@ -680,6 +722,15 @@ export default function StudentDashboard() {
           onDragOver={handleVersionDragOver}
           onDragLeave={handleVersionDragLeave}
           onDrop={handleVersionDrop}
+        />
+
+        {/* Modal d'édition */}
+        <EditDocumentModal
+          show={editModal.show}
+          doc={editModal.doc}
+          onClose={() => setEditModal({ show: false, doc: null })}
+          onSave={handleSaveEdit}
+          isSaving={isSavingEdit}
         />
       </div>
     </div>

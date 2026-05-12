@@ -64,7 +64,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router basename="/~valin6/cvtek">
         <div className="size-full">
           <AppRoutes />
         </div>

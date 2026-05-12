@@ -1,0 +1,9 @@
+RewriteEngine On
+
+# API -> Node.js
+RewriteRule ^api/(.*)$ http://127.0.0.1:3000/api/$1 [P,L]
+
+# React Router
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /~valin6/cvtek/index.html [L]
