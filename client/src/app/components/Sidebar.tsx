@@ -8,18 +8,20 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ bgColor, showAdmin = false }: SidebarProps) {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
+
+  if (!user) return null;
 
   return (
     <div className={`${bgColor} fixed left-0 top-0 h-screen w-[225px] z-50 !text-white`}>
       <div className="flex flex-col items-center justify-center size-full">
         <div className="content-stretch flex flex-col items-center justify-between px-[30px] py-[20px] relative size-full !text-white">
           <div className="content-stretch flex flex-col gap-[15px] items-start relative shrink-0">
-            <Link to={currentUser.role === 'student' ? '/' : '/professor'} className="relative shrink-0 w-full !text-white hover:!text-white">
+            <Link to={user.role === 'student' ? '/' : '/professor'} className="relative shrink-0 w-full !text-white hover:!text-white">
               <div className="flex flex-row items-center justify-center size-full">
                 <div className="content-stretch flex items-center justify-center p-[2px] relative size-full">
                   <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] !text-white whitespace-nowrap">
-                    {currentUser.role === 'student' ? 'Mes fichiers' : 'Documents'}
+                    {user.role === 'student' ? 'Mes fichiers' : 'Documents'}
                   </p>
                 </div>
               </div>

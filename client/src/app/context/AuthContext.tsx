@@ -1,23 +1,65 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
-import { User, mockUsers } from '../data/mockData';
+import React, { createContext, useContext, useState } from 'react';
+import { mockUsers } from '../data/mockData';
+
+export interface User {
+  userId: string;
+  username: string;
+  email: string;
+  role: 'student' | 'professor' | 'admin';
+  login_at?: string;
+}
 
 interface AuthContextType {
-  currentUser: User;
-  setCurrentUser: (user: User) => void;
+  isAuthenticated: boolean;
+  user: User | null;
+  switchUser: (userId: string) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User>(mockUsers[0]); // Default to student
+// Convertir mockUsers en format User pour l'API
+const demoUsers: User[] = [
+  {
+    userId: 'student1',
+    username: 'Mael Valin',
+    email: 'mael.valin@etu.unilim.fr',
+    role: 'student',
+    login_at: new Date().toISOString(),
+  },
+  {
+    userId: 'prof1',
+    username: 'M. Nival',
+    email: 'nival@etu.unilim.fr',
+    role: 'professor',
+    login_at: new Date().toISOString(),
+  },
+  {
+    userId: 'admin1',
+    username: 'Admin User',
+    email: 'admin@unilim.fr',
+    role: 'admin',
+    login_at: new Date().toISOString(),
+  },
+];
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User>(demoUsers[0]); // Commencer avec l'étudiant
+
+  const switchUser = (userId: string) => {
+    const selectedUser = demoUsers.find(u => u.userId === userId);
+    if (selectedUser) {
+      setUser(selectedUser);
+    }
+  };
 
   const logout = () => {
-    setCurrentUser(mockUsers[0]); // Reset to default student
+    // En mode démo, reset au premier utilisateur
+    setUser(demoUsers[0]);
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, setCurrentUser, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated: true, user, switchUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -25,8 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (context === undefined) {
+    throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
 }
+
+export { demoUsers };

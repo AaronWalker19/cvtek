@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { mockUsers } from '../data/mockData';
 import Sidebar from "../components/Sidebar";
 import svgPaths from "../../imports/PageDeBaseCoteProf/svg-9gqyfpru0n";
-import { apiFetch } from "../../api/client";
 
 export default function ProfessorDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -16,20 +15,45 @@ export default function ProfessorDashboard() {
   const [allDocuments, setAllDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Charger les documents depuis l'API
+  // Charger les documents (mode démo)
   useEffect(() => {
-    const loadDocuments = async () => {
-      try {
-        const response = await apiFetch('/api/documents/all');
-        setAllDocuments(response || []);
-      } catch (error) {
-        console.error('Erreur lors du chargement des documents:', error);
-        setAllDocuments([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadDocuments();
+    try {
+      // Données mock des documents pour tous les étudiants
+      const mockDocs = [
+        {
+          id: 1,
+          user_id: 1,
+          nom_fichier: 'CV_JeanDupont',
+          titre: 'CV - Première année',
+          type_fichier: 'CV',
+          url_fichier: '/uploads/cv_2026.pdf',
+          description: 'Mon curriculum vitae pour la première année',
+          version: 2,
+          comment_count: 2,
+          user: { name: 'Jean Dupont', email: 'jean.dupont@example.com' },
+          created_at: '2026-01-28',
+        },
+        {
+          id: 2,
+          user_id: 1,
+          nom_fichier: 'ProjetMMI',
+          titre: 'Projet MMI - Site Web',
+          type_fichier: 'Projet',
+          url_fichier: '/uploads/projet_mmi.zip',
+          description: 'Site web responsive avec React et Tailwind',
+          version: 1,
+          comment_count: 1,
+          user: { name: 'Jean Dupont', email: 'jean.dupont@example.com' },
+          created_at: '2026-02-10',
+        }
+      ];
+      setAllDocuments(mockDocs);
+    } catch (error) {
+      console.error('Erreur lors du chargement des documents:', error);
+      setAllDocuments([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   // Obtenir les étudiants uniques qui ont au moins 1 commentaire

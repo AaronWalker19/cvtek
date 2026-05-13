@@ -7,19 +7,19 @@ import AdminDashboard from './pages/AdminDashboard';
 import Profile from './pages/Profile';
 
 function AppRoutes() {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
 
   return (
     <Routes>
       {/* Student Routes */}
-      {currentUser.role === 'student' && (
+      {user.role === 'student' && (
         <>
           <Route path="/" element={<StudentDashboard />} />
         </>
       )}
 
       {/* Professor Routes */}
-      {currentUser.role === 'professor' && (
+      {user.role === 'professor' && (
         <>
           <Route path="/professor" element={<ProfessorDashboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
@@ -27,7 +27,7 @@ function AppRoutes() {
       )}
 
       {/* Admin Routes */}
-      {currentUser.role === 'admin' && (
+      {user.role === 'admin' && (
         <>
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/professor" element={<ProfessorDashboard />} />
@@ -47,9 +47,9 @@ function AppRoutes() {
         element={
           <Navigate
             to={
-              currentUser.role === 'student'
+              user.role === 'student'
                 ? '/'
-                : currentUser.role === 'professor'
+                : user.role === 'professor'
                 ? '/professor'
                 : '/admin'
             }

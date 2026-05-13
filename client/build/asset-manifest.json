@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/~valin6/cvtek/static/css/main.7d4f7ac0.css",
-    "main.js": "/~valin6/cvtek/static/js/main.b7a73cc7.js",
+    "main.css": "/~valin6/cvtek/static/css/main.b57f1203.css",
+    "main.js": "/~valin6/cvtek/static/js/main.3767cd40.js",
     "index.html": "/~valin6/cvtek/index.html",
-    "main.7d4f7ac0.css.map": "/~valin6/cvtek/static/css/main.7d4f7ac0.css.map",
-    "main.b7a73cc7.js.map": "/~valin6/cvtek/static/js/main.b7a73cc7.js.map"
+    "main.b57f1203.css.map": "/~valin6/cvtek/static/css/main.b57f1203.css.map",
+    "main.3767cd40.js.map": "/~valin6/cvtek/static/js/main.3767cd40.js.map"
   },
   "entrypoints": [
-    "static/css/main.7d4f7ac0.css",
-    "static/js/main.b7a73cc7.js"
+    "static/css/main.b57f1203.css",
+    "static/js/main.3767cd40.js"
   ]
 }

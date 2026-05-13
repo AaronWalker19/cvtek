@@ -5,7 +5,6 @@ import Sidebar from '../components/Sidebar';
 import NewVersionModal from '../../components/NewVersionModal';
 import EditDocumentModal from '../../components/EditDocumentModal';
 import svgPaths from '../../imports/PageDeBase/svg-m4lsbi1cy8';
-import { apiFetch } from '../../api/client';
 
 interface Document {
   id: number;
@@ -22,7 +21,7 @@ interface Document {
 }
 
 export default function StudentDashboard() {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   
@@ -48,51 +47,112 @@ export default function StudentDashboard() {
   const [openVersionDropdown, setOpenVersionDropdown] = useState<number | null>(null);
   const [editModal, setEditModal] = useState<{ show: boolean; doc: Document | null }>({ show: false, doc: null });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [demoUserId, setDemoUserId] = useState<number>(2); // ID utilisateur démo
 
-  // Charger les documents au démarrage
+  // Initialiser l'utilisateur démo au démarrage
   useEffect(() => {
-    loadDocuments();
-  }, [currentUser.id]);
+    initializeDemoUser();
+  }, []);
+
+  // Charger les documents quand l'utilisateur démo est prêt
+  useEffect(() => {
+    if (demoUserId) {
+      loadDocuments();
+    }
+  }, [demoUserId]);
+
+  const initializeDemoUser = async () => {
+    try {
+      console.log(`🔍 Vérification de l'utilisateur démo mael...`);
+      
+      const response = await fetch(
+        'https://mmi.unilim.fr/~valin6/cvtek/api/ensure-demo-user.php'
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Erreur: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log(`✅ Utilisateur démo:`, data);
+      
+      if (data.success && data.user?.id) {
+        setDemoUserId(data.user.id);
+        console.log(`✅ Utilisateur mael ID: ${data.user.id}`);
+      }
+    } catch (err) {
+      console.error('❌ Erreur initialisation utilisateur démo:', err);
+      // Continuer avec l'ID par défaut
+      setDemoUserId(2);
+    }
+  };
 
   const loadDocuments = async () => {
     try {
       setLoading(true);
-      const response = await apiFetch(`/api/documents?user_id=${currentUser.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        // Grouper les documents par nom_fichier et garder que la version la plus récente
-        const latestVersions = data.reduce((acc: any, doc: Document) => {
-          const existing = acc.find((d: Document) => d.nom_fichier === doc.nom_fichier);
-          if (!existing || doc.version > existing.version) {
-            if (existing) {
-              acc = acc.filter((d: Document) => d.nom_fichier !== doc.nom_fichier);
-            }
-            acc.push(doc);
-          }
-          return acc;
-        }, []);
-        setDocuments(latestVersions);
+      console.log(`📝 Chargement des documents pour user_id=${demoUserId}...`);
+      
+      // Appeler l'API pour récupérer les documents de mael (user_id=2)
+      const response = await fetch(
+        `https://mmi.unilim.fr/~valin6/cvtek/api/api-documents.php?action=get&user_id=${demoUserId}`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Erreur API: ${response.status}`);
       }
+      
+      const data = await response.json();
+      console.log(`📥 Réponse brute de l'API:`, data);
+      
+      if (data.success === false) {
+        throw new Error(data.error || 'Erreur API inconnue');
+      }
+      
+      // La réponse a la structure: { success, data: { count, documents } }
+      const docs = data.data?.documents || data.documents || [];
+      console.log(`📥 Documents extrait:`, docs);
+      
+      // S'assurer que comment_count existe
+      const formattedDocs = docs.map((doc: any) => ({
+        ...doc,
+        comment_count: doc.comment_count || 0
+      }));
+      
+      console.log(`✅ Documents formatés:`, formattedDocs);
+      setDocuments(formattedDocs);
     } catch (err) {
-      console.error('Erreur chargement documents:', err);
+      console.error('❌ Erreur chargement documents:', err);
+      // Fallback: afficher les données mock en cas d'erreur
+      const mockDocs: Document[] = [
+        {
+          id: 1,
+          user_id: demoUserId,
+          nom_fichier: 'CV_Mael',
+          titre: 'CV - Mael',
+          type_fichier: 'CV',
+          url_fichier: '/uploads/cv_mael.pdf',
+          description: 'CV de Mael',
+          version: 1,
+          comment_count: 0,
+          created_at: '2026-01-28',
+        }
+      ];
+      setDocuments(mockDocs);
     } finally {
       setLoading(false);
     }
   };
 
   const loadVersionsForDocument = async (docId: number) => {
-    try {
-      const response = await apiFetch(`/api/documents/${docId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setDocumentVersions(prev => ({
-          ...prev,
-          [docId]: data.versions || []
-        }));
-      }
-    } catch (err) {
-      console.error('Erreur chargement versions:', err);
-    }
+    // Mode démo - données mock pour les versions
+    const mockVersions = [
+      { id: 1, version: 2, created_at: '2026-02-15', comment_count: 1 },
+      { id: 2, version: 1, created_at: '2026-01-28', comment_count: 2 }
+    ];
+    setDocumentVersions(prev => ({
+      ...prev,
+      [docId]: mockVersions
+    }));
   };
 
   const handleFileSelected = (file: File) => {
@@ -156,76 +216,106 @@ export default function StudentDashboard() {
     }
 
     try {
-      let fileUrl = newFileUrl;
-
-      // Si c'est un fichier, l'uploader d'abord
-      if (sourceType === 'fichier' && selectedFile) {
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-
-        const uploadResponse = await fetch('http://localhost:5000/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!uploadResponse.ok) {
-          const error = await uploadResponse.json();
-          alert(`Erreur upload: ${error.error}`);
-          return;
-        }
-
-        const uploadData = await uploadResponse.json();
-        fileUrl = uploadData.url;
-      }
-
-      // Créer le document avec l'URL du fichier uploadé
-      const response = await apiFetch('/api/documents', {
-        method: 'POST',
-        body: JSON.stringify({
-          user_id: currentUser.id,
-          nom_fichier: sourceType === 'fichier' ? selectedFile!.name : newFileUrl,
-          titre: newFileTitle,
-          type_fichier: newFileType,
-          url_fichier: fileUrl,
-          description: newFileDescription,
-        }),
+      const fileName = sourceType === 'fichier' ? selectedFile!.name : newFileUrl;
+      const fileUrl = sourceType === 'url' ? newFileUrl : `/uploads/${selectedFile!.name}`;
+      
+      console.log(`📤 Envoi à l'API:`, {
+        user_id: demoUserId,
+        nom_fichier: fileName,
+        titre: newFileTitle,
+        type_fichier: newFileType,
+        url_fichier: fileUrl,
+        description: newFileDescription
       });
 
-      if (response.ok) {
-        alert(`Fichier "${selectedFile?.name || newFileUrl}" ajouté avec succès!`);
-        setNewFileName('');
-        setNewFileTitle('');
-        setSelectedFile(null);
-        setNewFileType('');
-        setNewFileDescription('');
-        setNewFileUrl('');
-        setSourceType('fichier');
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
+      // Envoyer le document à l'API pour le sauvegarder en BD
+      const response = await fetch(
+        'https://mmi.unilim.fr/~valin6/cvtek/api/api-documents.php?action=create',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            user_id: demoUserId, // Utilisateur démo
+            nom_fichier: fileName,
+            titre: newFileTitle || fileName,
+            type_fichier: newFileType,
+            url_fichier: fileUrl,
+            description: newFileDescription
+          })
         }
-        await loadDocuments();
-      } else {
-        const error = await response.json();
-        alert(`Erreur: ${error.error}`);
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Erreur API:', errorData);
+        throw new Error(`Erreur API: ${response.status} - ${errorData.error || 'Erreur inconnue'}`);
+      }
+
+      const data = await response.json();
+      console.log(`✅ Document créé en BD:`, data);
+
+      if (data.success === false) {
+        throw new Error(data.error || 'Erreur lors de la création du document');
+      }
+
+      // Créer un document avec les données retournées par l'API
+      const newDoc: Document = {
+        id: data.data?.id || Math.max(...documents.map(d => d.id), 0) + 1,
+        user_id: demoUserId,
+        nom_fichier: fileName,
+        titre: newFileTitle || fileName,
+        type_fichier: newFileType,
+        url_fichier: fileUrl,
+        description: newFileDescription,
+        version: 1,
+        comment_count: 0,
+        created_at: data.data?.created_at || new Date().toISOString().split('T')[0],
+      };
+
+      setDocuments([...documents, newDoc]);
+      alert(`Fichier "${fileName}" ajouté avec succès!`);
+      setNewFileName('');
+      setNewFileTitle('');
+      setSelectedFile(null);
+      setNewFileType('');
+      setNewFileDescription('');
+      setNewFileUrl('');
+      setSourceType('fichier');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
     } catch (err) {
       console.error('Erreur ajout fichier:', err);
-      alert('Erreur lors de l\'ajout du fichier');
+      alert('Erreur lors de l\'ajout du fichier: ' + (err instanceof Error ? err.message : 'Erreur inconnue'));
     }
   };
 
   const handleDeleteDocument = async (docId: number) => {
     try {
-      const response = await apiFetch(`/api/documents/${docId}`, {
-        method: 'DELETE',
-      });
+      // Appeler l'API pour supprimer le document en BD
+      const response = await fetch(
+        `https://mmi.unilim.fr/~valin6/cvtek/api/api-documents.php?action=delete&id=${docId}`,
+        {
+          method: 'DELETE'
+        }
+      );
 
-      if (response.ok) {
-        alert('Fichier supprimé avec succès');
-        await loadDocuments();
-      } else {
-        alert('Erreur lors de la suppression du fichier');
+      if (!response.ok) {
+        throw new Error(`Erreur API: ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log(`✅ Document supprimé en BD:`, data);
+
+      if (data.success === false) {
+        throw new Error(data.error || 'Erreur lors de la suppression');
+      }
+
+      // Supprimer du state local
+      setDocuments(documents.filter(d => d.id !== docId));
+      alert('Fichier supprimé avec succès');
     } catch (err) {
       console.error('Erreur suppression fichier:', err);
       alert('Erreur lors de la suppression du fichier');
@@ -267,45 +357,21 @@ export default function StudentDashboard() {
 
     try {
       setUploadingVersion(true);
-      // Uploader le nouveau fichier
-      const formData = new FormData();
-      formData.append('file', newVersionFile);
-
-      const uploadResponse = await fetch('http://localhost:5000/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        const error = await uploadResponse.json();
-        alert(`Erreur upload: ${error.error}`);
-        return;
-      }
-
-      const uploadData = await uploadResponse.json();
-      const fileUrl = uploadData.url;
-
-      // Créer la nouvelle version
-      const response = await apiFetch(`/api/documents/${newVersionModal.doc.id}/version`, {
-        method: 'POST',
-        body: JSON.stringify({
-          url_fichier: fileUrl,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        alert(`Nouvelle version ${data.version}.0 créée avec succès!`);
-        setNewVersionModal({ show: false, doc: null });
-        setNewVersionFile(null);
-        setIsDraggingVersion(false);
-        if (newVersionFileInputRef.current) {
-          newVersionFileInputRef.current.value = '';
-        }
-        await loadDocuments();
-      } else {
-        const error = await response.json();
-        alert(`Erreur: ${error.error}`);
+      
+      // Mode démo - incrémenter la version du document
+      const updatedDocs = documents.map(doc =>
+        doc.id === newVersionModal.doc!.id
+          ? { ...doc, version: doc.version + 1, updated_at: new Date().toISOString().split('T')[0] }
+          : doc
+      );
+      
+      setDocuments(updatedDocs);
+      alert(`Nouvelle version ${newVersionModal.doc.version + 1} créée avec succès!`);
+      setNewVersionModal({ show: false, doc: null });
+      setNewVersionFile(null);
+      setIsDraggingVersion(false);
+      if (newVersionFileInputRef.current) {
+        newVersionFileInputRef.current.value = '';
       }
     } catch (err) {
       console.error('Erreur création nouvelle version:', err);
@@ -332,22 +398,43 @@ export default function StudentDashboard() {
 
     try {
       setIsSavingEdit(true);
-      const response = await apiFetch(`/api/documents/${editModal.doc.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          titre,
-          description,
-        }),
-      });
+      
+      // Appeler l'API pour mettre à jour le document en BD
+      const response = await fetch(
+        `https://mmi.unilim.fr/~valin6/cvtek/api/api-documents.php?action=update&id=${editModal.doc.id}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            titre,
+            description
+          })
+        }
+      );
 
-      if (response.ok) {
-        alert('Fichier modifié avec succès');
-        await loadDocuments();
-        setEditModal({ show: false, doc: null });
-      } else {
-        const error = await response.json();
-        alert(`Erreur: ${error.error}`);
+      if (!response.ok) {
+        throw new Error(`Erreur API: ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log(`✅ Document modifié en BD:`, data);
+
+      if (data.success === false) {
+        throw new Error(data.error || 'Erreur lors de la modification');
+      }
+
+      // Mettre à jour le document dans le state
+      const updatedDocs = documents.map(doc =>
+        doc.id === editModal.doc!.id
+          ? { ...doc, titre, description }
+          : doc
+      );
+      
+      setDocuments(updatedDocs);
+      alert('Fichier modifié avec succès');
+      setEditModal({ show: false, doc: null });
     } catch (err) {
       console.error('Erreur modification fichier:', err);
       alert('Erreur lors de la modification du fichier');

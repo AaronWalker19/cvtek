@@ -1,0 +1,38 @@
+# Activation du rewriting d'URL
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Base du rewriting (sans trailing slash)
+    RewriteBase /~valin6/cvtek/api
+    
+    # Ne pas rewriter les fichiers/dossiers existants
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    
+    # Ignorer les fichiers statiques
+    RewriteCond %{REQUEST_FILENAME} !^.*\.(php|css|js|jpg|jpeg|png|gif|svg|ico|txt|json)$
+    
+    # Rewriter tout vers index.php (avec query string)
+    RewriteRule ^(.*)$ index.php?route=$1 [QSA,L]
+</IfModule>
+
+# Headers CORS et sécurité
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    Header set Content-Type "application/json; charset=utf-8"
+</IfModule>
+
+# Gérer les OPTIONS (CORS preflight)
+<IfModule mod_rewrite.c>
+    RewriteCond %{REQUEST_METHOD} ^OPTIONS$
+    RewriteRule ^(.*)$ - [L]
+</IfModule>
+
+# Refuse l'accès aux fichiers sensibles
+<FilesMatch "\.(env|log|sqlite)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+

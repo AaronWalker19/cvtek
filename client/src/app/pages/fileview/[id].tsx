@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NewVersionModal from '../../../components/NewVersionModal';
-import { apiFetch } from '../../../api/client';
+import { uploadFile, updateDocument } from '../../../api/client';
 import Sidebar from '../../components/Sidebar';
 import studentSvgPaths from '../../../imports/PageDeFichier/svg-g1nozp2mpd';
 import professorSvgPaths from '../../../imports/PageDeFichierCoteProf/svg-uwrwsgjoxh';
@@ -40,7 +40,7 @@ interface Comment {
 }
 
 export default function FileView() {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const { id, fileId } = useParams<{ id?: string; fileId?: string }>();
   const docId = id || fileId;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -301,7 +301,7 @@ export default function FileView() {
     );
   }
 
-  const isStudent = currentUser.role === 'student';
+  const isStudent = user?.role === 'student';
   const svgPaths = isStudent ? studentSvgPaths : professorSvgPaths;
   const sidebarColor = isStudent ? 'bg-[#b51621]' : 'bg-[#4b575f]';
   const accentColor = isStudent ? '#b51621' : '#4b575f';
