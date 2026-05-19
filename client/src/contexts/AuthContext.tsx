@@ -4,8 +4,8 @@ import { login as apiLogin, register as apiRegister, getCurrentUser, logout as a
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (username: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;  // CHANGÉ: username → email
+  register: (username: string, email: string, password: string, role?: string) => Promise<void>;  // CHANGÉ: ajout role
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -41,9 +41,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     verifyAuth();
   }, []);
 
-  const login = async (username: string, password: string) => {
+  const login = async (email: string, password: string) => {  // CHANGÉ: username → email
     try {
-      const currentUser = await apiLogin({ username, password });
+      const currentUser = await apiLogin({ email, password });  // CHANGÉ: username → email
       setIsAuthenticated(true);
       setUser(currentUser);
     } catch (error) {
@@ -51,9 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (username: string, email: string, password: string) => {
+  const register = async (username: string, email: string, password: string, role: string = 'student') => {  // CHANGÉ: ajout role
     try {
-      const currentUser = await apiRegister({ username, email, password });
+      const currentUser = await apiRegister({ username, email, password, role: role as any });
       setIsAuthenticated(true);
       setUser(currentUser);
     } catch (error) {

@@ -1,14 +1,24 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import NewVersionModal from '../../components/NewVersionModal';
 import EditDocumentModal from '../../components/EditDocumentModal';
 import svgPaths from '../../imports/PageDeBase/svg-m4lsbi1cy8';
+import { 
+  getDocuments, 
+  getVersions,
+  createDocument, 
+  updateDocument, 
+  deleteDocument, 
+  uploadFile,
+  addVersion,
+  Document as ApiDocument 
+} from '../../api/client';
 
 interface Document {
   id: number;
   user_id: number;
+  parent_document_id?: number | null;
   nom_fichier: string;
   titre?: string;
   type_fichier: string;
@@ -21,7 +31,6 @@ interface Document {
 }
 
 export default function StudentDashboard() {
-  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   
@@ -44,82 +53,66 @@ export default function StudentDashboard() {
   const [uploadingVersion, setUploadingVersion] = useState(false);
   const newVersionFileInputRef = useRef<HTMLInputElement>(null);
   const [documentVersions, setDocumentVersions] = useState<{ [docId: number]: any[] }>({});
+  const [selectedVersion, setSelectedVersion] = useState<{ [docId: number]: number }>({});
   const [openVersionDropdown, setOpenVersionDropdown] = useState<number | null>(null);
   const [editModal, setEditModal] = useState<{ show: boolean; doc: Document | null }>({ show: false, doc: null });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [demoUserId, setDemoUserId] = useState<number>(2); // ID utilisateur démo
 
-  // Initialiser l'utilisateur démo au démarrage
-  useEffect(() => {
-    initializeDemoUser();
+  const loadVersionsForDocument = useCallback(async (docId: number) => {
+    try {
+      console.log(`📦 Chargement des versions pour document ${docId}...`);
+      
+      // Utiliser la nouvelle API
+      const versions = await getVersions(docId);
+      
+      console.log(`✅ Versions chargées:`, versions);
+      setDocumentVersions(prev => ({
+        ...prev,
+        [docId]: versions
+      }));
+
+      // Initialiser la version sélectionnée à la plus récente si pas déjà définie
+      setSelectedVersion(prev => {
+        if (!prev[docId] && versions.length > 0) {
+          return {
+            ...prev,
+            [docId]: versions[0].id // Les versions sont triées DESC, donc la première est la plus récente
+          };
+        }
+        return prev;
+      });
+    } catch (err) {
+      console.error('❌ Erreur chargement versions:', err);
+      // Ne pas bloquer si l'API échoue - utiliser données vides
+      setDocumentVersions(prev => ({
+        ...prev,
+        [docId]: []
+      }));
+    }
   }, []);
 
-  // Charger les documents quand l'utilisateur démo est prêt
-  useEffect(() => {
-    if (demoUserId) {
-      loadDocuments();
-    }
-  }, [demoUserId]);
-
-  const initializeDemoUser = async () => {
-    try {
-      console.log(`🔍 Vérification de l'utilisateur démo mael...`);
-      
-      const response = await fetch(
-        'https://mmi.unilim.fr/~valin6/cvtek/api/ensure-demo-user.php'
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Erreur: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log(`✅ Utilisateur démo:`, data);
-      
-      if (data.success && data.user?.id) {
-        setDemoUserId(data.user.id);
-        console.log(`✅ Utilisateur mael ID: ${data.user.id}`);
-      }
-    } catch (err) {
-      console.error('❌ Erreur initialisation utilisateur démo:', err);
-      // Continuer avec l'ID par défaut
-      setDemoUserId(2);
-    }
-  };
-
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     try {
       setLoading(true);
       console.log(`📝 Chargement des documents pour user_id=${demoUserId}...`);
       
-      // Appeler l'API pour récupérer les documents de mael (user_id=2)
-      const response = await fetch(
-        `https://mmi.unilim.fr/~valin6/cvtek/api/api-documents.php?action=get&user_id=${demoUserId}`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log(`📥 Réponse brute de l'API:`, data);
-      
-      if (data.success === false) {
-        throw new Error(data.error || 'Erreur API inconnue');
-      }
-      
-      // La réponse a la structure: { success, data: { count, documents } }
-      const docs = data.data?.documents || data.documents || [];
-      console.log(`📥 Documents extrait:`, docs);
+      // Utiliser la nouvelle API
+      const docs = await getDocuments(demoUserId);
       
       // S'assurer que comment_count existe
-      const formattedDocs = docs.map((doc: any) => ({
+      const formattedDocs = docs.map((doc: ApiDocument) => ({
         ...doc,
-        comment_count: doc.comment_count || 0
+        comment_count: 0  // Les commentaires sont gérés séparément
       }));
       
-      console.log(`✅ Documents formatés:`, formattedDocs);
+      console.log(`✅ Documents chargés:`, formattedDocs);
       setDocuments(formattedDocs);
+      
+      // Charger les versions pour chaque document
+      formattedDocs.forEach((doc: any) => {
+        loadVersionsForDocument(doc.id);
+      });
     } catch (err) {
       console.error('❌ Erreur chargement documents:', err);
       // Fallback: afficher les données mock en cas d'erreur
@@ -132,7 +125,7 @@ export default function StudentDashboard() {
           type_fichier: 'CV',
           url_fichier: '/uploads/cv_mael.pdf',
           description: 'CV de Mael',
-          version: 1,
+          version: 1.0,
           comment_count: 0,
           created_at: '2026-01-28',
         }
@@ -141,18 +134,60 @@ export default function StudentDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [demoUserId, loadVersionsForDocument]);
 
-  const loadVersionsForDocument = async (docId: number) => {
-    // Mode démo - données mock pour les versions
-    const mockVersions = [
-      { id: 1, version: 2, created_at: '2026-02-15', comment_count: 1 },
-      { id: 2, version: 1, created_at: '2026-01-28', comment_count: 2 }
-    ];
-    setDocumentVersions(prev => ({
-      ...prev,
-      [docId]: mockVersions
-    }));
+  // Initialiser l'utilisateur démo au démarrage
+  useEffect(() => {
+    const initializeDemoUser = async () => {
+      try {
+        console.log(`🔍 Vérification de l'utilisateur démo mael...`);
+        
+        const response = await fetch(
+          'https://mmi.unilim.fr/~valin6/cvtek/api/ensure-demo-user.php'
+        );
+        
+        if (!response.ok) {
+          throw new Error(`Erreur: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`✅ Utilisateur démo:`, data);
+        
+        if (data.success && data.user?.id) {
+          setDemoUserId(data.user.id);
+          console.log(`✅ Utilisateur mael ID: ${data.user.id}`);
+        }
+      } catch (err) {
+        console.error('❌ Erreur initialisation utilisateur démo:', err);
+        // Continuer avec l'ID par défaut
+        setDemoUserId(2);
+      }
+    };
+    
+    initializeDemoUser();
+  }, []);
+
+  // Charger les documents quand l'utilisateur démo est prêt
+  useEffect(() => {
+    if (demoUserId) {
+      loadDocuments();
+    }
+  }, [demoUserId, loadDocuments]);
+
+  // Récupérer l'URL fichier pour une version spécifique d'un document
+  const getVersionUrl = (doc: Document): string => {
+    if (!documentVersions[doc.id] || documentVersions[doc.id].length === 0) {
+      return doc.url_fichier; // Fallback à l'URL du document
+    }
+
+    const selectedVersionId = selectedVersion[doc.id];
+    if (!selectedVersionId) {
+      // Si pas de version sélectionnée, afficher la plus récente
+      return documentVersions[doc.id][0]?.url_fichier || doc.url_fichier;
+    }
+
+    const version = documentVersions[doc.id].find(v => v.id === selectedVersionId);
+    return version?.url_fichier || doc.url_fichier;
   };
 
   const handleFileSelected = (file: File) => {
@@ -216,53 +251,44 @@ export default function StudentDashboard() {
     }
 
     try {
+      let fileUrl = newFileUrl;
       const fileName = sourceType === 'fichier' ? selectedFile!.name : newFileUrl;
-      const fileUrl = sourceType === 'url' ? newFileUrl : `/uploads/${selectedFile!.name}`;
-      
-      console.log(`📤 Envoi à l'API:`, {
+
+      // Si c'est un fichier, on peut l'uploader
+      if (sourceType === 'fichier' && selectedFile) {
+        // Upload optionnel du fichier
+        try {
+          console.log(`📤 Upload du fichier: ${selectedFile.name}`);
+          const uploadResponse = await uploadFile(selectedFile, demoUserId);
+          fileUrl = uploadResponse.url;
+          console.log(`✅ Fichier uploadé:`, uploadResponse);
+        } catch (uploadErr) {
+          console.warn('⚠️ Erreur upload (utilisant URL locale):', uploadErr);
+          fileUrl = `/~valin6/cvtek/uploads/${selectedFile.name}`;
+        }
+      }
+
+      console.log(`📝 Création du document:`, {
         user_id: demoUserId,
         nom_fichier: fileName,
-        titre: newFileTitle,
+        titre: newFileTitle || fileName,
         type_fichier: newFileType,
         url_fichier: fileUrl,
         description: newFileDescription
       });
 
-      // Envoyer le document à l'API pour le sauvegarder en BD
-      const response = await fetch(
-        'https://mmi.unilim.fr/~valin6/cvtek/api/api-documents.php?action=create',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            user_id: demoUserId, // Utilisateur démo
-            nom_fichier: fileName,
-            titre: newFileTitle || fileName,
-            type_fichier: newFileType,
-            url_fichier: fileUrl,
-            description: newFileDescription
-          })
-        }
-      );
+      // Créer le document en BD
+      const result = await createDocument({
+        user_id: demoUserId,
+        nom_fichier: fileName,
+        titre: newFileTitle || fileName,
+        type_fichier: newFileType,
+        url_fichier: fileUrl,
+        description: newFileDescription
+      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Erreur API:', errorData);
-        throw new Error(`Erreur API: ${response.status} - ${errorData.error || 'Erreur inconnue'}`);
-      }
-
-      const data = await response.json();
-      console.log(`✅ Document créé en BD:`, data);
-
-      if (data.success === false) {
-        throw new Error(data.error || 'Erreur lors de la création du document');
-      }
-
-      // Créer un document avec les données retournées par l'API
       const newDoc: Document = {
-        id: data.data?.id || Math.max(...documents.map(d => d.id), 0) + 1,
+        id: result.id,
         user_id: demoUserId,
         nom_fichier: fileName,
         titre: newFileTitle || fileName,
@@ -271,11 +297,13 @@ export default function StudentDashboard() {
         description: newFileDescription,
         version: 1,
         comment_count: 0,
-        created_at: data.data?.created_at || new Date().toISOString().split('T')[0],
+        created_at: new Date().toISOString().split('T')[0],
       };
 
       setDocuments([...documents, newDoc]);
       alert(`Fichier "${fileName}" ajouté avec succès!`);
+      
+      // Réinitialiser les champs
       setNewFileName('');
       setNewFileTitle('');
       setSelectedFile(null);
@@ -294,24 +322,10 @@ export default function StudentDashboard() {
 
   const handleDeleteDocument = async (docId: number) => {
     try {
-      // Appeler l'API pour supprimer le document en BD
-      const response = await fetch(
-        `https://mmi.unilim.fr/~valin6/cvtek/api/api-documents.php?action=delete&id=${docId}`,
-        {
-          method: 'DELETE'
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log(`✅ Document supprimé en BD:`, data);
-
-      if (data.success === false) {
-        throw new Error(data.error || 'Erreur lors de la suppression');
-      }
+      console.log(`🗑️ Suppression du document ${docId}...`);
+      
+      // Utiliser la nouvelle API
+      await deleteDocument(docId);
 
       // Supprimer du state local
       setDocuments(documents.filter(d => d.id !== docId));
@@ -358,15 +372,36 @@ export default function StudentDashboard() {
     try {
       setUploadingVersion(true);
       
-      // Mode démo - incrémenter la version du document
+      console.log(`📤 Upload de la nouvelle version: ${newVersionFile.name}`);
+      
+      // Uploader le fichier
+      const uploadResponse = await uploadFile(newVersionFile, demoUserId);
+      const newFileUrl = uploadResponse.url;
+      
+      console.log(`✅ Fichier uploadé:`, uploadResponse);
+      
+      // Créer une nouvelle version via la nouvelle API
+      const docId = newVersionModal.doc.id;
+      
+      console.log(`📝 Création d'une nouvelle version du document ${docId}...`);
+      
+      // Ajouter la version
+      await addVersion(docId, newFileUrl);
+      
+      console.log(`✅ Nouvelle version créée`);
+      
+      // Recharger les versions du document
+      await loadVersionsForDocument(docId);
+      
+      // Mettre à jour la version du document dans la liste
       const updatedDocs = documents.map(doc =>
-        doc.id === newVersionModal.doc!.id
-          ? { ...doc, version: doc.version + 1, updated_at: new Date().toISOString().split('T')[0] }
+        doc.id === docId
+          ? { ...doc, url_fichier: newFileUrl }
           : doc
       );
-      
       setDocuments(updatedDocs);
-      alert(`Nouvelle version ${newVersionModal.doc.version + 1} créée avec succès!`);
+      
+      alert(`Nouvelle version créée avec succès!`);
       setNewVersionModal({ show: false, doc: null });
       setNewVersionFile(null);
       setIsDraggingVersion(false);
@@ -375,7 +410,7 @@ export default function StudentDashboard() {
       }
     } catch (err) {
       console.error('Erreur création nouvelle version:', err);
-      alert('Erreur lors de la création de la nouvelle version');
+      alert('Erreur lors de la création de la nouvelle version: ' + (err instanceof Error ? err.message : 'Erreur inconnue'));
     } finally {
       setUploadingVersion(false);
     }
@@ -399,31 +434,10 @@ export default function StudentDashboard() {
     try {
       setIsSavingEdit(true);
       
-      // Appeler l'API pour mettre à jour le document en BD
-      const response = await fetch(
-        `https://mmi.unilim.fr/~valin6/cvtek/api/api-documents.php?action=update&id=${editModal.doc.id}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            titre,
-            description
-          })
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log(`✅ Document modifié en BD:`, data);
-
-      if (data.success === false) {
-        throw new Error(data.error || 'Erreur lors de la modification');
-      }
+      console.log(`📝 Mise à jour du document ${editModal.doc.id}...`);
+      
+      // Utiliser la nouvelle API
+      await updateDocument(editModal.doc.id, { titre, description });
 
       // Mettre à jour le document dans le state
       const updatedDocs = documents.map(doc =>
@@ -619,7 +633,7 @@ export default function StudentDashboard() {
                   >
                     {/* Nom du fichier */}
                     <Link
-                      to={`/file/${doc.id}`}
+                      to={`/file/${doc.id}${selectedVersion[doc.id] ? `?version=${selectedVersion[doc.id]}` : ''}`}
                       className="flex-[2] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px] hover:text-[#b51621] cursor-pointer truncate"
                     >
                       {doc.titre || doc.nom_fichier}
@@ -658,10 +672,10 @@ export default function StudentDashboard() {
                             className="inline-flex items-center gap-2 px-3 py-1 hover:bg-[#f0f0f0] rounded transition-colors"
                           >
                             <span className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px]">
-                              {doc.version || 1}.0
+                              {documentVersions[doc.id]?.find(v => v.id === selectedVersion[doc.id])?.version || doc.version}
                             </span>
                             <svg
-                              width="24"
+                              width="16"
                               height="16"
                               viewBox="0 0 16 16"
                               fill="none"
@@ -669,7 +683,7 @@ export default function StudentDashboard() {
                               strokeWidth="2"
                               className={`transition-transform ${openVersionDropdown === doc.id ? 'rotate-180' : ''}`}
                             >
-                              <polyline points="6 10 12 4 18 10" />
+                              <polyline points="4 6 8 10 12 6" />
                             </svg>
                           </button>
 
@@ -677,14 +691,24 @@ export default function StudentDashboard() {
                           {openVersionDropdown === doc.id && (
                             <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-[#ffffff] border-2 border-[#36302a] rounded shadow-lg z-50 min-w-max overflow-hidden">
                               {documentVersions[doc.id].map((version: any) => (
-                                <Link
+                                <button
                                   key={version.id}
-                                  to={`/file/${version.id}`}
-                                  onClick={() => setOpenVersionDropdown(null)}
-                                  className="block px-4 py-2 text-[#36302a] text-[14px] hover:bg-[#f0f0f0] border-b border-[#e0e0e0] last:border-b-0 bg-white"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setSelectedVersion(prev => ({
+                                      ...prev,
+                                      [doc.id]: version.id
+                                    }));
+                                    setOpenVersionDropdown(null);
+                                  }}
+                                  className={`block w-full text-left px-4 py-2 text-[14px] border-b border-[#e0e0e0] last:border-b-0 transition-colors ${
+                                    selectedVersion[doc.id] === version.id
+                                      ? 'bg-[#b51621] text-[#ffffff]'
+                                      : 'bg-white text-[#36302a] hover:bg-[#f0f0f0]'
+                                  }`}
                                 >
-                                  {version.version}.0
-                                </Link>
+                                  {version.version}
+                                </button>
                               ))}
                             </div>
                           )}
@@ -704,7 +728,7 @@ export default function StudentDashboard() {
                           }}
                           className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px] hover:bg-[#f0f0f0] px-3 py-1 rounded transition-colors"
                         >
-                          {doc.version || 1}.0
+                          {doc.version || 1.0}
                         </button>
                       )}
                     </div>

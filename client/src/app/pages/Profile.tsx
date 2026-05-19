@@ -51,10 +51,10 @@ export default function Profile() {
                 <div className="content-stretch flex flex-col gap-[10px] items-stretch relative shrink-0 w-full">
                   {demoUsers.map((demoUser) => (
                     <button
-                      key={demoUser.userId}
-                      onClick={() => switchUser(demoUser.userId)}
+                      key={demoUser.id}
+                      onClick={() => switchUser(demoUser.id.toString())}
                       className={`flex items-start justify-between p-[15px] rounded-[10px] transition-colors ${
-                        user.userId === demoUser.userId
+                        user.id === demoUser.id
                           ? 'bg-[#4b575f] text-white'
                           : 'bg-[#f0f0f0] text-[#36302a] hover:bg-[#e0e0e0]'
                       }`}
@@ -70,7 +70,7 @@ export default function Profile() {
                           {demoUser.role === 'student' ? 'Étudiant' : demoUser.role === 'professor' ? 'Professeur' : 'Administrateur'}
                         </p>
                       </div>
-                      {user.userId === demoUser.userId && (
+                      {user.id === demoUser.id && (
                         <p className="font-['Inter:Medium',sans-serif] font-medium text-[14px]">✓</p>
                       )}
                     </button>

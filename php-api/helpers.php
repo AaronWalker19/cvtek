@@ -287,6 +287,46 @@ function logAction(string $action, array $context = []): void {
 }
 
 // ===============================================
+// Tokens JWT (basique)
+// ===============================================
+
+/**
+ * Génère un token JWT simple
+ */
+function generateToken(int $userId, string $username, string $role): string {
+    $payload = [
+        'iss' => $_SERVER['HTTP_HOST'] ?? 'localhost',
+        'sub' => $userId,
+        'username' => $username,
+        'role' => $role,
+        'iat' => time(),
+        'exp' => time() + (24 * 60 * 60), // 24 heures
+    ];
+    
+    // Clé secrète depuis .env ou variable d'environnement
+    $secret = getenv('JWT_SECRET') ?: 'your-secret-key-change-in-production';
+    
+    // Création simple du JWT (encoder le JSON en base64)
+    $header = json_encode(['typ' => 'JWT', 'alg' => 'HS256']);
+    $payload_json = json_encode($payload);
+    
+    $header_b64 = rtrim(strtr(base64_encode($header), '+/', '-_'), '=');
+    $payload_b64 = rtrim(strtr(base64_encode($payload_json), '+/', '-_'), '=');
+    
+    $signature = hash_hmac('sha256', "$header_b64.$payload_b64", $secret, true);
+    $signature_b64 = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+    
+    return "$header_b64.$payload_b64.$signature_b64";
+}
+
+/**
+ * Récupère la connexion PDO
+ */
+function getConnection(): PDO {
+    return Database::getConnection();
+}
+
+// ===============================================
 // Initialisation
 // ===============================================
 

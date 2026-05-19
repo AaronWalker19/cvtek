@@ -1,65 +1,127 @@
-import React, { createContext, useContext, useState } from 'react';
-import { mockUsers } from '../data/mockData';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { login as apiLogin, register as apiRegister, getCurrentUser, logout as apiLogout, User } from '../../api/client';
 
-export interface User {
-  userId: string;
-  username: string;
-  email: string;
-  role: 'student' | 'professor' | 'admin';
-  login_at?: string;
+export interface DemoUser extends User {
+  userId?: number;  // Compat avec ancien code
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  switchUser: (userId: string) => void;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string, role?: string) => Promise<void>;
+  logout: () => Promise<void>;
+  loading: boolean;
+  switchUser?: (userId: string) => void;  // Mode démo seulement
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Convertir mockUsers en format User pour l'API
-const demoUsers: User[] = [
+// Convertir les utilisateurs démo en format User pour l'API
+const demoUsers: DemoUser[] = [
   {
-    userId: 'student1',
-    username: 'Mael Valin',
-    email: 'mael.valin@etu.unilim.fr',
+    id: 1,
+    userId: 1,
+    username: 'mael',
+    email: 'mael@mael.fr',
     role: 'student',
-    login_at: new Date().toISOString(),
   },
   {
-    userId: 'prof1',
-    username: 'M. Nival',
-    email: 'nival@etu.unilim.fr',
+    id: 2,
+    userId: 2,
+    username: 'professor',
+    email: 'professor@cvtek.fr',
     role: 'professor',
-    login_at: new Date().toISOString(),
   },
   {
-    userId: 'admin1',
-    username: 'Admin User',
-    email: 'admin@unilim.fr',
+    id: 3,
+    userId: 3,
+    username: 'admin',
+    email: 'admin@cvtek.fr',
     role: 'admin',
-    login_at: new Date().toISOString(),
   },
 ];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User>(demoUsers[0]); // Commencer avec l'étudiant
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const switchUser = (userId: string) => {
-    const selectedUser = demoUsers.find(u => u.userId === userId);
-    if (selectedUser) {
-      setUser(selectedUser);
+  // Vérifier l'authentification au chargement
+  useEffect(() => {
+    const verifyAuth = async () => {
+      try {
+        const currentUser = await getCurrentUser();
+        if (currentUser) {
+          setIsAuthenticated(true);
+          setUser(currentUser);
+        } else {
+          // En mode démo, charger le premier utilisateur
+          setIsAuthenticated(true);
+          setUser(demoUsers[0] as User);
+        }
+      } catch (err) {
+        console.error('Erreur vérification auth:', err);
+        // En mode démo, charger le premier utilisateur
+        setIsAuthenticated(true);
+        setUser(demoUsers[0] as User);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verifyAuth();
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    try {
+      const currentUser = await apiLogin({ email, password });
+      setIsAuthenticated(true);
+      setUser(currentUser);
+    } catch (error) {
+      // Fallback mode démo
+      console.warn('API login échoué, mode démo:', error);
+      const demoUser = demoUsers.find(u => u.email === email);
+      if (demoUser) {
+        setIsAuthenticated(true);
+        setUser(demoUser as User);
+      } else {
+        throw error;
+      }
     }
   };
 
-  const logout = () => {
-    // En mode démo, reset au premier utilisateur
-    setUser(demoUsers[0]);
+  const register = async (username: string, email: string, password: string, role: string = 'student') => {
+    try {
+      const currentUser = await apiRegister({ username, email, password, role: role as any });
+      setIsAuthenticated(true);
+      setUser(currentUser);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await apiLogout();
+    } catch (err) {
+      console.error('Erreur logout:', err);
+    } finally {
+      setIsAuthenticated(false);
+      setUser(null);
+    }
+  };
+
+  const switchUser = (userId: string) => {
+    // Mode démo: permets de changer d'utilisateur
+    const selectedUser = demoUsers.find(u => u.userId?.toString() === userId || u.id.toString() === userId);
+    if (selectedUser) {
+      setUser(selectedUser as User);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: true, user, switchUser, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout, loading, switchUser }}>
       {children}
     </AuthContext.Provider>
   );

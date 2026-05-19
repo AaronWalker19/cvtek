@@ -1,8 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NewVersionModal from '../../../components/NewVersionModal';
-import { uploadFile, updateDocument } from '../../../api/client';
+import { 
+  uploadFile, 
+  getDocument,
+  addVersion,
+  Document as ApiDocument 
+} from '../../../api/client';
 import Sidebar from '../../components/Sidebar';
 import studentSvgPaths from '../../../imports/PageDeFichier/svg-g1nozp2mpd';
 import professorSvgPaths from '../../../imports/PageDeFichierCoteProf/svg-uwrwsgjoxh';
@@ -42,6 +47,7 @@ interface Comment {
 export default function FileView() {
   const { user } = useAuth();
   const { id, fileId } = useParams<{ id?: string; fileId?: string }>();
+  const [searchParams] = useSearchParams();
   const docId = id || fileId;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -67,18 +73,30 @@ export default function FileView() {
         setError(null);
         console.log('📄 Fetching document:', docId);
         
-        const response = await apiFetch(`/api/documents/${docId}`);
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ Document loaded:', data);
-          console.log('   URL du fichier:', data.url_fichier);
-          setDocument(data);
-          // TODO: Fetch comments from API when endpoint is available
-          setComments([]);
-        } else {
-          console.error('❌ Document not found:', response.status);
-          setError('Document non trouvé');
+        if (!docId) {
+          setError('ID du document manquant');
+          return;
         }
+
+        const doc = await getDocument(parseInt(docId));
+        console.log('✅ Document loaded:', doc);
+        console.log('   URL du fichier:', doc.url_fichier);
+        
+        setDocument(doc as any);
+        
+        // Lire la version depuis le query param si elle existe
+        const versionParam = searchParams.get('version');
+        if (versionParam) {
+          const versionId = parseInt(versionParam);
+          const versionObj = (doc as any).availableVersions?.find((v: any) => v.id === versionId);
+          if (versionObj) {
+            console.log('📌 Setting initial version from query param:', versionObj.version);
+            setSelectedVersion(versionObj.version);
+          }
+        }
+        
+        // TODO: Fetch comments from API when endpoint is available
+        setComments([]);
       } catch (err) {
         console.error('❌ Error loading document:', err);
         setError('Erreur lors du chargement du document');
@@ -90,7 +108,7 @@ export default function FileView() {
     if (docId) {
       fetchDocument();
     }
-  }, [docId]);
+  }, [docId, searchParams]);
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -136,95 +154,42 @@ export default function FileView() {
     try {
       setUploadingVersion(true);
 
-      // Uploader le fichier
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
       console.log('📤 Uploading file:', selectedFile.name);
 
-      const uploadResponse = await fetch('http://localhost:5000/api/upload', {
-        method: 'POST',
-        body: formData,
-        // Ne pas ajouter Content-Type, le navigateur le fera automatiquement
-      });
+      // Utiliser la nouvelle API pour uploader
+      const uploadResponse = await uploadFile(selectedFile, newVersionModal.doc.user_id);
+      console.log('✅ Upload success:', uploadResponse);
 
-      console.log('Upload response status:', uploadResponse.status);
-
-      const uploadText = await uploadResponse.text();
-      console.log('Upload response text:', uploadText);
-
-      if (!uploadResponse.ok) {
-        try {
-          const errorData = JSON.parse(uploadText);
-          console.error('❌ Upload error:', errorData);
-          alert(`Erreur upload: ${errorData.error || 'Erreur inconnue'}`);
-        } catch {
-          console.error('❌ Upload error (raw):', uploadText);
-          alert(`Erreur upload: ${uploadText || 'Erreur inconnue'}`);
-        }
-        return;
-      }
-
-      let uploadData;
-      try {
-        uploadData = JSON.parse(uploadText);
-      } catch {
-        console.error('❌ Invalid JSON response:', uploadText);
-        alert('Erreur: réponse invalide du serveur');
-        return;
-      }
-
-      console.log('✅ Upload success:', uploadData);
-
-      if (!uploadData.url) {
+      if (!uploadResponse.url) {
         alert('Erreur: pas d\'URL retournée par le serveur');
         return;
       }
 
-      const fileUrl = uploadData.url;
+      const fileUrl = uploadResponse.url;
 
-      // Créer la nouvelle version
-      console.log('📝 Creating new version for document:', newVersionModal.doc.id);
-      const response = await apiFetch(`/api/documents/${newVersionModal.doc.id}/version`, {
-        method: 'POST',
-        body: JSON.stringify({
-          url_fichier: fileUrl,
-        }),
-      });
+      // Créer une nouvelle version du document
+      console.log('📝 Adding new version for document:', newVersionModal.doc.id);
+      
+      await addVersion(newVersionModal.doc.id, fileUrl);
 
-      console.log('Version creation response status:', response.status);
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Version created:', data);
-        alert(`${data.message}`);
+      console.log('✅ Version added successfully');
+      alert('Nouvelle version ajoutée avec succès!');
         
-        // Recharger le document
-        const docResponse = await apiFetch(`/api/documents/${newVersionModal.doc.id}`);
-        if (docResponse.ok) {
-          const updatedDoc = await docResponse.json();
-          setDocument(updatedDoc);
-          setSelectedVersion(updatedDoc.version);
-        }
+      // Recharger le document
+      try {
+        const updatedDoc = await getDocument(newVersionModal.doc.id);
+        setDocument(updatedDoc as any);
+        setSelectedVersion(updatedDoc.version);
+      } catch (err) {
+        console.warn('Erreur recharge document:', err);
+      }
 
-        // Réinitialiser le modal
-        setSelectedFile(null);
-        setNewVersionModal({ show: false, doc: null });
-        setIsDragging(false);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      } else {
-        const errorText = await response.text();
-        let errorMessage = 'Erreur lors de la création de la version';
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          errorMessage = errorText || errorMessage;
-        }
-        console.error('❌ Version creation error:', errorMessage);
-        alert(`Erreur: ${errorMessage}`);
+      // Réinitialiser le modal
+      setSelectedFile(null);
+      setNewVersionModal({ show: false, doc: null });
+      setIsDragging(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
     } catch (err) {
       console.error('❌ Erreur upload version:', err);
@@ -265,17 +230,9 @@ export default function FileView() {
     }
   };
 
-  const handleVersionChange = async (versionId: number, version: number) => {
-    try {
-      const response = await apiFetch(`/api/documents/${versionId}?version=${version}`);
-      if (response.ok) {
-        const data = await response.json();
-        setDocument(data);
-        setSelectedVersion(version);
-      }
-    } catch (err) {
-      console.error('Erreur changement version:', err);
-    }
+  const handleVersionChange = (versionId: number, version: number) => {
+    console.log('📌 Changing to version:', version);
+    setSelectedVersion(version);
   };
 
   if (loading) {
@@ -306,7 +263,7 @@ export default function FileView() {
   const sidebarColor = isStudent ? 'bg-[#b51621]' : 'bg-[#4b575f]';
   const accentColor = isStudent ? '#b51621' : '#4b575f';
   const backLink = isStudent ? '/' : '/professor';
-  const currentVersionNumber = selectedVersion || document.version;
+  const currentVersionNumber = selectedVersion || document?.availableVersions?.[0]?.version || document?.version;
 
   const handleAddComment = () => {
     if (newComment.trim()) {
@@ -324,6 +281,28 @@ export default function FileView() {
 
   const handleNewVersion = () => {
     setNewVersionModal({ show: true, doc: document });
+  };
+
+  /**
+   * Récupère l'URL du fichier basé sur la version sélectionnée
+   */
+  const getDisplayFileUrl = (): string => {
+    if (!document || !document.availableVersions || document.availableVersions.length === 0) {
+      return document?.url_fichier || '';
+    }
+
+    // Si une version est sélectionnée, trouver son URL
+    if (selectedVersion) {
+      const selectedVersionObj = document.availableVersions.find(
+        (v: any) => String(v.version) === String(selectedVersion)
+      );
+      if (selectedVersionObj) {
+        return selectedVersionObj.url_fichier;
+      }
+    }
+
+    // Sinon, utiliser la dernière version (première dans la liste, triée DESC)
+    return document.availableVersions[0]?.url_fichier || document.url_fichier || '';
   };
 
   return (
@@ -350,12 +329,16 @@ export default function FileView() {
                 </Link>
                 {document.availableVersions && document.availableVersions.length > 1 && (
                   <select
-                    value={currentVersionNumber}
+                    value={currentVersionNumber || ''}
                     onChange={(e) => {
-                      const version = parseInt(e.target.value);
-                      const versionData = document.availableVersions.find(v => v.version === version);
+                      const version = e.target.value; // Garder comme string pour comparaison
+                      console.log('🔄 Version sélectionnée:', version, 'currentVersionNumber:', currentVersionNumber);
+                      const versionData = document.availableVersions.find(v => String(v.version) === String(version));
                       if (versionData) {
-                        handleVersionChange(versionData.id, version);
+                        console.log('✅ Trouvé version:', versionData);
+                        handleVersionChange(versionData.id, versionData.version);
+                      } else {
+                        console.warn('❌ Version non trouvée:', version, 'disponibles:', document.availableVersions);
                       }
                     }}
                     className="px-[10px] py-[5px] border border-[#36302a] rounded text-[14px] font-['Inter:Regular',sans-serif]"
@@ -363,7 +346,7 @@ export default function FileView() {
                   >
                     {document.availableVersions.map((v) => (
                       <option key={v.id} value={v.version}>
-                        v{v.version}.0 ({new Date(v.created_at).toLocaleDateString('fr-FR')})
+                        v{v.version} ({new Date(v.created_at).toLocaleDateString('fr-FR')})
                       </option>
                     ))}
                   </select>
@@ -381,23 +364,23 @@ export default function FileView() {
               {/* PDF Preview */}
               <div className="bg-[#d9d9d9] content-stretch flex flex-col gap-[10px] h-[901px] items-center justify-center relative shrink-0 w-[701px] overflow-hidden">
                 <div aria-hidden="true" className="absolute border-9 border-black border-solid inset-0 pointer-events-none" />
-                {document.url_fichier ? (
-                  document.url_fichier.toLowerCase().includes('.pdf') ? (
+                {getDisplayFileUrl() ? (
+                  getDisplayFileUrl().toLowerCase().includes('.pdf') ? (
                     <object
-                      data={document.url_fichier}
+                      data={getDisplayFileUrl()}
                       type="application/pdf"
                       className="absolute inset-0 w-full h-full"
                       title={document.nom_fichier}
                     >
                       <iframe
-                        src={document.url_fichier}
+                        src={getDisplayFileUrl()}
                         className="absolute inset-0 w-full h-full"
                         title={document.nom_fichier}
                       />
                     </object>
                   ) : (
                     <iframe
-                      src={document.url_fichier}
+                      src={getDisplayFileUrl()}
                       className="absolute inset-0 w-full h-full"
                       title={document.nom_fichier}
                       allow="autoplay"

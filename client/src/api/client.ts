@@ -1,11 +1,14 @@
 /**
- * client.ts - API Client pour l'API PHP
+ * client.ts - API Client pour l'API PHP REST
  * 
- * Remplace le client Express par une version compatible PHP
+ * Architecture: Communique avec la nouvelle API PHP structurée avec:
+ * - Point d'entrée unique: /api/index.php
+ * - Controllers: Auth, Documents, Upload
+ * - Repositories: Accès base de données
  * 
  * DÉPLOIEMENT:
  * - En production: utilise les chemins relatifs /~valin6/cvtek/api/
- * - En développement: utilise http://localhost:8000/
+ * - En développement: utilise http://localhost:8000/api/
  */
 
 // ===============================================
@@ -13,16 +16,19 @@
 // ===============================================
 
 const API_CONFIG = {
-    // Routes API
+    // Routes API (nouveau format)
     ROUTES: {
-        LOGIN: '/api/auth/login',
-        REGISTER: '/api/auth/register',
-        USER: '/api/auth/user',
-        LOGOUT: '/api/auth/logout',
+        // Auth
+        AUTH_LOGIN: '/auth/login',
+        AUTH_REGISTER: '/auth/register',
+        AUTH_USER: '/auth/user',
+        AUTH_LOGOUT: '/auth/logout',
         
-        DOCUMENTS: '/api/documents',
-        DOCUMENTS_ALL: '/api/documents/all',
-        UPLOAD: '/api/upload',
+        // Documents
+        DOCUMENTS: '/documents',
+        
+        // Upload
+        UPLOAD: '/upload',
     },
 };
 
@@ -31,7 +37,7 @@ const API_CONFIG = {
  */
 function getApiBaseUrl(): string {
     if (process.env.NODE_ENV === 'production') {
-        // En production: les APIs sont dans le même dossier /~valin6/cvtek/api/
+        // En production: les APIs sont dans /~valin6/cvtek/api/
         return '/~valin6/cvtek/api';
     }
 
@@ -128,7 +134,7 @@ export async function apiCall<T = any>(
 // ===============================================
 
 export interface LoginCredentials {
-    username: string;
+    email: string;      // CHANGÉ: username → email
     password: string;
 }
 
@@ -136,54 +142,57 @@ export interface RegisterCredentials {
     username: string;
     email: string;
     password: string;
-    role?: 'student' | 'professor';
+    role?: 'student' | 'professor' | 'admin';  // CHANGÉ: added 'admin'
 }
 
 export interface User {
-    userId: number;
+    id: number;         // CHANGÉ: userId → id
     username: string;
     email: string;
     role: 'student' | 'professor' | 'admin';
-    login_at?: string;
+    created_at?: string;
 }
 
 /**
  * Connexion utilisateur
+ * Endpoint: POST /api/auth/login
  */
 export async function login(credentials: LoginCredentials): Promise<User> {
-    const response = await apiCall<User>(API_CONFIG.ROUTES.LOGIN, {
+    const response = await apiCall<{ user: User }>(API_CONFIG.ROUTES.AUTH_LOGIN, {
         method: 'POST',
         body: JSON.stringify(credentials),
     });
 
-    if (!response.success || !response.data) {
+    if (!response.success || !response.data?.user) {
         throw new Error(response.error || 'Connexion échouée');
     }
 
-    return response.data;
+    return response.data.user;
 }
 
 /**
  * Inscription utilisateur
+ * Endpoint: POST /api/auth/register
  */
 export async function register(credentials: RegisterCredentials): Promise<User> {
-    const response = await apiCall<User>(API_CONFIG.ROUTES.REGISTER, {
+    const response = await apiCall<{ user: User }>(API_CONFIG.ROUTES.AUTH_REGISTER, {
         method: 'POST',
         body: JSON.stringify(credentials),
     });
 
-    if (!response.success || !response.data) {
+    if (!response.success || !response.data?.user) {
         throw new Error(response.error || 'Inscription échouée');
     }
 
-    return response.data;
+    return response.data.user;
 }
 
 /**
  * Récupère le profil de l'utilisateur connecté
+ * Endpoint: GET /api/auth/user
  */
 export async function getCurrentUser(): Promise<User | null> {
-    const response = await apiCall<User>(API_CONFIG.ROUTES.USER, {
+    const response = await apiCall<{ user: User }>(API_CONFIG.ROUTES.AUTH_USER, {
         method: 'GET',
         throwOnError: false,
     });
@@ -192,14 +201,19 @@ export async function getCurrentUser(): Promise<User | null> {
         return null;
     }
 
-    return response.data ?? null;
+    return response.data?.user ?? null;
 }
 
 /**
  * Déconnexion
+ * Endpoint: POST /api/auth/logout
+ */
+/**
+ * Déconnexion
+ * Endpoint: POST /api/auth/logout
  */
 export async function logout(): Promise<void> {
-    await apiCall(API_CONFIG.ROUTES.LOGOUT, {
+    await apiCall(API_CONFIG.ROUTES.AUTH_LOGOUT, {
         method: 'POST',
         throwOnError: false,
     });
@@ -213,19 +227,27 @@ export interface Document {
     id: number;
     user_id: number;
     nom_fichier: string;
-    titre: string;
+    titre?: string;
     type_fichier: string;
     url_fichier: string;
-    description: string;
+    description?: string;
     version: number;
     created_at: string;
-    updated_at: string;
+}
+
+export interface DocumentVersion {
+    id: number;
+    id_doc: number;
+    version: number;
+    url_fichier: string;
+    created_at: string;
 }
 
 /**
- * Récupère les documents de l'utilisateur
+ * Récupère les documents
+ * Endpoint: GET /api/documents ou GET /api/documents?user_id=123
  */
-export async function getMyDocuments(userId?: number): Promise<Document[]> {
+export async function getDocuments(userId?: number): Promise<Document[]> {
     let url = API_CONFIG.ROUTES.DOCUMENTS;
     if (userId) {
         url += `?user_id=${userId}`;
@@ -238,7 +260,7 @@ export async function getMyDocuments(userId?: number): Promise<Document[]> {
         method: 'GET',
     });
 
-    if (!response.success || !response.data) {
+    if (!response.success || !response.data?.documents) {
         throw new Error(response.error || 'Erreur lors de la récupération des documents');
     }
 
@@ -246,31 +268,43 @@ export async function getMyDocuments(userId?: number): Promise<Document[]> {
 }
 
 /**
- * Récupère TOUS les documents (pour profs/admins)
+ * Récupère un document spécifique
+ * Endpoint: GET /api/documents/{id}
  */
-export async function getAllDocuments(): Promise<Document[]> {
-    const response = await apiCall<{
-        count: number;
-        documents: Document[];
-    }>(API_CONFIG.ROUTES.DOCUMENTS_ALL, {
-        method: 'GET',
-    });
+export async function getDocument(id: number): Promise<Document> {
+    const response = await apiCall<{ document: Document }>(
+        `${API_CONFIG.ROUTES.DOCUMENTS}/${id}`,
+        { method: 'GET' }
+    );
 
-    if (!response.success || !response.data) {
-        throw new Error(response.error || 'Erreur lors de la récupération des documents');
+    if (!response.success || !response.data?.document) {
+        throw new Error(response.error || 'Erreur lors de la récupération du document');
     }
 
-    return response.data.documents;
+    return response.data.document;
 }
 
 /**
  * Crée un nouveau document
+ * Endpoint: POST /api/documents
  */
-export async function createDocument(data: Partial<Document>): Promise<Document> {
-    const response = await apiCall<Document>(API_CONFIG.ROUTES.DOCUMENTS, {
-        method: 'POST',
-        body: JSON.stringify(data),
-    });
+export async function createDocument(data: {
+    user_id?: number;
+    nom_fichier: string;
+    titre?: string;
+    type_fichier: string;
+    url_fichier: string;
+    description?: string;
+    version?: number;
+    parent_document_id?: number;
+}): Promise<{ message: string; id: number }> {
+    const response = await apiCall<{ message: string; id: number }>(
+        API_CONFIG.ROUTES.DOCUMENTS,
+        {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }
+    );
 
     if (!response.success || !response.data) {
         throw new Error(response.error || 'Erreur lors de la création du document');
@@ -281,12 +315,19 @@ export async function createDocument(data: Partial<Document>): Promise<Document>
 
 /**
  * Met à jour un document
+ * Endpoint: PUT /api/documents/{id}
  */
-export async function updateDocument(id: number, data: Partial<Document>): Promise<Document> {
-    const response = await apiCall<Document>(`${API_CONFIG.ROUTES.DOCUMENTS}/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-    });
+export async function updateDocument(
+    id: number,
+    data: { titre?: string; description?: string; version?: number; url_fichier?: string }
+): Promise<{ message: string }> {
+    const response = await apiCall<{ message: string }>(
+        `${API_CONFIG.ROUTES.DOCUMENTS}/${id}`,
+        {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }
+    );
 
     if (!response.success || !response.data) {
         throw new Error(response.error || 'Erreur lors de la mise à jour');
@@ -297,15 +338,61 @@ export async function updateDocument(id: number, data: Partial<Document>): Promi
 
 /**
  * Supprime un document
+ * Endpoint: DELETE /api/documents/{id}
  */
 export async function deleteDocument(id: number): Promise<void> {
-    const response = await apiCall(`${API_CONFIG.ROUTES.DOCUMENTS}/${id}`, {
-        method: 'DELETE',
-    });
+    const response = await apiCall(
+        `${API_CONFIG.ROUTES.DOCUMENTS}/${id}`,
+        { method: 'DELETE' }
+    );
 
     if (!response.success) {
         throw new Error(response.error || 'Erreur lors de la suppression');
     }
+}
+
+/**
+ * Récupère toutes les versions d'un document
+ * Endpoint: GET /api/documents/{id}/versions
+ */
+export async function getVersions(docId: number): Promise<DocumentVersion[]> {
+    const response = await apiCall<{
+        count: number;
+        versions: DocumentVersion[];
+    }>(
+        `${API_CONFIG.ROUTES.DOCUMENTS}/${docId}/versions`,
+        { method: 'GET' }
+    );
+
+    if (!response.success || !response.data?.versions) {
+        console.warn(`⚠️ Erreur lors de la récupération des versions du document ${docId}`);
+        return [];
+    }
+
+    return response.data.versions;
+}
+
+/**
+ * Ajoute une nouvelle version à un document
+ * Endpoint: PUT /api/documents/{id}/version
+ */
+export async function addVersion(
+    docId: number,
+    urlFichier: string
+): Promise<{ message: string }> {
+    const response = await apiCall<{ message: string }>(
+        `${API_CONFIG.ROUTES.DOCUMENTS}/${docId}/version`,
+        {
+            method: 'PUT',
+            body: JSON.stringify({ url_fichier: urlFichier }),
+        }
+    );
+
+    if (!response.success || !response.data) {
+        throw new Error(response.error || 'Erreur lors de la création de la version');
+    }
+
+    return response.data;
 }
 
 // ===============================================
@@ -313,20 +400,24 @@ export async function deleteDocument(id: number): Promise<void> {
 // ===============================================
 
 export interface UploadResponse {
-    filename: string;
-    originalname: string;
-    url: string;
-    size: number;
-    type: string;
     message: string;
+    file: string;           // Nom unique du fichier
+    original_name: string;
+    size: number;
+    url: string;
+    type: string;
 }
 
 /**
  * Upload un fichier
+ * Endpoint: POST /api/upload (multipart/form-data)
  */
-export async function uploadFile(file: File): Promise<UploadResponse> {
+export async function uploadFile(file: File, userId?: number): Promise<UploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
+    if (userId) {
+        formData.append('user_id', userId.toString());
+    }
 
     console.log(`📤 Uploading: ${file.name} (${file.size} bytes)`);
 
