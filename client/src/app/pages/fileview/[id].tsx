@@ -7,6 +7,7 @@ import {
   getDocument,
   addVersion,
   getUserById,
+  getDocuments,
   Document as ApiDocument 
 } from '../../../api/client';
 import Sidebar from '../../components/Sidebar';
@@ -67,6 +68,7 @@ export default function FileView() {
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [newVersionModal, setNewVersionModal] = useState<{ show: boolean; doc: Document | null }>({ show: false, doc: null });
+  const [otherStudentDocuments, setOtherStudentDocuments] = useState<Document[]>([]);
 
   useEffect(() => {
     const fetchDocument = async () => {
@@ -92,6 +94,16 @@ export default function FileView() {
           setStudentUsername(studentData.username);
         } catch (err) {
           console.error('Erreur lors de la récupération du username:', err);
+        }
+        
+        // Charger les autres fichiers de l'étudiant
+        try {
+          const allDocs = await getDocuments(doc.user_id);
+          const otherDocs = allDocs.filter(d => d.id !== doc.id);
+          setOtherStudentDocuments(otherDocs);
+        } catch (err) {
+          console.error('Erreur lors de la récupération des autres fichiers:', err);
+          setOtherStudentDocuments([]);
         }
         
         // Lire la version depuis le query param si elle existe
@@ -539,6 +551,38 @@ export default function FileView() {
                           </div>
                         </div>
                       </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Autres fichiers de l'étudiant (Professor only) */}
+                {!isStudent && otherStudentDocuments.length > 0 && (
+                  <div className="bg-[#f7f7f7] relative shrink-0 w-full rounded-[4px]">
+                    <div className="content-stretch flex flex-col gap-[10px] items-start pl-[20px] pr-[10px] py-[20px] relative size-full">
+                      <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[20px] text-right whitespace-nowrap" style={{ color: accentColor }}>
+                        Autres fichiers de {studentUsername || 'l\'étudiant'}
+                      </p>
+                      <div className="content-stretch flex flex-col gap-[8px] items-start relative shrink-0 w-full">
+                        {otherStudentDocuments.map((doc) => (
+                          <Link
+                            key={doc.id}
+                            to={`/professor/file/${doc.id}`}
+                            className="content-stretch flex items-center justify-between py-[8px] px-[10px] relative shrink-0 w-full hover:bg-gray-100 border-b border-[#d9d9d9] cursor-pointer rounded transition-colors"
+                          >
+                            <div className="flex-[1_0_0] flex flex-col">
+                              <p className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[14px] truncate">
+                                {doc.nom_fichier}
+                              </p>
+                              <p className="font-['Inter:Regular',sans-serif] font-normal text-[#999999] text-[12px]">
+                                {new Date(doc.created_at).toLocaleDateString('fr-FR')}
+                              </p>
+                            </div>
+                            <p className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[12px] text-right ml-[10px]">
+                              {doc.version}
+                            </p>
+                          </Link>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
