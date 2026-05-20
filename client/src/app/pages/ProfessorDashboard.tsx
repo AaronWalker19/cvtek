@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import svgPaths from "../../imports/PageDeBaseCoteProf/svg-9gqyfpru0n";
 import { getDocuments, getUserById } from '../../api/client';
 
 export default function ProfessorDashboard() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<{
@@ -320,7 +322,8 @@ export default function ProfessorDashboard() {
                 {getStudentDocuments(selectedStudent.userId).map((doc) => (
                   <div
                     key={doc.id}
-                    className="content-stretch flex items-center justify-between py-[10px] px-[10px] relative shrink-0 w-full hover:bg-gray-50 border-b border-[#d9d9d9]"
+                    onClick={() => navigate(`/professor/file/${doc.id}`)}
+                    className="content-stretch flex items-center justify-between py-[10px] px-[10px] relative shrink-0 w-full hover:bg-gray-50 border-b border-[#d9d9d9] cursor-pointer"
                   >
                     <p className="flex-[1.5_0_0] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px]">
                       {doc.nom_fichier}
