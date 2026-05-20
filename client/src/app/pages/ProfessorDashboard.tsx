@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import svgPaths from "../../imports/PageDeBaseCoteProf/svg-9gqyfpru0n";
-import { getDocuments, getUserById } from '../../api/client';
+import { getDocuments, getUserById, getDocument } from '../../api/client';
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
@@ -28,6 +28,7 @@ export default function ProfessorDashboard() {
     userId: number;
     email?: string;
   }>>([]);
+  const [documentVersions, setDocumentVersions] = useState<{ [docId: number]: any[] }>({});
 
   // Charger tous les documents de la base de données
   useEffect(() => {
@@ -121,6 +122,33 @@ export default function ProfessorDashboard() {
     loadUserDetails();
   }, [selectedStudent]);
 
+  // Charger les versions des fichiers de l'étudiant sélectionné
+  useEffect(() => {
+    const loadDocumentVersions = async () => {
+      if (!selectedStudent) {
+        setDocumentVersions({});
+        return;
+      }
+
+      const studentDocs = getStudentDocuments(selectedStudent.userId);
+      const versions: { [docId: number]: any[] } = {};
+
+      for (const doc of studentDocs) {
+        try {
+          const fullDoc = await getDocument(doc.id);
+          versions[doc.id] = fullDoc.availableVersions || [{ version: doc.version }];
+        } catch (error) {
+          console.error(`❌ Erreur chargement versions doc ${doc.id}:`, error);
+          versions[doc.id] = [{ version: doc.version }];
+        }
+      }
+
+      setDocumentVersions(versions);
+    };
+
+    loadDocumentVersions();
+  }, [selectedStudent, allDocuments]);
+
   // Filtrer les étudiants selon la recherche
   const filteredStudents = allStudents.filter(
     (student) =>
@@ -131,6 +159,21 @@ export default function ProfessorDashboard() {
   // Récupérer les documents d'un étudiant
   const getStudentDocuments = (userId: number) => {
     return allDocuments.filter((doc) => doc.user_id === userId);
+  };
+
+  // Obtenir la dernière version en date pour un document
+  const getLatestVersion = (doc: any) => {
+    const versions = documentVersions[doc.id];
+    if (versions && versions.length > 0) {
+      // Trier par date décroissante et prendre la première (la plus récente)
+      const sorted = [...versions].sort((a: any, b: any) => {
+        const dateA = new Date(a.created_at || 0).getTime();
+        const dateB = new Date(b.created_at || 0).getTime();
+        return dateB - dateA;
+      });
+      return sorted[0].version || '1.0';
+    }
+    return doc.version || '1.0';
   };
 
   return (
@@ -345,7 +388,7 @@ export default function ProfessorDashboard() {
                       {doc.comment_count || 0}
                     </p>
                     <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px] text-center">
-                      {doc.version || '1.0'}
+                      {getLatestVersion(doc)}
                     </p>
                   </div>
                 ))}
