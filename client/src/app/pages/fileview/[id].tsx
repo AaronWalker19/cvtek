@@ -6,6 +6,7 @@ import {
   uploadFile, 
   getDocument,
   addVersion,
+  getUserById,
   Document as ApiDocument 
 } from '../../../api/client';
 import Sidebar from '../../components/Sidebar';
@@ -58,6 +59,7 @@ export default function FileView() {
   const [error, setError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
   const [followStudent, setFollowStudent] = useState(false);
+  const [studentUsername, setStudentUsername] = useState<string | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [showVersionModal, setShowVersionModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -83,6 +85,14 @@ export default function FileView() {
         console.log('   URL du fichier:', doc.url_fichier);
         
         setDocument(doc as any);
+        
+        // Charger le username de l'étudiant
+        try {
+          const studentData = await getUserById(doc.user_id);
+          setStudentUsername(studentData.username);
+        } catch (err) {
+          console.error('Erreur lors de la récupération du username:', err);
+        }
         
         // Lire la version depuis le query param si elle existe
         const versionParam = searchParams.get('version');
@@ -354,7 +364,7 @@ export default function FileView() {
               </div>
               {!isStudent && (
                 <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[24px] whitespace-nowrap" style={{ color: accentColor }}>
-                  Étudiant
+                  {studentUsername || 'Chargement...'}
                 </p>
               )}
             </div>
@@ -506,26 +516,12 @@ export default function FileView() {
                     />
                     <div className="content-stretch flex gap-[40px] items-center justify-center relative shrink-0 w-full">
                       <div className="content-stretch flex flex-[1_0_0] gap-[6px] items-center min-w-px relative">
-                        <button
-                          onClick={() => setFollowStudent(!followStudent)}
-                          className="relative shrink-0 size-[35px]"
-                        >
-                          <div className="absolute inset-[12.5%]">
-                            <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 26.25 30.3537">
-                              <g>
-                                <g />
-                                <path
-                                  clipRule="evenodd"
-                                  d={professorSvgPaths.p25feb300}
-                                  fill={followStudent ? "var(--fill-0, #36302A)" : "none"}
-                                  fillRule="evenodd"
-                                  stroke={followStudent ? "none" : "#36302A"}
-                                  strokeWidth={followStudent ? "0" : "2"}
-                                />
-                              </g>
-                            </svg>
-                          </div>
-                        </button>
+                        <input
+                          type="checkbox"
+                          checked={followStudent}
+                          onChange={(e) => setFollowStudent(e.target.checked)}
+                          className="relative shrink-0 w-[20px] h-[20px] cursor-pointer"
+                        />
                         <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[#36302a] text-[16px] whitespace-nowrap">
                           Suivre l'étudiant
                         </p>
