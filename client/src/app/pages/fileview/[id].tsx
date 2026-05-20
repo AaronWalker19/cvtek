@@ -142,12 +142,12 @@ export default function FileView() {
 
   const handleUploadVersion = async () => {
     if (!selectedFile) {
-      alert('Veuillez sélectionner un fichier');
+      console.warn('⚠️ Veuillez sélectionner un fichier');
       return;
     }
 
     if (!newVersionModal.doc) {
-      alert('Erreur: document non trouvé');
+      console.warn('⚠️ Erreur: document non trouvé');
       return;
     }
 
@@ -161,7 +161,7 @@ export default function FileView() {
       console.log('✅ Upload success:', uploadResponse);
 
       if (!uploadResponse.url) {
-        alert('Erreur: pas d\'URL retournée par le serveur');
+        console.error('❌ Erreur: pas d\'URL retournée par le serveur');
         return;
       }
 
@@ -173,7 +173,7 @@ export default function FileView() {
       await addVersion(newVersionModal.doc.id, fileUrl);
 
       console.log('✅ Version added successfully');
-      alert('Nouvelle version ajoutée avec succès!');
+      console.log('✅ Nouvelle version ajoutée avec succès!');
         
       // Recharger le document
       try {
@@ -193,7 +193,7 @@ export default function FileView() {
       }
     } catch (err) {
       console.error('❌ Erreur upload version:', err);
-      alert(`Erreur lors de l'upload de la nouvelle version: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
+      console.error(`❌ Erreur lors de l'upload de la nouvelle version: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
     } finally {
       setUploadingVersion(false);
     }
@@ -267,15 +267,15 @@ export default function FileView() {
 
   const handleAddComment = () => {
     if (newComment.trim()) {
-      alert(`Commentaire ajouté: ${newComment}`);
+      console.log(`✅ Commentaire ajouté: ${newComment}`);
       setNewComment('');
     }
   };
 
   const handleDeleteComment = (commentId: string) => {
     // eslint-disable-next-line no-restricted-globals
-    if (confirm('Voulez-vous vraiment supprimer ce commentaire?')) {
-      alert(`Commentaire ${commentId} supprimé`);
+    if (confirm('🔔 Voulez-vous vraiment supprimer ce commentaire?')) {
+      console.log(`✅ Commentaire ${commentId} supprimé`);
     }
   };
 

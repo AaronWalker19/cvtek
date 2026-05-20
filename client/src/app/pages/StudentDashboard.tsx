@@ -236,17 +236,17 @@ export default function StudentDashboard() {
 
   const handleAddFile = async () => {
     if (!newFileType) {
-      alert('Veuillez sélectionner un type');
+      console.warn('⚠️ Veuillez sélectionner un type');
       return;
     }
 
     if (sourceType === 'fichier' && !selectedFile) {
-      alert('Veuillez sélectionner un fichier');
+      console.warn('⚠️ Veuillez sélectionner un fichier');
       return;
     }
 
     if (sourceType === 'url' && !newFileUrl) {
-      alert('Veuillez entrer une URL');
+      console.warn('⚠️ Veuillez entrer une URL');
       return;
     }
 
@@ -301,7 +301,7 @@ export default function StudentDashboard() {
       };
 
       setDocuments([...documents, newDoc]);
-      alert(`Fichier "${fileName}" ajouté avec succès!`);
+      console.log(`✅ Fichier "${fileName}" ajouté avec succès!`);
       
       // Réinitialiser les champs
       setNewFileName('');
@@ -315,8 +315,8 @@ export default function StudentDashboard() {
         fileInputRef.current.value = '';
       }
     } catch (err) {
-      console.error('Erreur ajout fichier:', err);
-      alert('Erreur lors de l\'ajout du fichier: ' + (err instanceof Error ? err.message : 'Erreur inconnue'));
+      console.error('❌ Erreur ajout fichier:', err);
+      console.error('❌ Erreur lors de l\'ajout du fichier: ' + (err instanceof Error ? err.message : 'Erreur inconnue'));
     }
   };
 
@@ -329,10 +329,10 @@ export default function StudentDashboard() {
 
       // Supprimer du state local
       setDocuments(documents.filter(d => d.id !== docId));
-      alert('Fichier supprimé avec succès');
+      console.log('✅ Fichier supprimé avec succès');
     } catch (err) {
       console.error('Erreur suppression fichier:', err);
-      alert('Erreur lors de la suppression du fichier');
+      console.error('❌ Erreur lors de la suppression du fichier');
     }
   };
 
@@ -360,12 +360,12 @@ export default function StudentDashboard() {
 
   const handleNewVersion = async () => {
     if (!newVersionFile) {
-      alert('Veuillez sélectionner un fichier');
+      console.warn('⚠️ Veuillez sélectionner un fichier');
       return;
     }
 
     if (!newVersionModal.doc) {
-      alert('Erreur: document non trouvé');
+      console.warn('⚠️ Erreur: document non trouvé');
       return;
     }
 
@@ -401,7 +401,7 @@ export default function StudentDashboard() {
       );
       setDocuments(updatedDocs);
       
-      alert(`Nouvelle version créée avec succès!`);
+      console.log('✅ Nouvelle version créée avec succès!');
       setNewVersionModal({ show: false, doc: null });
       setNewVersionFile(null);
       setIsDraggingVersion(false);
@@ -409,8 +409,8 @@ export default function StudentDashboard() {
         newVersionFileInputRef.current.value = '';
       }
     } catch (err) {
-      console.error('Erreur création nouvelle version:', err);
-      alert('Erreur lors de la création de la nouvelle version: ' + (err instanceof Error ? err.message : 'Erreur inconnue'));
+      console.error('❌ Erreur création nouvelle version:', err);
+      console.error('❌ Erreur lors de la création de la nouvelle version: ' + (err instanceof Error ? err.message : 'Erreur inconnue'));
     } finally {
       setUploadingVersion(false);
     }
@@ -427,7 +427,7 @@ export default function StudentDashboard() {
 
   const handleSaveEdit = async (titre: string, description: string) => {
     if (!editModal.doc) {
-      alert('Erreur: document non trouvé');
+      console.warn('⚠️ Erreur: document non trouvé');
       return;
     }
 
@@ -447,11 +447,11 @@ export default function StudentDashboard() {
       );
       
       setDocuments(updatedDocs);
-      alert('Fichier modifié avec succès');
+      console.log('✅ Fichier modifié avec succès');
       setEditModal({ show: false, doc: null });
     } catch (err) {
-      console.error('Erreur modification fichier:', err);
-      alert('Erreur lors de la modification du fichier');
+      console.error('❌ Erreur modification fichier:', err);
+      console.error('❌ Erreur lors de la modification du fichier');
     } finally {
       setIsSavingEdit(false);
     }
