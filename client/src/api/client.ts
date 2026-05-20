@@ -150,6 +150,7 @@ export interface User {
     username: string;
     email: string;
     role: 'student' | 'professor' | 'admin';
+    parcour?: string;
     created_at?: string;
 }
 
@@ -208,15 +209,28 @@ export async function getCurrentUser(): Promise<User | null> {
  * Déconnexion
  * Endpoint: POST /api/auth/logout
  */
-/**
- * Déconnexion
- * Endpoint: POST /api/auth/logout
- */
 export async function logout(): Promise<void> {
     await apiCall(API_CONFIG.ROUTES.AUTH_LOGOUT, {
         method: 'POST',
         throwOnError: false,
     });
+}
+
+/**
+ * Récupère les infos d'un utilisateur par son ID
+ * Endpoint: GET /api/auth/{userId}
+ */
+export async function getUserById(userId: number): Promise<User> {
+    const response = await apiCall<{ user: User }>(
+        `/auth/${userId}`,
+        { method: 'GET' }
+    );
+
+    if (!response.success || !response.data?.user) {
+        throw new Error(response.error || 'Utilisateur non trouvé');
+    }
+
+    return response.data.user;
 }
 
 // ===============================================

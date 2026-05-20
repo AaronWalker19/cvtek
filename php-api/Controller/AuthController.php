@@ -49,14 +49,21 @@ class AuthController extends Controller
 
     protected function processGetRequest(HttpRequest $request): ?array
     {
+        $id = $request->getId();
+        
         // GET /api/auth/user
-        if ($request->getResource() === 'auth' && $request->getId() === 'user') {
+        if ($request->getResource() === 'auth' && $id === 'user') {
             return $this->handleGetUser($request);
         }
 
         // GET /api/auth/ensure-demo → S'assurer que l'utilisateur démo existe
-        if ($request->getResource() === 'auth' && $request->getId() === 'ensure-demo') {
+        if ($request->getResource() === 'auth' && $id === 'ensure-demo') {
             return $this->handleEnsureDemoUser($request);
+        }
+
+        // GET /api/auth/{userId} → Récupérer un utilisateur par ID
+        if ($request->getResource() === 'auth' && is_numeric($id)) {
+            return $this->handleGetUserById($request, (int)$id);
         }
 
         return ["error" => "Endpoint non trouvé"];
@@ -211,6 +218,22 @@ class AuthController extends Controller
 
         // Récupérer les infos fraîches en BD
         $userData = $this->auth->findById($user['id']);
+
+        if (!$userData) {
+            return ['error' => 'Utilisateur non trouvé', 'code' => 404];
+        }
+
+        return ['user' => $userData];
+    }
+
+    /**
+     * Récupère les infos d'un utilisateur par son ID
+     */
+    private function handleGetUserById(HttpRequest $request, int $userId): ?array
+    {
+        logAction("GET_USER_BY_ID", ['userId' => $userId]);
+
+        $userData = $this->auth->findById($userId);
 
         if (!$userData) {
             return ['error' => 'Utilisateur non trouvé', 'code' => 404];

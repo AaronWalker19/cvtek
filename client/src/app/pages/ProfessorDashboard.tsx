@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { mockUsers } from '../data/mockData';
 import Sidebar from "../components/Sidebar";
 import svgPaths from "../../imports/PageDeBaseCoteProf/svg-9gqyfpru0n";
+import { getDocuments, getUserById } from '../../api/client';
 
 export default function ProfessorDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -12,73 +12,115 @@ export default function ProfessorDashboard() {
     userId: number;
     email?: string;
   } | null>(null);
+  const [selectedStudentDetails, setSelectedStudentDetails] = useState<{
+    id: number;
+    username: string;
+    email: string;
+    role: string;
+    parcour?: string;
+  } | null>(null);
   const [allDocuments, setAllDocuments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [allStudents, setAllStudents] = useState<Array<{
+    name: string;
+    license?: string;
+    userId: number;
+    email?: string;
+  }>>([]);
 
-  // Charger les documents (mode démo)
+  // Charger tous les documents de la base de données
   useEffect(() => {
-    try {
-      // Données mock des documents pour tous les étudiants
-      const mockDocs = [
-        {
-          id: 1,
-          user_id: 1,
-          nom_fichier: 'CV_JeanDupont',
-          titre: 'CV - Première année',
-          type_fichier: 'CV',
-          url_fichier: '/uploads/cv_2026.pdf',
-          description: 'Mon curriculum vitae pour la première année',
-          version: 2,
-          comment_count: 2,
-          user: { name: 'Jean Dupont', email: 'jean.dupont@example.com' },
-          created_at: '2026-01-28',
-        },
-        {
-          id: 2,
-          user_id: 1,
-          nom_fichier: 'ProjetMMI',
-          titre: 'Projet MMI - Site Web',
-          type_fichier: 'Projet',
-          url_fichier: '/uploads/projet_mmi.zip',
-          description: 'Site web responsive avec React et Tailwind',
-          version: 1,
-          comment_count: 1,
-          user: { name: 'Jean Dupont', email: 'jean.dupont@example.com' },
-          created_at: '2026-02-10',
-        }
-      ];
-      setAllDocuments(mockDocs);
-    } catch (error) {
-      console.error('Erreur lors du chargement des documents:', error);
-      setAllDocuments([]);
-    } finally {
-      setLoading(false);
-    }
+    const loadAllDocuments = async () => {
+      try {
+        console.log("📥 Chargement de tous les documents...");
+        const docs = await getDocuments();
+        console.log("✅ Documents chargés:", docs);
+        setAllDocuments(docs);
+      } catch (error) {
+        console.error('❌ Erreur lors du chargement des documents:', error);
+        setAllDocuments([]);
+      }
+    };
+
+    loadAllDocuments();
   }, []);
 
-  // Obtenir les étudiants uniques qui ont au moins 1 commentaire
-  const studentsWithComments = Array.from(
-    allDocuments
-      .filter((doc) => doc.comment_count && doc.comment_count > 0)
-      .reduce(
-        (acc: Map<number, { name: string; license?: string; userId: number; email?: string }>, doc) => {
-          if (!acc.has(doc.user_id)) {
-            const user = mockUsers.find((u) => u.id === String(doc.user_id));
-            acc.set(doc.user_id, {
-              name: doc.user?.name || 'Utilisateur inconnu',
-              license: user?.license || doc.user?.license,
-              userId: doc.user_id,
-              email: user?.email || doc.user?.email,
-            });
-          }
-          return acc;
-        },
-        new Map(),
-      )
-      .values(),
-  );
+  // Extraire les étudiants uniques et créer la liste
+  useEffect(() => {
+    const loadStudents = async () => {
+      const studentsMap = new Map<number, { name: string; license?: string; userId: number; email?: string }>();
 
-  const filteredStudents = studentsWithComments.filter(
+      // D'abord, créer la liste basique avec les données des documents
+      allDocuments.forEach((doc) => {
+        if (!studentsMap.has(doc.user_id)) {
+          studentsMap.set(doc.user_id, {
+            name: `Étudiant ${doc.user_id}`,
+            license: 'N/A',
+            userId: doc.user_id,
+            email: 'N/A',
+          });
+        }
+      });
+
+      // Ensuite, charger les vraies infos de chaque utilisateur depuis la BDD
+      const updatedStudents: Array<{ name: string; license?: string; userId: number; email?: string }> = [];
+      
+      for (const student of studentsMap.values()) {
+        try {
+          const userDetails = await getUserById(student.userId);
+          updatedStudents.push({
+            name: userDetails.username,
+            license: userDetails.parcour || 'N/A',
+            userId: student.userId,
+            email: userDetails.email,
+          });
+        } catch (error) {
+          console.error(`❌ Erreur chargement étudiant ${student.userId}:`, error);
+          // Garder l'étudiant même si on ne peut pas charger ses détails
+          updatedStudents.push(student);
+        }
+      }
+
+      setAllStudents(updatedStudents);
+    };
+
+    if (allDocuments.length > 0) {
+      loadStudents();
+    } else {
+      setAllStudents([]);
+    }
+  }, [allDocuments]);
+
+  // Charger les détails de l'utilisateur quand on sélectionne un étudiant
+  useEffect(() => {
+    const loadUserDetails = async () => {
+      if (!selectedStudent) {
+        setSelectedStudentDetails(null);
+        return;
+      }
+
+      try {
+        console.log(`📥 Chargement des détails de l'utilisateur ${selectedStudent.userId}...`);
+        const userDetails = await getUserById(selectedStudent.userId);
+        console.log("✅ Détails utilisateur chargés:", userDetails);
+        setSelectedStudentDetails(userDetails);
+      } catch (error) {
+        console.error('❌ Erreur lors du chargement des détails utilisateur:', error);
+        // Garder les infos basiques même si les détails ne se chargent pas
+        setSelectedStudentDetails({
+          id: selectedStudent.userId,
+          username: selectedStudent.name,
+          email: selectedStudent.email || 'N/A',
+          role: 'student',
+          parcour: selectedStudent.license,
+        });
+      }
+    };
+
+    loadUserDetails();
+  }, [selectedStudent]);
+
+  // Filtrer les étudiants selon la recherche
+  const filteredStudents = allStudents.filter(
     (student) =>
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.license?.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -201,7 +243,7 @@ export default function ProfessorDashboard() {
       </div>
 
       {/* Modal Popup */}
-      {selectedStudent && (
+      {selectedStudent && selectedStudentDetails && (
         <div
           onClick={() => setSelectedStudent(null)}
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -232,13 +274,13 @@ export default function ProfessorDashboard() {
                 </div>
                 <div className="flex flex-col gap-[5px]">
                   <h2 className="font-['Inter:Bold',sans-serif] font-bold text-[24px] text-[#4b575f]">
-                    {selectedStudent.name}
+                    {selectedStudentDetails.username}
                   </h2>
                   <p className="font-['Inter:Regular',sans-serif] text-[16px] text-[#36302a]">
-                    {selectedStudent.license}
+                    {selectedStudentDetails.parcour || selectedStudent.license}
                   </p>
                   <p className="font-['Inter:Regular',sans-serif] text-[16px] text-[#36302a]">
-                    {selectedStudent.email}
+                    {selectedStudentDetails.email}
                   </p>
                 </div>
               </div>
@@ -294,7 +336,7 @@ export default function ProfessorDashboard() {
                       })}
                     </p>
                     <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px] text-center">
-                      {selectedStudent.license}
+                      {selectedStudentDetails.parcour || selectedStudent.license}
                     </p>
                     <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px] text-center">
                       {doc.comment_count || 0}
