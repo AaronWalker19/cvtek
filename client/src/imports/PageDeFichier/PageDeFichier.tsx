@@ -9,7 +9,7 @@ function Frame() {
             <div className="relative shrink-0 w-full" data-name="Accueil">
               <div className="flex flex-row items-center justify-center size-full">
                 <div className="content-stretch flex items-center justify-center p-[2px] relative size-full">
-                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-white whitespace-nowrap">Mes fichiers</p>
+                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-[#ffffff] whitespace-nowrap">Mes fichiers</p>
                 </div>
               </div>
             </div>
@@ -22,7 +22,7 @@ function Frame() {
                 </svg>
               </div>
             </div>
-            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-white whitespace-nowrap">Profil</p>
+            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-[#ffffff] whitespace-nowrap">Profil</p>
           </div>
         </div>
       </div>
@@ -62,7 +62,7 @@ function Frame5() {
               <div className="bg-[#4b575f] relative rounded-[20px] shrink-0 w-full">
                 <div className="flex flex-row justify-center size-full">
                   <div className="content-stretch flex gap-[10px] items-start justify-center p-[10px] relative size-full">
-                    <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal leading-[normal] min-w-px not-italic relative text-[16px] text-white">vous devriez modifier se fichier fgfjkg bfgu bdifjgbfdg ufiugdig bdfigudfbiugfgubh gidfgidug ubguifdbg ifgdiu ghfdui hgfiudhg fg hhgdiuf hgf guhdfiuf iufghdiuh fgfduih gfdghiuf gf guidhfgig dufhgiudgh dfuigh</p>
+                    <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal leading-[normal] min-w-px not-italic relative text-[16px] text-[#ffffff]">vous devriez modifier se fichier fgfjkg bfgu bdifjgbfdg ufiugdig bdfigudfbiugfgubh gidfgidug ubguifdbg ifgdiu ghfdui hgfiudhg fg hhgdiuf hgf guhdfiuf iufghdiuh fgfduih gfdghiuf gf guidhfgig dufhgiudgh dfuigh</p>
                   </div>
                 </div>
               </div>
@@ -97,7 +97,7 @@ function Frame7() {
               <div className="bg-[#4b575f] relative rounded-[20px] shrink-0 w-full">
                 <div className="flex flex-row justify-center size-full">
                   <div className="content-stretch flex gap-[10px] items-start justify-center p-[10px] relative size-full">
-                    <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal leading-[normal] min-w-px not-italic relative text-[16px] text-white">vous devriez modifier se fichier fgfjkg bfgu bdifjgbfdg ufiugdig bdfigudfbiugfgubh gidfgidug ubguifdbg ifgdiu ghfdui hgfiudhg fg hhgdiuf hgf guhdfiuf iufghdiuh fgfduih gfdghiuf gf guidhfgig dufhgiudgh dfuigh</p>
+                    <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal leading-[normal] min-w-px not-italic relative text-[16px] text-[#ffffff]">vous devriez modifier se fichier fgfjkg bfgu bdifjgbfdg ufiugdig bdfigudfbiugfgubh gidfgidug ubguifdbg ifgdiu ghfdui hgfiudhg fg hhgdiuf hgf guhdfiuf iufghdiuh fgfduih gfdghiuf gf guidhfgig dufhgiudgh dfuigh</p>
                   </div>
                 </div>
               </div>
@@ -146,7 +146,7 @@ function Frame2() {
               <div className="bg-[#b51621] relative rounded-[4px] shrink-0 w-full">
                 <div className="flex flex-row items-center justify-center size-full">
                   <div className="content-stretch flex items-center justify-center p-[10px] relative size-full">
-                    <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[24px] text-white whitespace-nowrap">Proposer une nouvelle version</p>
+                    <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[24px] text-[#ffffff] whitespace-nowrap">Proposer une nouvelle version</p>
                   </div>
                 </div>
               </div>

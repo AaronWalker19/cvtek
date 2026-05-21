@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import NewVersionModal from '../../components/NewVersionModal';
 import EditDocumentModal from '../../components/EditDocumentModal';
@@ -31,6 +32,7 @@ interface Document {
 }
 
 export default function StudentDashboard() {
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   
@@ -57,7 +59,7 @@ export default function StudentDashboard() {
   const [openVersionDropdown, setOpenVersionDropdown] = useState<number | null>(null);
   const [editModal, setEditModal] = useState<{ show: boolean; doc: Document | null }>({ show: false, doc: null });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [demoUserId, setDemoUserId] = useState<number>(2); // ID utilisateur démo
+  // ⚠️ Utiliser user.id depuis AuthContext plutôt que demoUserId
 
   const loadVersionsForDocument = useCallback(async (docId: number) => {
     try {
@@ -95,10 +97,10 @@ export default function StudentDashboard() {
   const loadDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      console.log(`📝 Chargement des documents pour user_id=${demoUserId}...`);
+      console.log(`📝 Chargement des documents pour user_id=${user?.id}...`);
       
       // Utiliser la nouvelle API
-      const docs = await getDocuments(demoUserId);
+      const docs = await getDocuments(user?.id || 0);
       
       // S'assurer que comment_count existe
       const formattedDocs = docs.map((doc: ApiDocument) => ({
@@ -119,7 +121,7 @@ export default function StudentDashboard() {
       const mockDocs: Document[] = [
         {
           id: 1,
-          user_id: demoUserId,
+          user_id: user?.id || 0,
           nom_fichier: 'CV_Mael',
           titre: 'CV - Mael',
           type_fichier: 'CV',
@@ -134,45 +136,15 @@ export default function StudentDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [demoUserId, loadVersionsForDocument]);
+  }, [user?.id, loadVersionsForDocument]);
 
   // Initialiser l'utilisateur démo au démarrage
+  // Charger les documents quand l'utilisateur est prêt
   useEffect(() => {
-    const initializeDemoUser = async () => {
-      try {
-        console.log(`🔍 Vérification de l'utilisateur démo mael...`);
-        
-        const response = await fetch(
-          'https://mmi.unilim.fr/~valin6/cvtek/api/ensure-demo-user.php'
-        );
-        
-        if (!response.ok) {
-          throw new Error(`Erreur: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log(`✅ Utilisateur démo:`, data);
-        
-        if (data.success && data.user?.id) {
-          setDemoUserId(data.user.id);
-          console.log(`✅ Utilisateur mael ID: ${data.user.id}`);
-        }
-      } catch (err) {
-        console.error('❌ Erreur initialisation utilisateur démo:', err);
-        // Continuer avec l'ID par défaut
-        setDemoUserId(2);
-      }
-    };
-    
-    initializeDemoUser();
-  }, []);
-
-  // Charger les documents quand l'utilisateur démo est prêt
-  useEffect(() => {
-    if (demoUserId) {
+    if (user?.id) {
       loadDocuments();
     }
-  }, [demoUserId, loadDocuments]);
+  }, [user?.id, loadDocuments]);
 
   // Récupérer l'URL fichier pour une version spécifique d'un document
   const getVersionUrl = (doc: Document): string => {
@@ -259,7 +231,7 @@ export default function StudentDashboard() {
         // Upload optionnel du fichier
         try {
           console.log(`📤 Upload du fichier: ${selectedFile.name}`);
-          const uploadResponse = await uploadFile(selectedFile, demoUserId);
+          const uploadResponse = await uploadFile(selectedFile, user?.id || 0);
           fileUrl = uploadResponse.url;
           console.log(`✅ Fichier uploadé:`, uploadResponse);
         } catch (uploadErr) {
@@ -269,7 +241,7 @@ export default function StudentDashboard() {
       }
 
       console.log(`📝 Création du document:`, {
-        user_id: demoUserId,
+        user_id: user?.id || 0,
         nom_fichier: fileName,
         titre: newFileTitle || fileName,
         type_fichier: newFileType,
@@ -279,7 +251,7 @@ export default function StudentDashboard() {
 
       // Créer le document en BD
       const result = await createDocument({
-        user_id: demoUserId,
+        user_id: user?.id || 0,
         nom_fichier: fileName,
         titre: newFileTitle || fileName,
         type_fichier: newFileType,
@@ -289,7 +261,7 @@ export default function StudentDashboard() {
 
       const newDoc: Document = {
         id: result.id,
-        user_id: demoUserId,
+        user_id: user?.id || 0,
         nom_fichier: fileName,
         titre: newFileTitle || fileName,
         type_fichier: newFileType,
@@ -375,7 +347,7 @@ export default function StudentDashboard() {
       console.log(`📤 Upload de la nouvelle version: ${newVersionFile.name}`);
       
       // Uploader le fichier
-      const uploadResponse = await uploadFile(newVersionFile, demoUserId);
+      const uploadResponse = await uploadFile(newVersionFile, user?.id || 0);
       const newFileUrl = uploadResponse.url;
       
       console.log(`✅ Fichier uploadé:`, uploadResponse);
@@ -594,7 +566,7 @@ export default function StudentDashboard() {
                       >
                         <div className="flex flex-row items-center justify-center size-full">
                           <div className="content-stretch flex items-center justify-center p-[10px] relative size-full">
-                            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[24px] text-white whitespace-nowrap">Ajouter</p>
+                            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[24px] text-[#ffffff] whitespace-nowrap">Ajouter</p>
                           </div>
                         </div>
                       </button>
@@ -792,7 +764,7 @@ export default function StudentDashboard() {
 
         {/* Modal de confirmation suppression */}
         {deleteConfirm.show && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-[#00000050] flex items-center justify-center z-50">
             <div className="bg-[#f7f7f7]  rounded-lg p-8 shadow-2xl max-w-sm border border-[#36302a]">
               <h3 className="text-xl font-bold text-[#36302a] mb-4">Confirmer la suppression</h3>
               <p className="text-[#36302a] mb-6">Êtes-vous sûr de vouloir supprimer ce fichier ? Cette action est irréversible.</p>
@@ -810,7 +782,7 @@ export default function StudentDashboard() {
                     }
                     setDeleteConfirm({ show: false, docId: null });
                   }}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium"
+                  className="flex-1 px-4 py-2 bg-red-600 text-[#ffffff] rounded hover:bg-red-700 font-medium"
                 >
                   Supprimer
                 </button>

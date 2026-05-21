@@ -46,7 +46,7 @@ export default function EditDocumentModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-[#00000050] flex items-center justify-center z-50">
       <div className="bg-[#f7f7f7] rounded-lg p-8 shadow-2xl max-w-md border-2 border-[#36302a] w-full mx-4">
         <h3 className="text-2xl font-bold text-[#36302a] mb-6">Modifier le fichier</h3>
 
@@ -100,7 +100,7 @@ export default function EditDocumentModal({
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex-1 px-4 py-2 bg-[#b51621] text-white rounded font-medium hover:bg-[#9a1319] transition-colors disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-[#b51621] text-[#ffffff] rounded font-medium hover:bg-[#9a1319] transition-colors disabled:opacity-50"
           >
             {isSaving ? 'Enregistrement...' : 'Enregistrer'}
           </button>

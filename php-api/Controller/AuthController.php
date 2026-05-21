@@ -56,9 +56,19 @@ class AuthController extends Controller
             return $this->handleGetUser($request);
         }
 
+        // GET /api/auth/init-demo → Initialiser tous les utilisateurs démo
+        if ($request->getResource() === 'auth' && $id === 'init-demo') {
+            return $this->handleInitDemoUsers($request);
+        }
+
         // GET /api/auth/ensure-demo → S'assurer que l'utilisateur démo existe
         if ($request->getResource() === 'auth' && $id === 'ensure-demo') {
             return $this->handleEnsureDemoUser($request);
+        }
+
+        // GET /api/auth/demo-token?user_id=X → Obtenir un token pour un utilisateur démo
+        if ($request->getResource() === 'auth' && $id === 'demo-token') {
+            return $this->handleDemoToken($request);
         }
 
         // GET /api/auth/{userId} → Récupérer un utilisateur par ID
@@ -360,4 +370,171 @@ class AuthController extends Controller
             ];
         }
     }
+
+    /**
+     * Initialise tous les utilisateurs démo (mael, professor, admin)
+     * GET /api/auth/init-demo
+     */
+    private function handleInitDemoUsers(HttpRequest $request): ?array
+    {
+        try {
+            $conn = Database::getConnection();
+            $results = [];
+
+            // Définir les utilisateurs démo avec leurs IDs
+            $demoUsers = [
+                [
+                    'id' => 16,
+                    'username' => 'mael',
+                    'email' => 'mael@mael.fr',
+                    'role' => 'student',
+                    'password' => 'mael123'
+                ],
+                [
+                    'id' => 17,
+                    'username' => 'professor',
+                    'email' => 'professor@cvtek.fr',
+                    'role' => 'professor',
+                    'password' => 'professor123'
+                ],
+                [
+                    'id' => 18,
+                    'username' => 'admin',
+                    'email' => 'admin@cvtek.fr',
+                    'role' => 'admin',
+                    'password' => 'admin123'
+                ]
+            ];
+
+            // Créer les utilisateurs
+            foreach ($demoUsers as $user) {
+                $existing = Database::fetchOne(
+                    "SELECT id FROM users WHERE username = ?",
+                    [$user['username']]
+                );
+
+                if ($existing) {
+                    $results[] = [
+                        'username' => $user['username'],
+                        'status' => 'exists',
+                        'id' => (int)$existing['id'],
+                        'email' => $user['email'],
+                        'role' => $user['role']
+                    ];
+                    logAction("DEMO_USER_EXISTS", ['username' => $user['username'], 'id' => $existing['id']]);
+                } else {
+                    try {
+                        $passwordHash = password_hash($user['password'], PASSWORD_BCRYPT);
+                        
+                        // Essayer d'insérer avec l'ID spécifique
+                        $stmt = $conn->prepare(
+                            "INSERT INTO users (id, username, email, password_hash, role, created_at) 
+                             VALUES (?, ?, ?, ?, ?, NOW())"
+                        );
+                        $stmt->execute([
+                            $user['id'],
+                            $user['username'],
+                            $user['email'],
+                            $passwordHash,
+                            $user['role']
+                        ]);
+
+                        $results[] = [
+                            'username' => $user['username'],
+                            'status' => 'created',
+                            'id' => $user['id'],
+                            'email' => $user['email'],
+                            'role' => $user['role']
+                        ];
+                        logAction("DEMO_USER_CREATED", ['username' => $user['username'], 'id' => $user['id']]);
+                    } catch (PDOException $e) {
+                        // Si l'ID existe mais le username est différent, créer avec auto-increment
+                        if (strpos($e->getMessage(), 'Duplicate entry') !== false && strpos($e->getMessage(), 'id') !== false) {
+                            $passwordHash = password_hash($user['password'], PASSWORD_BCRYPT);
+                            $stmt = $conn->prepare(
+                                "INSERT INTO users (username, email, password_hash, role, created_at) 
+                                 VALUES (?, ?, ?, ?, NOW())"
+                            );
+                            $stmt->execute([
+                                $user['username'],
+                                $user['email'],
+                                $passwordHash,
+                                $user['role']
+                            ]);
+
+                            $newId = (int)$conn->lastInsertId();
+                            $results[] = [
+                                'username' => $user['username'],
+                                'status' => 'created_with_auto_id',
+                                'id' => $newId,
+                                'email' => $user['email'],
+                                'role' => $user['role'],
+                                'note' => "ID spécifique {$user['id']} n'a pas pu être utilisé"
+                            ];
+                            logAction("DEMO_USER_CREATED_AUTO_ID", ['username' => $user['username'], 'id' => $newId]);
+                        } else {
+                            throw $e;
+                        }
+                    }
+                }
+            }
+
+            logAction("DEMO_USERS_INIT", ['count' => count($results)]);
+
+            return [
+                'success' => true,
+                'message' => 'Utilisateurs démo vérifiés/créés',
+                'users' => $results,
+                'timestamp' => date('Y-m-d H:i:s')
+            ];
+
+        } catch (Exception $e) {
+            error_log("❌ Erreur init-demo-users: " . $e->getMessage());
+            return [
+                'error' => 'Erreur lors de l\'initialisation des utilisateurs démo: ' . $e->getMessage(),
+                'code' => 500
+            ];
+        }
+    }
+
+    /**
+     * Génère un token démo pour un utilisateur spécifié
+     * GET /api/auth/demo-token?user_id=X
+     */
+    private function handleDemoToken(HttpRequest $request): ?array
+    {
+        $userId = $request->getParam('user_id');
+
+        if (!$userId) {
+            return ['error' => 'user_id requis', 'code' => 400];
+        }
+
+        $userId = (int)$userId;
+
+        logAction("DEMO_TOKEN_REQUEST", ['userId' => $userId]);
+
+        // Récupérer l'utilisateur
+        $userData = $this->auth->findById($userId);
+
+        if (!$userData) {
+            return ['error' => 'Utilisateur non trouvé', 'code' => 404];
+        }
+
+        // Générer le token JWT
+        $token = generateToken($userData['id'], $userData['username'], $userData['role']);
+
+        logAction("DEMO_TOKEN_GENERATED", ['userId' => $userId]);
+
+        return [
+            'token' => $token,
+            'user' => [
+                'id' => (int)$userData['id'],
+                'username' => $userData['username'],
+                'email' => $userData['email'],
+                'role' => $userData['role'],
+                'parcour' => $userData['parcour'],
+            ]
+        ];
+    }
 }
+

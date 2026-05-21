@@ -74,7 +74,7 @@ export default function NewVersionModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-[#00000050] flex items-center justify-center z-50">
       <div className="bg-[#f7f7f7] rounded-lg p-8 shadow-2xl max-w-md border-2 border-[#36302a]">
         <h3 className="text-2xl font-bold text-[#36302a] mb-6">Proposer une nouvelle version</h3>
 
@@ -145,7 +145,7 @@ export default function NewVersionModal({
           <button
             onClick={onUpload}
             disabled={!selectedFile || uploadingVersion}
-            className="flex-1 px-4 py-2 text-white rounded font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="flex-1 px-4 py-2 text-[#ffffff] rounded font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
             style={{ backgroundColor: accentColor }}
           >
             {uploadingVersion ? 'Upload...' : 'Valider'}

@@ -198,16 +198,16 @@ export function ColorPaletteDemo() {
               Boutons
             </h3>
             <div className="flex flex-wrap gap-2">
-              <button className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark transition">
+              <button className="px-4 py-2 bg-primary text-[#ffffff] rounded hover:bg-primary-dark transition">
                 Primaire
               </button>
-              <button className="px-4 py-2 bg-success text-white rounded hover:opacity-90 transition">
+              <button className="px-4 py-2 bg-success text-[#ffffff] rounded hover:opacity-90 transition">
                 Succès ✓
               </button>
-              <button className="px-4 py-2 bg-error text-white rounded hover:bg-error-dark transition">
+              <button className="px-4 py-2 bg-error text-[#ffffff] rounded hover:bg-error-dark transition">
                 Erreur ✗
               </button>
-              <button className="px-4 py-2 bg-warning text-white rounded hover:opacity-90 transition">
+              <button className="px-4 py-2 bg-warning text-[#ffffff] rounded hover:opacity-90 transition">
                 Avertissement ⚠
               </button>
             </div>
@@ -224,7 +224,7 @@ export function ColorPaletteDemo() {
                 <p className="text-gray-600">Fond gris clair</p>
               </div>
 
-              <div className="bg-primary text-white p-4 rounded">
+              <div className="bg-primary text-[#ffffff] p-4 rounded">
                 <h4 className="font-semibold mb-1">Carte primaire</h4>
                 <p className="opacity-90">Texte blanc sur primaire</p>
               </div>

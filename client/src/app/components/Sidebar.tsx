@@ -13,30 +13,30 @@ export default function Sidebar({ bgColor, showAdmin = false }: SidebarProps) {
   if (!user) return null;
 
   return (
-    <div className={`${bgColor} fixed left-0 top-0 h-screen w-[225px] z-50 !text-white`}>
+    <div className={`${bgColor} fixed left-0 top-0 h-screen w-[225px] z-50 !text-[#ffffff]`}>
       <div className="flex flex-col items-center justify-center size-full">
-        <div className="content-stretch flex flex-col items-center justify-between px-[30px] py-[20px] relative size-full !text-white">
+        <div className="content-stretch flex flex-col items-center justify-between px-[30px] py-[20px] relative size-full !text-[#ffffff]">
           <div className="content-stretch flex flex-col gap-[15px] items-start relative shrink-0">
-            <Link to={user.role === 'student' ? '/' : '/professor'} className="relative shrink-0 w-full !text-white hover:!text-white">
+            <Link to={user.role === 'student' ? '/' : '/professor'} className="relative shrink-0 w-full !text-[#ffffff] hover:!text-[#ffffff]">
               <div className="flex flex-row items-center justify-center size-full">
                 <div className="content-stretch flex items-center justify-center p-[2px] relative size-full">
-                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] !text-white whitespace-nowrap">
+                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] !text-[#ffffff] whitespace-nowrap">
                     {user.role === 'student' ? 'Mes fichiers' : 'Documents'}
                   </p>
                 </div>
               </div>
             </Link>
             {showAdmin && (
-              <Link to="/admin" className="relative shrink-0 w-full !text-white hover:!text-white">
+              <Link to="/admin" className="relative shrink-0 w-full !text-[#ffffff] hover:!text-[#ffffff]">
                 <div className="flex flex-row items-center justify-center size-full">
                   <div className="content-stretch flex items-center justify-center p-[2px] relative size-full">
-                    <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] !text-white whitespace-nowrap">admin</p>
+                    <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] !text-[#ffffff] whitespace-nowrap">admin</p>
                   </div>
                 </div>
               </Link>
             )}
           </div>
-          <Link to="/profile" className="content-stretch flex items-center justify-center relative rounded-[4px] shrink-0 !text-white hover:!text-white">
+          <Link to="/profile" className="content-stretch flex items-center justify-center relative rounded-[4px] shrink-0 !text-[#ffffff] hover:!text-[#ffffff]">
             <div className="overflow-clip relative shrink-0 size-[40px]">
               <div className="absolute inset-[8.33%]">
                 <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 33.3334 33.3334">
@@ -44,7 +44,7 @@ export default function Sidebar({ bgColor, showAdmin = false }: SidebarProps) {
                 </svg>
               </div>
             </div>
-            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] !text-white whitespace-nowrap">Profil</p>
+            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] !text-[#ffffff] whitespace-nowrap">Profil</p>
           </Link>
         </div>
       </div>

@@ -9,14 +9,14 @@ function Frame() {
             <div className="relative shrink-0 w-full" data-name="Accueil">
               <div className="flex flex-row items-center justify-center size-full">
                 <div className="content-stretch flex items-center justify-center p-[2px] relative size-full">
-                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-white whitespace-nowrap">Documents</p>
+                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-[#ffffff] whitespace-nowrap">Documents</p>
                 </div>
               </div>
             </div>
             <div className="relative shrink-0 w-full" data-name="Accueil">
               <div className="flex flex-row items-center justify-center size-full">
                 <div className="content-stretch flex items-center justify-center p-[2px] relative size-full">
-                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-white whitespace-nowrap">admin</p>
+                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-[#ffffff] whitespace-nowrap">admin</p>
                 </div>
               </div>
             </div>
@@ -29,7 +29,7 @@ function Frame() {
                 </svg>
               </div>
             </div>
-            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-white whitespace-nowrap">Profil</p>
+            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-[#ffffff] whitespace-nowrap">Profil</p>
           </div>
         </div>
       </div>
@@ -106,7 +106,7 @@ function Frame2() {
               <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[20px] text-[rgba(75,87,95,0.5)] whitespace-nowrap">mail du nouvelle utilisateur</p>
             </div>
             <div className="bg-[#4b575f] content-stretch flex items-center justify-center p-[10px] relative rounded-[4px] shrink-0 w-[178px]">
-              <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[20px] text-white whitespace-nowrap">Ajouter l’accès</p>
+              <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[20px] text-[#ffffff] whitespace-nowrap">Ajouter l’accès</p>
             </div>
           </div>
           <div className="content-stretch flex flex-col gap-[13px] items-start relative shrink-0 w-full">

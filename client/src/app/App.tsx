@@ -5,6 +5,7 @@ import FileView from './pages/fileview/[id]';
 import ProfessorDashboard from './pages/ProfessorDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import Profile from './pages/Profile';
+import DemoUserSwitcher from './components/DemoUserSwitcher';
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -79,6 +80,7 @@ export default function App() {
       <Router basename="/~valin6/cvtek">
         <div className="size-full">
           <AppRoutes />
+          <DemoUserSwitcher />
         </div>
       </Router>
     </AuthProvider>

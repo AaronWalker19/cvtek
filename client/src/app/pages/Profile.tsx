@@ -55,7 +55,7 @@ export default function Profile() {
                       onClick={() => switchUser(demoUser.id.toString())}
                       className={`flex items-start justify-between p-[15px] rounded-[10px] transition-colors ${
                         user.id === demoUser.id
-                          ? 'bg-[#4b575f] text-white'
+                          ? 'bg-[#4b575f] text-[#ffffff]'
                           : 'bg-[#f0f0f0] text-[#36302a] hover:bg-[#e0e0e0]'
                       }`}
                     >

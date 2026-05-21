@@ -29,6 +29,9 @@ const API_CONFIG = {
         
         // Upload
         UPLOAD: '/upload',
+        
+        // Comments
+        COMMENTS: '/comments',
     },
 };
 
@@ -46,6 +49,40 @@ function getApiBaseUrl(): string {
 }
 
 const API_BASE_URL = getApiBaseUrl();
+
+// ===============================================
+// Gestion du Token JWT
+// ===============================================
+
+/**
+ * Stocke le token JWT dans localStorage
+ */
+export function storeToken(token: string): void {
+    localStorage.setItem('auth_token', token);
+    console.log('✅ Token stocké dans localStorage');
+}
+
+/**
+ * Récupère le token JWT depuis localStorage
+ */
+export function getToken(): string | null {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+        console.warn(`⚠️ [getToken] Aucun token trouvé dans localStorage`);
+        console.log(`   📋 localStorage keys:`, Object.keys(localStorage));
+    } else {
+        console.log(`✅ [getToken] Token trouvé (length: ${token.length})`);
+    }
+    return token;
+}
+
+/**
+ * Supprime le token JWT
+ */
+export function clearToken(): void {
+    localStorage.removeItem('auth_token');
+    console.log('✅ Token supprimé de localStorage');
+}
 
 // ===============================================
 // Client HTTP générique
@@ -75,12 +112,32 @@ export async function apiCall<T = any>(
     console.log(`🔗 API Call: ${options.method || 'GET'} ${url}`);
     
     try {
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            ...options.headers,
+        };
+
+        // Ajouter le token JWT si disponible
+        const token = getToken();
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+            console.log(`🔐 Token JWT ajouté au header (length: ${token.length})`);
+        } else {
+            console.warn(`⚠️ AUCUN TOKEN JWT TROUVÉ dans localStorage`);
+        }
+        
+        console.log(`🔑 Headers:`, {
+            'Content-Type': headers['Content-Type'],
+            'Authorization': token ? `Bearer ${token.substring(0, 20)}...` : 'NOT SET'
+        });
+        
+        if (options.body) {
+            console.log(`📦 Body:`, options.body);
+        }
+
         const response = await fetch(url, {
             ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers,
-            },
+            headers,
             credentials: 'include', // Important pour les cookies de session
         });
 
@@ -105,6 +162,7 @@ export async function apiCall<T = any>(
         // Vérifier le statut HTTP
         if (!response.ok) {
             console.error(`❌ API Error (${response.status}):`, data.error);
+            console.error(`   📋 Réponse complète:`, data);
             if (throwOnError) {
                 throw new Error(data.error || `HTTP ${response.status}`);
             }
@@ -159,13 +217,18 @@ export interface User {
  * Endpoint: POST /api/auth/login
  */
 export async function login(credentials: LoginCredentials): Promise<User> {
-    const response = await apiCall<{ user: User }>(API_CONFIG.ROUTES.AUTH_LOGIN, {
+    const response = await apiCall<{ user: User; token: string }>(API_CONFIG.ROUTES.AUTH_LOGIN, {
         method: 'POST',
         body: JSON.stringify(credentials),
     });
 
     if (!response.success || !response.data?.user) {
         throw new Error(response.error || 'Connexion échouée');
+    }
+
+    // Stocker le token JWT
+    if (response.data.token) {
+        storeToken(response.data.token);
     }
 
     return response.data.user;
@@ -176,13 +239,18 @@ export async function login(credentials: LoginCredentials): Promise<User> {
  * Endpoint: POST /api/auth/register
  */
 export async function register(credentials: RegisterCredentials): Promise<User> {
-    const response = await apiCall<{ user: User }>(API_CONFIG.ROUTES.AUTH_REGISTER, {
+    const response = await apiCall<{ user: User; token: string }>(API_CONFIG.ROUTES.AUTH_REGISTER, {
         method: 'POST',
         body: JSON.stringify(credentials),
     });
 
     if (!response.success || !response.data?.user) {
         throw new Error(response.error || 'Inscription échouée');
+    }
+
+    // Stocker le token JWT
+    if (response.data.token) {
+        storeToken(response.data.token);
     }
 
     return response.data.user;
@@ -214,6 +282,9 @@ export async function logout(): Promise<void> {
         method: 'POST',
         throwOnError: false,
     });
+    
+    // Supprimer le token
+    clearToken();
 }
 
 /**
@@ -231,6 +302,45 @@ export async function getUserById(userId: number): Promise<User> {
     }
 
     return response.data.user;
+}
+
+/**
+ * Obtient un token de démo pour un utilisateur
+ * Endpoint: GET /api/auth/demo-token?user_id=X
+ */
+export async function getDemoToken(userId: number): Promise<{ token: string; user: User }> {
+    const response = await apiCall<{ token: string; user: User }>(
+        `/auth/demo-token?user_id=${userId}`,
+        { method: 'GET', throwOnError: false }
+    );
+
+    if (!response.success || !response.data?.token) {
+        throw new Error(response.error || 'Erreur génération token démo');
+    }
+
+    // Stocker le token
+    storeToken(response.data.token);
+
+    return response.data;
+}
+
+/**
+ * Initialise tous les utilisateurs démo (mael, professor, admin)
+ * Endpoint: GET /api/auth/init-demo
+ */
+export async function initializeDemoUsers(): Promise<any> {
+    try {
+        const response = await apiCall<any>(
+            `/auth/init-demo`,
+            { method: 'GET', throwOnError: false }
+        );
+
+        console.log(`✅ Utilisateurs démo initialisés:`, response.data);
+        return response.data;
+    } catch (error) {
+        console.error(`❌ Erreur lors de l'initialisation des utilisateurs démo:`, error);
+        return null;
+    }
 }
 
 // ===============================================
@@ -460,5 +570,112 @@ export async function uploadFile(file: File, userId?: number): Promise<UploadRes
         const errorMsg = error instanceof Error ? error.message : String(error);
         console.error(`❌ Upload exception:`, errorMsg);
         throw error;
+    }
+}
+
+// ===============================================
+// Commentaires
+// ===============================================
+
+export interface Comment {
+    id: number;
+    id_user: number;
+    id_docversion: number;
+    text: string;
+    date: string;
+    username: string;
+    email?: string;
+}
+
+/**
+ * Récupère les commentaires d'une version de document
+ * Endpoint: GET /api/comments?doc_version_id={id}
+ */
+export async function getCommentsByDocVersion(docVersionId: number): Promise<Comment[]> {
+    const response = await apiCall<{
+        count: number;
+        comments: Comment[];
+    }>(
+        `${API_CONFIG.ROUTES.COMMENTS}?doc_version_id=${docVersionId}`,
+        { method: 'GET' }
+    );
+
+    if (!response.success || !response.data?.comments) {
+        console.warn(`⚠️ Erreur lors de la récupération des commentaires pour la version ${docVersionId}`);
+        return [];
+    }
+
+    return response.data.comments;
+}
+
+/**
+ * Ajoute un commentaire à une version de document
+ * Endpoint: POST /api/comments
+ */
+export async function addComment(docVersionId: number, text: string): Promise<Comment> {
+    console.log(`🔍 [addComment] Début de l'ajout du commentaire`);
+    console.log(`   📊 docVersionId: ${docVersionId} (type: ${typeof docVersionId})`);
+    console.log(`   📝 text: "${text}" (length: ${text.length})`);
+    
+    const requestBody = {
+        id_docversion: docVersionId,
+        text: text,
+    };
+    console.log(`   📦 Request body:`, requestBody);
+    
+    const response = await apiCall<{
+        comment: Comment;
+    }>(
+        API_CONFIG.ROUTES.COMMENTS,
+        {
+            method: 'POST',
+            body: JSON.stringify(requestBody),
+        }
+    );
+
+    console.log(`🔍 [addComment] Response reçue:`, response);
+
+    if (!response.success || !response.data?.comment) {
+        console.error(`❌ [addComment] Erreur - success: ${response.success}, data: ${response.data}`);
+        throw new Error(response.error || 'Erreur lors de la création du commentaire');
+    }
+
+    return response.data.comment;
+}
+
+/**
+ * Met à jour un commentaire
+ * Endpoint: PUT /api/comments/{id}
+ */
+export async function updateComment(commentId: number, text: string): Promise<Comment> {
+    const response = await apiCall<{
+        comment: Comment;
+    }>(
+        `${API_CONFIG.ROUTES.COMMENTS}/${commentId}`,
+        {
+            method: 'PUT',
+            body: JSON.stringify({ text }),
+        }
+    );
+
+    if (!response.success || !response.data?.comment) {
+        throw new Error(response.error || 'Erreur lors de la mise à jour du commentaire');
+    }
+
+    return response.data.comment;
+}
+
+/**
+ * Supprime un commentaire
+ * Endpoint: DELETE /api/comments/{id}
+ */
+export async function deleteComment(commentId: number): Promise<void> {
+    const response = await apiCall(
+        `${API_CONFIG.ROUTES.COMMENTS}/${commentId}`,
+        { method: 'DELETE' }
+    );
+
+    if (!response.success) {
+        throw new Error(response.error || 'Erreur lors de la suppression du commentaire');
     }
 }

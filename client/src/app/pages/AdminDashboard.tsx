@@ -54,7 +54,7 @@ export default function AdminDashboard() {
                 onClick={handleAddUser}
                 className="bg-[#4b575f] content-stretch flex items-center justify-center p-[10px] relative rounded-[4px] shrink-0 w-[178px]"
               >
-                <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[20px] text-white whitespace-nowrap">Ajouter l'accès</p>
+                <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[20px] text-[#ffffff] whitespace-nowrap">Ajouter l'accès</p>
               </button>
             </div>
 

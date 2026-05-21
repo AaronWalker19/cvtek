@@ -9,14 +9,14 @@ function Frame() {
             <div className="relative shrink-0 w-full" data-name="Accueil">
               <div className="flex flex-row items-center justify-center size-full">
                 <div className="content-stretch flex items-center justify-center p-[2px] relative size-full">
-                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-white whitespace-nowrap">Documents</p>
+                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-[#ffffff] whitespace-nowrap">Documents</p>
                 </div>
               </div>
             </div>
             <div className="relative shrink-0 w-full" data-name="Accueil">
               <div className="flex flex-row items-center justify-center size-full">
                 <div className="content-stretch flex items-center justify-center p-[2px] relative size-full">
-                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-white whitespace-nowrap">admin</p>
+                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-[#ffffff] whitespace-nowrap">admin</p>
                 </div>
               </div>
             </div>
@@ -29,7 +29,7 @@ function Frame() {
                 </svg>
               </div>
             </div>
-            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-white whitespace-nowrap">Profil</p>
+            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-[#ffffff] whitespace-nowrap">Profil</p>
           </div>
         </div>
       </div>
@@ -69,7 +69,7 @@ function Frame2() {
               </div>
             </div>
             <div className="bg-[#4b575f] content-stretch flex gap-[10px] items-center p-[10px] relative rounded-[76px] shrink-0">
-              <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[20px] text-white whitespace-nowrap">Filtre</p>
+              <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[20px] text-[#ffffff] whitespace-nowrap">Filtre</p>
               <div className="relative shrink-0 size-[24px]" data-name="mdi:filter">
                 <div className="absolute inset-[12.5%_16.66%_12.49%_16.66%]" data-name="Vector">
                   <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16.0022 18.0024">

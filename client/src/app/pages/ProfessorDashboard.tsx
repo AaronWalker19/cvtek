@@ -232,7 +232,7 @@ export default function ProfessorDashboard() {
                 onClick={() => setShowFilters(!showFilters)}
                 className="bg-[#4b575f] content-stretch flex gap-[10px] items-center p-[10px] relative rounded-[76px] shrink-0"
               >
-                <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[20px] text-white whitespace-nowrap">
+                <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[20px] text-[#ffffff] whitespace-nowrap">
                   Filtre
                 </p>
                 <div className="relative shrink-0 size-[24px]">
@@ -291,7 +291,7 @@ export default function ProfessorDashboard() {
       {selectedStudent && selectedStudentDetails && (
         <div
           onClick={() => setSelectedStudent(null)}
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-[#000000] bg-opacity-50 flex items-center justify-center z-50"
         >
           <div
             onClick={(e) => e.stopPropagation()}

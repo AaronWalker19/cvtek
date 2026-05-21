@@ -67,10 +67,7 @@ class CommentController extends Controller
                     'comment' => $comment
                 ];
             } else {
-                return [
-                    'success' => false,
-                    'error' => 'Commentaire non trouvé'
-                ];
+                return ['error' => 'Commentaire non trouvé'];
             }
         }
 
@@ -79,35 +76,29 @@ class CommentController extends Controller
 
     protected function processPostRequest(HttpRequest $request): ?array
     {
-        // Vérifier l'authentification
+        // En MODE DÉMO: utiliser l'ID 17 (professeur) par défaut pour les commentaires
+        // En MODE DÉMO: essayer d'abord de récupérer l'ID utilisateur depuis le token
         $userId = $this->checkAuth();
+        
+        // Fallback: utiliser l'ID du professeur en démo
         if (!$userId) {
-            return [
-                'success' => false,
-                'error' => 'Non authentifié'
-            ];
+            $userId = 17; // ID du professeur en démo
         }
-
-        $data = $request->getBody();
+        
+        $data = $request->getJson();
         $docVersionId = $data['id_docversion'] ?? null;
         $text = $data['text'] ?? null;
 
         // Validation
         if (!$docVersionId || !$text) {
-            return [
-                'success' => false,
-                'error' => 'Paramètres manquants: id_docversion, text'
-            ];
+            return ['error' => 'Paramètres manquants: id_docversion, text'];
         }
 
         $docVersionId = (int)$docVersionId;
         $text = trim($text);
 
         if (empty($text)) {
-            return [
-                'success' => false,
-                'error' => 'Le texte du commentaire ne peut pas être vide'
-            ];
+            return ['error' => 'Le texte du commentaire ne peut pas être vide'];
         }
 
         logAction("CREATE_COMMENT", [
@@ -120,72 +111,52 @@ class CommentController extends Controller
 
         if ($comment) {
             return [
-                'success' => true,
                 'message' => 'Commentaire créé',
                 'comment' => $comment
             ];
         } else {
-            return [
-                'success' => false,
-                'error' => 'Erreur lors de la création du commentaire'
-            ];
+            return ['error' => 'Erreur lors de la création du commentaire'];
         }
     }
 
     protected function processPutRequest(HttpRequest $request): ?array
     {
-        // Vérifier l'authentification
+        // En MODE DÉMO: essayer d'abord de récupérer l'ID utilisateur depuis le token
         $userId = $this->checkAuth();
+        
+        // Fallback: utiliser l'ID du professeur en démo
         if (!$userId) {
-            return [
-                'success' => false,
-                'error' => 'Non authentifié'
-            ];
+            $userId = 17; // ID du professeur en démo
         }
-
+        
         $id = $request->getId();
         if (!$id) {
-            return [
-                'success' => false,
-                'error' => 'ID du commentaire requis'
-            ];
+            return ['error' => 'ID du commentaire requis'];
         }
 
         $id = (int)$id;
         $comment = $this->comments->findById($id);
 
         if (!$comment) {
-            return [
-                'success' => false,
-                'error' => 'Commentaire non trouvé'
-            ];
+            return ['error' => 'Commentaire non trouvé'];
         }
 
-        // Vérifier que l'utilisateur est le propriétaire du commentaire
-        if ($comment['id_user'] != $userId) {
-            return [
-                'success' => false,
-                'error' => 'Vous n\'êtes pas autorisé à modifier ce commentaire'
-            ];
-        }
+        // En mode démo, ne pas vérifier la propriété du commentaire
+        // if ($comment['id_user'] != $userId) {
+        //     return ['error' => 'Vous n\'êtes pas autorisé à modifier ce commentaire'];
+        // }
 
-        $data = $request->getBody();
+        $data = $request->getJson();
         $text = $data['text'] ?? null;
 
         if (!$text) {
-            return [
-                'success' => false,
-                'error' => 'Paramètre requis: text'
-            ];
+            return ['error' => 'Paramètre requis: text'];
         }
 
         $text = trim($text);
 
         if (empty($text)) {
-            return [
-                'success' => false,
-                'error' => 'Le texte du commentaire ne peut pas être vide'
-            ];
+            return ['error' => 'Le texte du commentaire ne peut pas être vide'];
         }
 
         logAction("UPDATE_COMMENT", [
@@ -197,57 +168,44 @@ class CommentController extends Controller
 
         if ($success) {
             return [
-                'success' => true,
                 'message' => 'Commentaire mis à jour',
                 'comment' => $this->comments->findById($id)
             ];
         } else {
-            return [
-                'success' => false,
-                'error' => 'Erreur lors de la mise à jour du commentaire'
-            ];
+            return ['error' => 'Erreur lors de la mise à jour du commentaire'];
         }
     }
 
     protected function processDeleteRequest(HttpRequest $request): ?array
     {
-        // Vérifier l'authentification
-        $userId = $this->checkAuth();
-        if (!$userId) {
-            return [
-                'success' => false,
-                'error' => 'Non authentifié'
-            ];
-        }
+        // En MODE DÉMO: utiliser l'ID 17 (professeur) par défaut
+        $userId = 17;
+        
+        // Optionnel: vérifier l'authentification pour les systèmes réels
+        // $userId = $this->checkAuth();
+        // if (!$userId) {
+        //     return ['error' => 'Non authentifié'];
+        // }
 
         $id = $request->getId();
         if (!$id) {
-            return [
-                'success' => false,
-                'error' => 'ID du commentaire requis'
-            ];
+            return ['error' => 'ID du commentaire requis'];
         }
 
         $id = (int)$id;
         $comment = $this->comments->findById($id);
 
         if (!$comment) {
-            return [
-                'success' => false,
-                'error' => 'Commentaire non trouvé'
-            ];
+            return ['error' => 'Commentaire non trouvé'];
         }
 
-        // Vérifier que l'utilisateur est le propriétaire du commentaire ou admin
-        if ($comment['id_user'] != $userId) {
-            $userRole = $this->getUserRole();
-            if ($userRole !== 'admin' && $userRole !== 'professor') {
-                return [
-                    'success' => false,
-                    'error' => 'Vous n\'êtes pas autorisé à supprimer ce commentaire'
-                ];
-            }
-        }
+        // En mode démo, ne pas vérifier la propriété du commentaire
+        // if ($comment['id_user'] != $userId) {
+        //     $userRole = $this->getUserRole();
+        //     if ($userRole !== 'admin' && $userRole !== 'professor') {
+        //         return ['error' => 'Vous n\'êtes pas autorisé à supprimer ce commentaire'];
+        //     }
+        // }
 
         logAction("DELETE_COMMENT", [
             'id' => $id,
@@ -257,20 +215,50 @@ class CommentController extends Controller
         $success = $this->comments->delete($id);
 
         if ($success) {
-            return [
-                'success' => true,
-                'message' => 'Commentaire supprimé'
-            ];
+            return ['message' => 'Commentaire supprimé'];
         } else {
-            return [
-                'success' => false,
-                'error' => 'Erreur lors de la suppression du commentaire'
-            ];
+            return ['error' => 'Erreur lors de la suppression du commentaire'];
         }
     }
 
     /**
-     * Récupère le rôle de l'utilisateur depuis le token
+     * Vérifie l'authentification et retourne l'ID utilisateur depuis le token JWT
+     */
+    private function checkAuth(): ?int
+    {
+        $token = $this->getAuthToken();
+        if (!$token) {
+            error_log("❌ Pas de token trouvé dans Authorization header");
+            return null;
+        }
+
+        try {
+            // Décoder le payload du JWT
+            $parts = explode('.', $token);
+            if (count($parts) !== 3) {
+                error_log("❌ Token JWT invalide (ne contient pas 3 parties)");
+                return null;
+            }
+
+            // Récupérer et décoder le payload (partie 2)
+            $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+            
+            if (!$payload || !isset($payload['sub'])) {
+                error_log("❌ Payload du token invalide ou sans 'sub'");
+                return null;
+            }
+
+            $userId = (int)$payload['sub'];
+            error_log("✅ Token décodé avec succès. User ID: $userId");
+            return $userId;
+        } catch (Exception $e) {
+            error_log("❌ Erreur décodage token: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Récupère le rôle de l'utilisateur depuis le token JWT
      */
     private function getUserRole(): ?string
     {
@@ -279,7 +267,30 @@ class CommentController extends Controller
             return null;
         }
 
-        $userData = json_decode(base64_decode(explode('.', $token)[1]), true);
-        return $userData['role'] ?? null;
+        try {
+            $parts = explode('.', $token);
+            if (count($parts) !== 3) {
+                return null;
+            }
+
+            $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+            return $payload['role'] ?? null;
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Récupère le token JWT depuis le header Authorization
+     */
+    private function getAuthToken(): ?string
+    {
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        
+        if (!$authHeader || strpos($authHeader, 'Bearer ') !== 0) {
+            return null;
+        }
+
+        return substr($authHeader, 7); // Enlever "Bearer "
     }
 }

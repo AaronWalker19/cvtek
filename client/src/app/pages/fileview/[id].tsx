@@ -8,6 +8,9 @@ import {
   addVersion,
   getUserById,
   getDocuments,
+  getCommentsByDocVersion,
+  addComment,
+  deleteComment,
   Document as ApiDocument 
 } from '../../../api/client';
 import Sidebar from '../../components/Sidebar';
@@ -41,9 +44,13 @@ interface DocumentWithVersions extends Document {
 }
 
 interface Comment {
-  id: string;
-  authorName: string;
-  content: string;
+  id: number;
+  id_user: number;
+  id_docversion: number;
+  text: string;
+  date: string;
+  username: string;
+  email?: string;
 }
 
 export default function FileView() {
@@ -52,7 +59,6 @@ export default function FileView() {
   const [searchParams] = useSearchParams();
   const docId = id || fileId;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const dropZoneRef = useRef<HTMLDivElement>(null);
   
   const [document, setDocument] = useState<DocumentWithVersions | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -61,14 +67,16 @@ export default function FileView() {
   const [newComment, setNewComment] = useState('');
   const [followStudent, setFollowStudent] = useState(false);
   const [studentUsername, setStudentUsername] = useState<string | null>(null);
-  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [showVersionModal, setShowVersionModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadingVersion, setUploadingVersion] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+  const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [newVersionModal, setNewVersionModal] = useState<{ show: boolean; doc: Document | null }>({ show: false, doc: null });
   const [otherStudentDocuments, setOtherStudentDocuments] = useState<Document[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [addingComment, setAddingComment] = useState(false);
 
   useEffect(() => {
     const fetchDocument = async () => {
@@ -114,11 +122,29 @@ export default function FileView() {
           if (versionObj) {
             console.log('📌 Setting initial version from query param:', versionObj.version);
             setSelectedVersion(versionObj.version);
+            setSelectedVersionId(versionId);
+          }
+        } else {
+          // Charger la première version par défaut
+          const firstVersion = (doc as any).availableVersions?.[0];
+          if (firstVersion) {
+            setSelectedVersionId(firstVersion.id);
           }
         }
         
-        // TODO: Fetch comments from API when endpoint is available
-        setComments([]);
+        // Charger les commentaires de la première version
+        if ((doc as any).availableVersions && (doc as any).availableVersions.length > 0) {
+          const firstVersionId = (doc as any).availableVersions[0].id;
+          try {
+            console.log('📥 Chargement des commentaires pour la version:', firstVersionId);
+            const loadedComments = await getCommentsByDocVersion(firstVersionId);
+            console.log('✅ Commentaires chargés:', loadedComments);
+            setComments(loadedComments);
+          } catch (err) {
+            console.error('❌ Erreur lors du chargement des commentaires:', err);
+            setComments([]);
+          }
+        }
       } catch (err) {
         console.error('❌ Error loading document:', err);
         setError('Erreur lors du chargement du document');
@@ -131,6 +157,29 @@ export default function FileView() {
       fetchDocument();
     }
   }, [docId, searchParams]);
+
+  // Charger les commentaires quand la version sélectionnée change
+  useEffect(() => {
+    const loadCommentsForVersion = async () => {
+      if (!selectedVersionId) {
+        return;
+      }
+
+      try {
+        setLoadingComments(true);
+        console.log('📥 Chargement des commentaires pour la version:', selectedVersionId);
+        const loadedComments = await getCommentsByDocVersion(selectedVersionId);
+        console.log('✅ Commentaires chargés:', loadedComments);
+        setComments(loadedComments);
+      } catch (err) {
+        console.error('❌ Erreur lors du chargement des commentaires:', err);
+      } finally {
+        setLoadingComments(false);
+      }
+    };
+
+    loadCommentsForVersion();
+  }, [selectedVersionId]);
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -253,8 +302,9 @@ export default function FileView() {
   };
 
   const handleVersionChange = (versionId: number, version: number) => {
-    console.log('📌 Changing to version:', version);
+    console.log('📌 Changing to version:', version, 'ID:', versionId);
     setSelectedVersion(version);
+    setSelectedVersionId(versionId);
   };
 
   if (loading) {
@@ -287,17 +337,52 @@ export default function FileView() {
   const backLink = isStudent ? '/' : '/professor';
   const currentVersionNumber = selectedVersion || document?.availableVersions?.[0]?.version || document?.version;
 
-  const handleAddComment = () => {
-    if (newComment.trim()) {
-      console.log(`✅ Commentaire ajouté: ${newComment}`);
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !selectedVersionId) {
+      console.warn('⚠️ Commentaire vide ou version non sélectionnée');
+      return;
+    }
+
+    try {
+      setAddingComment(true);
+      console.log(`📤 Ajout du commentaire pour la version ${selectedVersionId}...`);
+      console.log(`   📝 Texte: ${newComment.trim()}`);
+      console.log(`   🔍 selectedVersionId type: ${typeof selectedVersionId}, value: ${selectedVersionId}`);
+      
+      const newCommentData = await addComment(selectedVersionId, newComment.trim());
+      console.log('✅ Commentaire ajouté:', newCommentData);
+      
+      // Ajouter le commentaire à la liste
+      setComments([newCommentData, ...comments]);
       setNewComment('');
+    } catch (err) {
+      console.error('❌ Erreur lors de l\'ajout du commentaire:', err);
+      console.error(`   📋 Détails de l'erreur:`, {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        selectedVersionId,
+        newComment: newComment.trim(),
+      });
+      alert('Erreur lors de l\'ajout du commentaire');
+    } finally {
+      setAddingComment(false);
     }
   };
 
-  const handleDeleteComment = (commentId: string) => {
+  const handleDeleteComment = async (commentId: number) => {
     // eslint-disable-next-line no-restricted-globals
     if (confirm('🔔 Voulez-vous vraiment supprimer ce commentaire?')) {
-      console.log(`✅ Commentaire ${commentId} supprimé`);
+      try {
+        console.log(`📤 Suppression du commentaire ${commentId}...`);
+        await deleteComment(commentId);
+        console.log(`✅ Commentaire ${commentId} supprimé`);
+        
+        // Supprimer le commentaire de la liste
+        setComments(comments.filter(c => c.id !== commentId));
+      } catch (err) {
+        console.error('❌ Erreur lors de la suppression du commentaire:', err);
+        alert('Erreur lors de la suppression du commentaire');
+      }
     }
   };
 
@@ -450,7 +535,7 @@ export default function FileView() {
                                 <div className="flex flex-row items-center justify-center size-full">
                                   <div className="content-stretch flex items-center justify-center px-[10px] relative size-full">
                                     <p className="flex-[1_0_0] font-['Inter:Medium',sans-serif] font-medium leading-[normal] min-w-px not-italic relative text-[16px] text-right" style={{ color: accentColor }}>
-                                      {comment.authorName}
+                                      {comment.username}
                                     </p>
                                   </div>
                                 </div>
@@ -459,7 +544,7 @@ export default function FileView() {
                                 <div className="flex flex-row justify-center size-full">
                                   <div className="content-stretch flex gap-[10px] items-start justify-center p-[10px] relative size-full">
                                     <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal leading-[normal] min-w-px not-italic relative text-[16px] text-[#ffffff]">
-                                      {comment.content}
+                                      {comment.text}
                                     </p>
                                     {!isStudent && (
                                       <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-[24px]">
@@ -540,13 +625,14 @@ export default function FileView() {
                       </div>
                       <button
                         onClick={handleAddComment}
-                        className="flex-[1_0_0] min-w-px relative rounded-[4px]"
+                        disabled={addingComment || !newComment.trim()}
+                        className="flex-[1_0_0] min-w-px relative rounded-[4px] disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ backgroundColor: accentColor }}
                       >
                         <div className="flex flex-row items-center justify-center size-full">
                           <div className="content-stretch flex items-center justify-center p-[10px] relative size-full">
                             <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[15px] text-[#ffffff] whitespace-nowrap">
-                              Ajouter un commentaire
+                              {addingComment ? 'Ajout en cours...' : 'Ajouter un commentaire'}
                             </p>
                           </div>
                         </div>

@@ -9,7 +9,7 @@ function Frame() {
             <div className="relative shrink-0 w-full" data-name="Accueil">
               <div className="flex flex-row items-center justify-center size-full">
                 <div className="content-stretch flex items-center justify-center p-[2px] relative size-full">
-                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-white whitespace-nowrap">Mes fichiers</p>
+                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-[#ffffff] whitespace-nowrap">Mes fichiers</p>
                 </div>
               </div>
             </div>
@@ -22,7 +22,7 @@ function Frame() {
                 </svg>
               </div>
             </div>
-            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-white whitespace-nowrap">Profil</p>
+            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] text-[#ffffff] whitespace-nowrap">Profil</p>
           </div>
         </div>
       </div>
@@ -89,7 +89,7 @@ function Frame4() {
       <div className="bg-[#b51621] relative rounded-[4px] shrink-0 w-full">
         <div className="flex flex-row items-center justify-center size-full">
           <div className="content-stretch flex items-center justify-center p-[10px] relative size-full">
-            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[24px] text-white whitespace-nowrap">Ajouter</p>
+            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[24px] text-[#ffffff] whitespace-nowrap">Ajouter</p>
           </div>
         </div>
       </div>
