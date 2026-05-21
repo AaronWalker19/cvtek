@@ -89,7 +89,7 @@ body {
 .rounded-full { border-radius: 9999px; }
 
 /* Background Colors */
-.bg-white { background-color: rgb(255, 255, 255); }
+.bg-[#ffffff] { background-color: rgb(255, 255, 255); }
 .bg-gray-50 { background-color: rgb(249, 250, 251); }
 .bg-gray-100 { background-color: rgb(243, 244, 246); }
 .bg-gray-200 { background-color: rgb(229, 231, 235); }

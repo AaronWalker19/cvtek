@@ -551,8 +551,8 @@ export default function StudentDashboard() {
                           />
                         </div>
                       </div>
-                      <div className="h-[103px] relative rounded-[20px] shrink-0 w-full">
-                        <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[20px]" />
+                      <div className="h-[103px] relative rounded-[10px] shrink-0 w-full">
+                        <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[10px]" />
                         <textarea
                           value={newFileDescription}
                           onChange={(e) => setNewFileDescription(e.target.value)}
@@ -676,7 +676,7 @@ export default function StudentDashboard() {
                                   className={`block w-full text-left px-4 py-2 text-[14px] border-b border-[#e0e0e0] last:border-b-0 transition-colors ${
                                     selectedVersion[doc.id] === version.id
                                       ? 'bg-[#b51621] text-[#ffffff]'
-                                      : 'bg-white text-[#36302a] hover:bg-[#f0f0f0]'
+                                      : 'bg-[#ffffff] text-[#36302a] hover:bg-[#f0f0f0]'
                                   }`}
                                 >
                                   {version.version}

@@ -59,7 +59,7 @@ function Frame5() {
           <div className="content-stretch flex flex-col items-end px-[10px] relative size-full">
             <div className="content-stretch flex flex-col items-end relative shrink-0 w-full">
               <Frame3 />
-              <div className="bg-[#4b575f] relative rounded-[20px] shrink-0 w-full">
+              <div className="bg-[#4b575f] relative rounded-[10px] shrink-0 w-full">
                 <div className="flex flex-row justify-center size-full">
                   <div className="content-stretch flex gap-[10px] items-start justify-center p-[10px] relative size-full">
                     <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal leading-[normal] min-w-px not-italic relative text-[16px] text-[#ffffff]">vous devriez modifier se fichier fgfjkg bfgu bdifjgbfdg ufiugdig bdfigudfbiugfgubh gidfgidug ubguifdbg ifgdiu ghfdui hgfiudhg fg hhgdiuf hgf guhdfiuf iufghdiuh fgfduih gfdghiuf gf guidhfgig dufhgiudgh dfuigh</p>
@@ -94,7 +94,7 @@ function Frame7() {
           <div className="content-stretch flex flex-col items-end px-[10px] relative size-full">
             <div className="content-stretch flex flex-col items-end relative shrink-0 w-full">
               <Frame4 />
-              <div className="bg-[#4b575f] relative rounded-[20px] shrink-0 w-full">
+              <div className="bg-[#4b575f] relative rounded-[10px] shrink-0 w-full">
                 <div className="flex flex-row justify-center size-full">
                   <div className="content-stretch flex gap-[10px] items-start justify-center p-[10px] relative size-full">
                     <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal leading-[normal] min-w-px not-italic relative text-[16px] text-[#ffffff]">vous devriez modifier se fichier fgfjkg bfgu bdifjgbfdg ufiugdig bdfigudfbiugfgubh gidfgidug ubguifdbg ifgdiu ghfdui hgfiudhg fg hhgdiuf hgf guhdfiuf iufghdiuh fgfduih gfdghiuf gf guidhfgig dufhgiudgh dfuigh</p>

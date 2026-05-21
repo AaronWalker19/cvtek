@@ -56,6 +56,23 @@ abstract class Repository
     }
 
     /**
+     * Exécute une requête INSERT et retourne l'ID inséré
+     */
+    protected function insert(string $sql, array $params = []): ?string
+    {
+        try {
+            $stmt = $this->cnx->prepare($sql);
+            if ($stmt->execute($params)) {
+                return $this->getLastInsertId();
+            }
+            return null;
+        } catch (Exception $e) {
+            error_log("Database error: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Retourne l'ID inséré
      */
     protected function getLastInsertId(): string

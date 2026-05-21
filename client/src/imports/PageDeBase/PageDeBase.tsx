@@ -80,8 +80,8 @@ function Frame4() {
   return (
     <div className="content-stretch flex flex-[1_0_0] flex-col gap-[20px] items-start min-w-px relative self-stretch">
       <Frame8 />
-      <div className="bg-[#ffffff] h-[103px] relative rounded-[20px] shrink-0 w-full">
-        <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[20px]" />
+      <div className="bg-[#ffffff] h-[103px] relative rounded-[10px] shrink-0 w-full">
+        <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[10px]" />
         <div className="content-stretch flex gap-[10px] items-start p-[10px] relative size-full">
           <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[20px] text-[rgba(75,87,95,0.5)] whitespace-nowrap">Ajouter une description</p>
         </div>

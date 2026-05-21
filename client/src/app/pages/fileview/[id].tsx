@@ -535,22 +535,22 @@ export default function FileView() {
                                 <div className="flex flex-row items-center justify-center size-full">
                                   <div className="content-stretch flex items-center justify-center px-[10px] relative size-full">
                                     <p className="flex-[1_0_0] font-['Inter:Medium',sans-serif] font-medium leading-[normal] min-w-px not-italic relative text-[16px] text-right" style={{ color: accentColor }}>
-                                      {comment.username}
+                                      {comment.username} - {new Date(comment.date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                     </p>
                                   </div>
                                 </div>
                               </div>
-                              <div className="relative rounded-[20px] shrink-0 w-full" style={{ backgroundColor: accentColor }}>
+                              <div className="relative rounded-[10px] shrink-0 w-full" style={{ backgroundColor: accentColor }}>
                                 <div className="flex flex-row justify-center size-full">
                                   <div className="content-stretch flex gap-[10px] items-start justify-center p-[10px] relative size-full">
                                     <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal leading-[normal] min-w-px not-italic relative text-[16px] text-[#ffffff]">
                                       {comment.text}
                                     </p>
                                     {!isStudent && (
-                                      <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-[24px]">
+                                      <div className="content-stretch flex flex-row gap-[5px] items-center relative shrink-0">
                                         <button
                                           onClick={() => setEditingCommentId(comment.id)}
-                                          className="relative shrink-0 size-[24px]"
+                                          className="relative shrink-0 size-[16px]"
                                         >
                                           <div className="absolute inset-[8.33%]">
                                             <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 20.0007 20.0007">
@@ -560,7 +560,7 @@ export default function FileView() {
                                         </button>
                                         <button
                                           onClick={() => handleDeleteComment(comment.id)}
-                                          className="relative shrink-0 size-[24px]"
+                                          className="relative shrink-0 size-[16px]"
                                         >
                                           <div className="absolute inset-[12.5%_20.83%]">
                                             <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 14 18">

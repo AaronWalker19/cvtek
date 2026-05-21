@@ -40,8 +40,8 @@ export default function AdminDashboard() {
 
             {/* Add User Form */}
             <div className="content-stretch flex gap-[10px] items-center justify-center relative shrink-0">
-              <div className="bg-[#ffffff] content-stretch flex gap-[10px] items-center p-[10px] relative rounded-[20px] shrink-0 w-[564px]">
-                <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[20px]" />
+              <div className="bg-[#ffffff] content-stretch flex gap-[10px] items-center p-[10px] relative rounded-[10px] shrink-0 w-[564px]">
+                <div aria-hidden="true" className="absolute border border-[#4b575f] border-solid inset-0 pointer-events-none rounded-[10px]" />
                 <input
                   type="email"
                   value={newUserEmail}
