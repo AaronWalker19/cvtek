@@ -76,23 +76,26 @@ CREATE TABLE IF NOT EXISTS doc_version (
   COMMENT='Toutes les versions des documents (1.0, 2.0, 3.0, etc)';
 
 -- ============================================
--- Table: comments (optionnel - mentionné dans Express)
+-- Table: commentaire
 -- ============================================
-CREATE TABLE IF NOT EXISTS comments (
+CREATE TABLE IF NOT EXISTS commentaire (
   id INT PRIMARY KEY AUTO_INCREMENT,
-  document_id INT NOT NULL,
-  user_id INT NOT NULL,
-  content TEXT NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  id_user INT NOT NULL COMMENT 'Référence utilisateur',
+  id_docversion INT NOT NULL COMMENT 'Référence version du document',
+  text LONGTEXT NOT NULL COMMENT 'Contenu du commentaire',
+  date DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Date de création du commentaire',
   
-  CONSTRAINT fk_doc_comment FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
-  CONSTRAINT fk_user_comment FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  -- Contraintes
+  CONSTRAINT fk_commentaire_user FOREIGN KEY (id_user) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_commentaire_docversion FOREIGN KEY (id_docversion) REFERENCES doc_version(id) ON DELETE CASCADE,
   
-  INDEX idx_document_id (document_id),
-  INDEX idx_user_id (user_id)
+  -- Indexes
+  INDEX idx_id_user (id_user),
+  INDEX idx_id_docversion (id_docversion),
+  INDEX idx_date (date)
   
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
-  COMMENT='Commentaires sur les documents (optionnel)';
+  COMMENT='Commentaires sur les versions de documents';
 
 -- ============================================
 -- Utilisateurs de test

@@ -15,6 +15,12 @@
  * POST   /api/documents
  * PUT    /api/documents/{id}
  * DELETE /api/documents/{id}
+ * GET    /api/comments?doc_version_id=X
+ * GET    /api/comments?user_id=X
+ * GET    /api/comments/{id}
+ * POST   /api/comments (body: {id_docversion, text})
+ * PUT    /api/comments/{id} (body: {text})
+ * DELETE /api/comments/{id}
  */
 
 // ===== CONFIGURATION & CHARGEMENTS =====
@@ -29,9 +35,11 @@ require_once __DIR__ . '/Controller/AuthController.php';
 require_once __DIR__ . '/Controller/DocumentController.php';
 require_once __DIR__ . '/Controller/UploadController.php';
 require_once __DIR__ . '/Controller/SystemController.php';
+require_once __DIR__ . '/Controller/CommentController.php';
 require_once __DIR__ . '/Repository/AuthRepository.php';
 require_once __DIR__ . '/Repository/DocumentRepository.php';
 require_once __DIR__ . '/Repository/UploadRepository.php';
+require_once __DIR__ . '/Repository/CommentRepository.php';
 
 // ===== HEADERS =====
 
@@ -53,6 +61,7 @@ try {
         'documents' => new DocumentController(),
         'upload' => new UploadController(),
         'system' => new SystemController(),
+        'comments' => new CommentController(),
     ];
 
     // Vérifier si le contrôleur existe

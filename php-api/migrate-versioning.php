@@ -45,6 +45,34 @@ try {
         $migrationSteps[] = 'Table doc_version existe déjà';
     }
     
+    // Étape 2b: Créer la table commentaire si elle n'existe pas
+    $checkComment = $conn->query("SHOW TABLES LIKE 'commentaire'");
+    $commentTableExists = $checkComment && $checkComment->rowCount() > 0;
+    
+    if (!$commentTableExists) {
+        $conn->exec("
+            CREATE TABLE IF NOT EXISTS commentaire (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                id_user INT NOT NULL,
+                id_docversion INT NOT NULL,
+                text LONGTEXT NOT NULL,
+                date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                
+                CONSTRAINT fk_commentaire_user FOREIGN KEY (id_user) REFERENCES users(id) ON DELETE CASCADE,
+                CONSTRAINT fk_commentaire_docversion FOREIGN KEY (id_docversion) REFERENCES doc_version(id) ON DELETE CASCADE,
+                
+                INDEX idx_id_user (id_user),
+                INDEX idx_id_docversion (id_docversion),
+                INDEX idx_date (date)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='Commentaires sur les versions de documents'
+        ");
+        
+        $migrationSteps[] = 'Table commentaire créée';
+    } else {
+        $migrationSteps[] = 'Table commentaire existe déjà';
+    }
+    
     // Étape 3: Migrer les données existantes de documents
     // Récupérer tous les documents qui ne sont pas des versions (parent_document_id IS NULL)
     $oldDocs = $conn->query("

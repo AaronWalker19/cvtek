@@ -108,6 +108,23 @@ try {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
     
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS commentaire (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            id_user INT NOT NULL,
+            id_docversion INT NOT NULL,
+            text LONGTEXT NOT NULL,
+            date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            
+            CONSTRAINT fk_commentaire_user FOREIGN KEY (id_user) REFERENCES users(id) ON DELETE CASCADE,
+            CONSTRAINT fk_commentaire_docversion FOREIGN KEY (id_docversion) REFERENCES doc_version(id) ON DELETE CASCADE,
+            
+            INDEX idx_id_user (id_user),
+            INDEX idx_id_docversion (id_docversion),
+            INDEX idx_date (date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+    
     // Créer l'utilisateur démo mael s'il n'existe pas
     $check = $conn->query("SELECT id FROM users WHERE username = 'mael'");
     if ($check->rowCount() === 0) {

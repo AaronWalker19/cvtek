@@ -72,6 +72,32 @@ class SystemController extends Controller
                 $results['table_exists'] = true;
             }
 
+            // Étape 1b: Créer la table commentaire
+            $checkComment = $conn->query("SHOW TABLES LIKE 'commentaire'");
+            $commentTableExists = $checkComment && $checkComment->rowCount() > 0;
+
+            if (!$commentTableExists) {
+                $conn->exec("
+                    CREATE TABLE IF NOT EXISTS commentaire (
+                        id INT PRIMARY KEY AUTO_INCREMENT,
+                        id_user INT NOT NULL COMMENT 'Référence utilisateur',
+                        id_docversion INT NOT NULL COMMENT 'Référence version du document',
+                        text LONGTEXT NOT NULL COMMENT 'Contenu du commentaire',
+                        date DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Date de création du commentaire',
+                        
+                        CONSTRAINT fk_commentaire_user FOREIGN KEY (id_user) REFERENCES users(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_commentaire_docversion FOREIGN KEY (id_docversion) REFERENCES doc_version(id) ON DELETE CASCADE,
+                        
+                        INDEX idx_id_user (id_user),
+                        INDEX idx_id_docversion (id_docversion),
+                        INDEX idx_date (date)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+                $results['commentaire_table_created'] = true;
+            } else {
+                $results['commentaire_table_exists'] = true;
+            }
+
             // Étape 2: Migrer les données existantes
             $missing = $conn->query("
                 SELECT d.id, d.created_at
@@ -148,6 +174,16 @@ class SystemController extends Controller
                 $diagnosis['tables']['doc_version'] = ['exists' => false];
             }
 
+            try {
+                $commentStructure = $conn->query("DESCRIBE commentaire")->fetchAll(PDO::FETCH_ASSOC);
+                $diagnosis['tables']['commentaire'] = [
+                    'exists' => true,
+                    'columns' => array_column($commentStructure, 'Field')
+                ];
+            } catch (Exception $e) {
+                $diagnosis['tables']['commentaire'] = ['exists' => false];
+            }
+
             // Données
             $diagnosis['data'] = [];
             
@@ -162,6 +198,13 @@ class SystemController extends Controller
                 $diagnosis['data']['total_versions'] = (int)$versionsCount;
             } catch (Exception $e) {
                 $diagnosis['data']['total_versions'] = 'N/A';
+            }
+
+            try {
+                $commentsCount = $conn->query("SELECT COUNT(*) as cnt FROM commentaire")->fetch(PDO::FETCH_ASSOC)['cnt'];
+                $diagnosis['data']['total_comments'] = (int)$commentsCount;
+            } catch (Exception $e) {
+                $diagnosis['data']['total_comments'] = 'N/A';
             }
 
             // Utilisateurs avec docs
