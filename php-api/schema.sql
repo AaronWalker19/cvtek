@@ -98,6 +98,28 @@ CREATE TABLE IF NOT EXISTS commentaire (
   COMMENT='Commentaires sur les versions de documents';
 
 -- ============================================
+-- Table: abonnement
+-- ============================================
+CREATE TABLE IF NOT EXISTS abonnement (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  id_prof INT NOT NULL COMMENT 'Référence professeur',
+  id_user INT NOT NULL COMMENT 'Référence utilisateur/étudiant',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Date d\'abonnement',
+  
+  -- Contraintes
+  CONSTRAINT fk_abonnement_prof FOREIGN KEY (id_prof) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_abonnement_user FOREIGN KEY (id_user) REFERENCES users(id) ON DELETE CASCADE,
+  
+  -- Indexes
+  INDEX idx_id_prof (id_prof),
+  INDEX idx_id_user (id_user),
+  INDEX idx_created_at (created_at),
+  UNIQUE KEY uk_prof_user (id_prof, id_user)
+  
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+  COMMENT='Abonnements entre professeurs et étudiants';
+
+-- ============================================
 -- Utilisateurs de test
 -- ============================================
 

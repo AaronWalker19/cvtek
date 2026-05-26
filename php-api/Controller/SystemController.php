@@ -98,6 +98,32 @@ class SystemController extends Controller
                 $results['commentaire_table_exists'] = true;
             }
 
+            // Étape 1c: Créer la table abonnement
+            $checkAbonnement = $conn->query("SHOW TABLES LIKE 'abonnement'");
+            $abonnementTableExists = $checkAbonnement && $checkAbonnement->rowCount() > 0;
+
+            if (!$abonnementTableExists) {
+                $conn->exec("
+                    CREATE TABLE IF NOT EXISTS abonnement (
+                        id INT PRIMARY KEY AUTO_INCREMENT,
+                        id_prof INT NOT NULL COMMENT 'Référence professeur',
+                        id_user INT NOT NULL COMMENT 'Référence utilisateur/étudiant',
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Date d\'abonnement',
+                        
+                        CONSTRAINT fk_abonnement_prof FOREIGN KEY (id_prof) REFERENCES users(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_abonnement_user FOREIGN KEY (id_user) REFERENCES users(id) ON DELETE CASCADE,
+                        
+                        INDEX idx_id_prof (id_prof),
+                        INDEX idx_id_user (id_user),
+                        INDEX idx_created_at (created_at),
+                        UNIQUE KEY uk_prof_user (id_prof, id_user)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+                $results['abonnement_table_created'] = true;
+            } else {
+                $results['abonnement_table_exists'] = true;
+            }
+
             // Étape 2: Migrer les données existantes
             $missing = $conn->query("
                 SELECT d.id, d.created_at

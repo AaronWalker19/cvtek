@@ -125,6 +125,23 @@ try {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
     
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS abonnement (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            id_prof INT NOT NULL,
+            id_user INT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            
+            CONSTRAINT fk_abonnement_prof FOREIGN KEY (id_prof) REFERENCES users(id) ON DELETE CASCADE,
+            CONSTRAINT fk_abonnement_user FOREIGN KEY (id_user) REFERENCES users(id) ON DELETE CASCADE,
+            
+            INDEX idx_id_prof (id_prof),
+            INDEX idx_id_user (id_user),
+            INDEX idx_created_at (created_at),
+            UNIQUE KEY uk_prof_user (id_prof, id_user)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+    
     // Créer l'utilisateur démo mael s'il n'existe pas
     $check = $conn->query("SELECT id FROM users WHERE username = 'mael'");
     if ($check->rowCount() === 0) {

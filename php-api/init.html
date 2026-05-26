@@ -160,6 +160,21 @@
         </div>
 
         <div class="section">
+            <h2>2️⃣ Créer Table Abonnement</h2>
+            <p style="color: #666; margin-bottom: 15px; font-size: 14px;">
+                Crée la table <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">abonnement</code> 
+                pour gérer les abonnements entre professeurs et étudiants.
+            </p>
+            <div class="button-group">
+                <button class="btn-secondary" onclick="createAbonnementTable()">
+                    <span id="abonnement-spinner" style="display:none;" class="spinner"></span>
+                    Créer Table Abonnement
+                </button>
+            </div>
+            <div id="abonnement-status"></div>
+        </div>
+
+        <div class="section">
             <h2>3️⃣ Normaliser la Structure (Migration)</h2>
             <p style="color: #666; margin-bottom: 15px; font-size: 14px;">
                 Enlève les colonnes <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">url_fichier</code> 
@@ -306,6 +321,46 @@
                 if (data.success || data.status === 'ok') {
                     if (statusEl) {
                         showStatus(statusEl, 'success', '✅ Table commentaire créée/existe déjà', data);
+                    }
+                    return data;
+                } else {
+                    if (statusEl) {
+                        showStatus(statusEl, 'error', data.error || 'Erreur', data);
+                    }
+                    return null;
+                }
+            } catch (err) {
+                if (spinnerEl) spinnerEl.style.display = 'none';
+                console.error(`❌ Erreur:`, err);
+                if (statusEl) {
+                    showStatus(statusEl, 'error', '❌ Exception: ' + err.message);
+                }
+                return null;
+            }
+        }
+
+        async function createAbonnementTable() {
+            const statusEl = document.getElementById('abonnement-status');
+            const spinnerEl = document.getElementById('abonnement-spinner');
+            
+            if (spinnerEl) spinnerEl.style.display = 'inline-block';
+            if (statusEl) statusEl.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/system/init`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+
+                if (spinnerEl) spinnerEl.style.display = 'none';
+
+                if (data.success || data.status === 'ok') {
+                    if (statusEl) {
+                        showStatus(statusEl, 'success', '✅ Table abonnement créée/existe déjà', data);
                     }
                     return data;
                 } else {
