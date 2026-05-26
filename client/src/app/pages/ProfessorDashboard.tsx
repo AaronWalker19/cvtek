@@ -43,9 +43,7 @@ export default function ProfessorDashboard() {
       }
 
       try {
-        console.log(`🔍 [CheckSubscription] Vérification prof=${user.id}, étudiant=${selectedStudent.userId}`);
         const isSubscribed = await checkSubscription(user.id, selectedStudent.userId);
-        console.log(`✅ [CheckSubscription] Résultat: ${isSubscribed}`);
         setSubscriptions(new Set(isSubscribed ? [selectedStudent.userId] : []));
       } catch (error) {
         console.error('❌ [CheckSubscription] Erreur:', error);
@@ -68,16 +66,12 @@ export default function ProfessorDashboard() {
     try {
       if (isCurrentlySubscribed) {
         // Désabonner
-        console.log(`📡 deleteSubscription(prof=${user.id}, student=${selectedStudent.userId})`);
         await deleteSubscription(user.id, selectedStudent.userId);
         setSubscriptions(new Set());
-        console.log(`✅ Désabonnement réussi`);
       } else {
         // S'abonner
-        console.log(`📡 createSubscription(prof=${user.id}, student=${selectedStudent.userId})`);
         await createSubscription(user.id, selectedStudent.userId);
         setSubscriptions(new Set([selectedStudent.userId]));
-        console.log(`✅ Abonnement réussi`);
       }
     } catch (error) {
       console.error(`❌ [toggleSubscription] Erreur:`, error);
@@ -97,9 +91,7 @@ export default function ProfessorDashboard() {
   useEffect(() => {
     const loadAllDocuments = async () => {
       try {
-        console.log("📥 Chargement de tous les documents...");
         const docs = await getDocuments();
-        console.log("✅ Documents chargés:", docs);
         setAllDocuments(docs);
       } catch (error) {
         console.error('❌ Erreur lors du chargement des documents:', error);
@@ -165,9 +157,7 @@ export default function ProfessorDashboard() {
       }
 
       try {
-        console.log(`📥 Chargement des détails de l'utilisateur ${selectedStudent.userId}...`);
         const userDetails = await getUserById(selectedStudent.userId);
-        console.log("✅ Détails utilisateur chargés:", userDetails);
         setSelectedStudentDetails(userDetails);
       } catch (error) {
         console.error('❌ Erreur lors du chargement des détails utilisateur:', error);
@@ -396,7 +386,7 @@ export default function ProfessorDashboard() {
               <div className="flex items-center gap-[15px]">
                 <button
                   onClick={() => {
-                    console.log("🖱️ [Button onClick] Bouton Suivre cliqué!");
+
                     toggleSubscription();
                   }}
                   disabled={loadingSubscription}

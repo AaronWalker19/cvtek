@@ -53,7 +53,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const verifyAuth = async () => {
       try {
         // D'abord, initialiser les utilisateurs démo
-        console.log('🔧 Initialisation des utilisateurs démo...');
         await initializeDemoUsers();
 
         const currentUser = await getCurrentUser();
@@ -68,9 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Générer un token de démo pour le premier utilisateur
           try {
             await getDemoToken(demoUsers[0].id);
-            console.log(`✅ Token de démo initial généré pour ${demoUsers[0].username}`);
           } catch (err) {
-            console.warn('❌ Erreur lors de la génération du token de démo initial:', err);
+            console.error('❌ Erreur lors de la génération du token de démo initial:', err);
           }
         }
       } catch (err) {
@@ -82,7 +80,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Générer un token de démo pour le premier utilisateur en cas d'erreur
         try {
           await getDemoToken(demoUsers[0].id);
-          console.log(`✅ Token de démo d'erreur généré pour ${demoUsers[0].username}`);
         } catch (tokenErr) {
           console.error('❌ Erreur lors de la génération du token de démo en fallback:', tokenErr);
         }
@@ -101,7 +98,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
     } catch (error) {
       // Fallback mode démo
-      console.warn('API login échoué, mode démo:', error);
       const demoUser = demoUsers.find(u => u.email === email);
       if (demoUser) {
         setIsAuthenticated(true);
@@ -143,7 +139,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Générer un token démo en appelant la fonction du client API
       try {
         await getDemoToken(selectedUser.id);
-        console.log(`✅ Token de démo généré pour ${selectedUser.username}`);
       } catch (err) {
         console.error('❌ Erreur lors de la génération du token de démo:', err);
       }

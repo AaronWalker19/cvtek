@@ -59,7 +59,6 @@ const API_BASE_URL = getApiBaseUrl();
  */
 export function storeToken(token: string): void {
     localStorage.setItem('auth_token', token);
-    console.log('✅ Token stocké dans localStorage');
 }
 
 /**
@@ -67,12 +66,6 @@ export function storeToken(token: string): void {
  */
 export function getToken(): string | null {
     const token = localStorage.getItem('auth_token');
-    if (!token) {
-        console.warn(`⚠️ [getToken] Aucun token trouvé dans localStorage`);
-        console.log(`   📋 localStorage keys:`, Object.keys(localStorage));
-    } else {
-        console.log(`✅ [getToken] Token trouvé (length: ${token.length})`);
-    }
     return token;
 }
 
@@ -81,7 +74,6 @@ export function getToken(): string | null {
  */
 export function clearToken(): void {
     localStorage.removeItem('auth_token');
-    console.log('✅ Token supprimé de localStorage');
 }
 
 // ===============================================
@@ -109,8 +101,6 @@ export async function apiCall<T = any>(
     const url = API_BASE_URL + endpoint;
     const throwOnError = options.throwOnError ?? true;
     
-    console.log(`🔗 API Call: ${options.method || 'GET'} ${url}`);
-    
     try {
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
@@ -121,18 +111,6 @@ export async function apiCall<T = any>(
         const token = getToken();
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
-            console.log(`🔐 Token JWT ajouté au header (length: ${token.length})`);
-        } else {
-            console.warn(`⚠️ AUCUN TOKEN JWT TROUVÉ dans localStorage`);
-        }
-        
-        console.log(`🔑 Headers:`, {
-            'Content-Type': headers['Content-Type'],
-            'Authorization': token ? `Bearer ${token.substring(0, 20)}...` : 'NOT SET'
-        });
-        
-        if (options.body) {
-            console.log(`📦 Body:`, options.body);
         }
 
         const response = await fetch(url, {
@@ -140,8 +118,6 @@ export async function apiCall<T = any>(
             headers,
             credentials: 'include', // Important pour les cookies de session
         });
-
-        console.log(`📊 Response Status: ${response.status} ${response.statusText}`);
 
         // Parser la réponse
         const contentType = response.headers.get('content-type');
@@ -169,7 +145,6 @@ export async function apiCall<T = any>(
             return data;
         }
 
-        console.log(`✅ Data reçue du backend:`, data);
         return data;
 
     } catch (error) {
@@ -335,7 +310,6 @@ export async function initializeDemoUsers(): Promise<any> {
             { method: 'GET', throwOnError: false }
         );
 
-        console.log(`✅ Utilisateurs démo initialisés:`, response.data);
         return response.data;
     } catch (error) {
         console.error(`❌ Erreur lors de l'initialisation des utilisateurs démo:`, error);
@@ -489,7 +463,6 @@ export async function getVersions(docId: number): Promise<DocumentVersion[]> {
     );
 
     if (!response.success || !response.data?.versions) {
-        console.warn(`⚠️ Erreur lors de la récupération des versions du document ${docId}`);
         return [];
     }
 
@@ -504,9 +477,6 @@ export async function addVersion(
     docId: number,
     urlFichier: string
 ): Promise<{ message: string }> {
-    console.log(`📄 [addVersion] Ajout version du document #${docId}`);
-    console.log(`   🔗 URL: ${urlFichier}`);
-    
     const response = await apiCall<{ 
         message: string;
         email_sent?: boolean;
@@ -522,18 +492,6 @@ export async function addVersion(
 
     if (!response.success || !response.data) {
         throw new Error(response.error || 'Erreur lors de la création de la version');
-    }
-
-    // Afficher les infos d'email si disponibles
-    if (response.data?.email_sent) {
-        console.log(`%c📧 EMAILS DE NOTIFICATION ENVOYÉS`, 'color: #4CAF50; font-weight: bold; font-size: 14px;');
-        console.log(`   📨 Nombre de professeurs notifiés: ${response.data.recipients_count || 'plusieurs'}`);
-        console.log(`   Message: Nouvelle version du document ajoutée`);
-    } else if (response.data?.email_sent === false) {
-        console.warn(`%c⚠️ EMAILS NON ENVOYÉS`, 'color: #FF9800; font-weight: bold; font-size: 14px;');
-        const errorMsg = response.data?.email_error || 'Aucun professeur abonné ou erreur d\'envoi';
-        console.log(`   Raison: ${errorMsg}`);
-        console.log(`   Professeurs notifiés: ${response.data.recipients_count || 0}`);
     }
 
     return response.data;
@@ -563,8 +521,6 @@ export async function uploadFile(file: File, userId?: number): Promise<UploadRes
         formData.append('user_id', userId.toString());
     }
 
-    console.log(`📤 Uploading: ${file.name} (${file.size} bytes)`);
-
     const url = API_BASE_URL + API_CONFIG.ROUTES.UPLOAD;
     
     try {
@@ -574,8 +530,6 @@ export async function uploadFile(file: File, userId?: number): Promise<UploadRes
             credentials: 'include',
         });
 
-        console.log(`📊 Upload Response Status: ${response.status}`);
-
         const data = await response.json() as ApiResponse<UploadResponse>;
 
         if (!response.ok || !data.success) {
@@ -583,7 +537,6 @@ export async function uploadFile(file: File, userId?: number): Promise<UploadRes
             throw new Error(data.error || `Upload failed with status ${response.status}`);
         }
 
-        console.log(`✅ Upload successful:`, data.data);
         return data.data!;
 
     } catch (error) {
@@ -621,7 +574,6 @@ export async function getCommentsByDocVersion(docVersionId: number): Promise<Com
     );
 
     if (!response.success || !response.data?.comments) {
-        console.warn(`⚠️ Erreur lors de la récupération des commentaires pour la version ${docVersionId}`);
         return [];
     }
 
@@ -633,15 +585,10 @@ export async function getCommentsByDocVersion(docVersionId: number): Promise<Com
  * Endpoint: POST /api/comments
  */
 export async function addComment(docVersionId: number, text: string): Promise<Comment> {
-    console.log(`🔍 [addComment] Début de l'ajout du commentaire`);
-    console.log(`   📊 docVersionId: ${docVersionId} (type: ${typeof docVersionId})`);
-    console.log(`   📝 text: "${text}" (length: ${text.length})`);
-    
     const requestBody = {
         id_docversion: docVersionId,
         text: text,
     };
-    console.log(`   📦 Request body:`, requestBody);
     
     const response = await apiCall<{
         comment: Comment;
@@ -657,24 +604,9 @@ export async function addComment(docVersionId: number, text: string): Promise<Co
         }
     );
 
-    console.log(`🔍 [addComment] Response reçue:`, response);
-
     if (!response.success || !response.data?.comment) {
         console.error(`❌ [addComment] Erreur - success: ${response.success}, data: ${response.data}`);
         throw new Error(response.error || 'Erreur lors de la création du commentaire');
-    }
-
-    // Afficher les infos d'email si disponibles
-    if (response.data?.email_sent) {
-        console.log(`%c📧 EMAIL ENVOYÉ AVEC SUCCÈS`, 'color: #4CAF50; font-weight: bold; font-size: 14px;');
-        console.log(`   ✉️  À: ${response.data.email_recipient} (${response.data.email_recipient_name})`);
-        console.log(`   Envoyé par: ${response.data.email_sender_name}`);
-        console.log(`   Message: Notification de commentaire`);
-    } else if (response.data?.email_sent === false) {
-        console.warn(`%c⚠️ EMAIL NON ENVOYÉ`, 'color: #FF9800; font-weight: bold; font-size: 14px;');
-        const errorMsg = (response.data as any)?.email_error || 'Le système n\'a pas pu envoyer l\'email de notification';
-        console.log(`   Raison: ${errorMsg}`);
-        console.log(`   Étudiant cible: ${response.data.email_recipient}`);
     }
 
     return response.data.comment;

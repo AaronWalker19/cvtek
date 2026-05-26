@@ -249,7 +249,6 @@
                 if (spinnerEl) spinnerEl.style.display = 'inline-block';
                 if (statusEl) statusEl.innerHTML = '';
 
-                console.log(`📡 Appel API: ${endpoint}`);
                 const response = await fetch(`${API_BASE}${endpoint}`, {
                     method: 'GET',
                     headers: {
@@ -257,9 +256,7 @@
                     }
                 });
                 
-                console.log(`📊 Statut: ${response.status}`);
                 const data = await response.json();
-                console.log(`📦 Réponse:`, data);
 
                 if (spinnerEl) spinnerEl.style.display = 'none';
 
@@ -404,20 +401,16 @@
             tempDiv.style.display = 'none';
 
             try {
-                // Étape 1: Setup
-                console.log('Étape 1: Setup...');
+                // Etape 1: Setup
                 const setup = await call('/system/init', 'dummy-spinner-1', 'dummy-status-1');
                 
-                // Étape 2: Migrate structure
-                console.log('Étape 2: Migration...');
+                // Etape 2: Migrate structure
                 const migrate = await call('/system/normalize-structure', 'dummy-spinner-2', 'dummy-status-2');
                 
-                // Étape 3: Ensure user (via auth controller)
-                console.log('Étape 3: Ensure user...');
+                // Etape 3: Ensure user (via auth controller)
                 const user = await call('/auth/ensure-demo', 'dummy-spinner-3', 'dummy-status-3');
                 
-                // Étape 4: Diag
-                console.log('Étape 4: Diagnostic...');
+                // Etape 4: Diag
                 const diag = await call('/system/diag', 'dummy-spinner-4', 'dummy-status-4');
                 
                 if (spinnerEl) spinnerEl.style.display = 'none';
@@ -427,19 +420,17 @@
                 
                 if (setup && migrate && user && diag) {
                     if (statusEl) {
-                        showStatus(statusEl, 'success', '✅ Initialisation réussie !', {
+                        showStatus(statusEl, 'success', '✅ Initialisation reussie !', {
                             setup_results: setup.results || setup.steps,
                             migration_results: migrate.stats,
                             demo_user: user.user,
                             diagnostics: diag.diagnosis
                         });
                     }
-                    console.log('✅ Initialisation complète');
                 } else {
                     if (statusEl) {
-                        showStatus(statusEl, 'warning', '⚠️ Initialisation partielle - Certaines étapes ont échoué');
+                        showStatus(statusEl, 'warning', '⚠️ Initialisation partielle - Certaines etapes ont echoue');
                     }
-                    console.log('⚠️ Initialisation partielle');
                 }
             } catch (err) {
                 if (spinnerEl) spinnerEl.style.display = 'none';
@@ -455,7 +446,7 @@
 
         // Auto-run diagnostics on load
         window.addEventListener('load', () => {
-            console.log('✅ Page chargée - vous pouvez lancer l\'initialisation');
+            // Page loaded
         });
     </script>
 </body>

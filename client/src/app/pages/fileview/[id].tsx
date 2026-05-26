@@ -98,7 +98,6 @@ export default function FileView() {
       try {
         setLoading(true);
         setError(null);
-        console.log('📄 Fetching document:', docId);
         
         if (!docId) {
           setError('ID du document manquant');
@@ -106,8 +105,6 @@ export default function FileView() {
         }
 
         const doc = await getDocument(parseInt(docId));
-        console.log('✅ Document loaded:', doc);
-        console.log('   URL du fichier:', doc.url_fichier);
         
         setDocument(doc as any);
         
@@ -135,7 +132,7 @@ export default function FileView() {
           const versionId = parseInt(versionParam);
           const versionObj = (doc as any).availableVersions?.find((v: any) => v.id === versionId);
           if (versionObj) {
-            console.log('📌 Setting initial version from query param:', versionObj.version);
+
             setSelectedVersion(versionObj.version);
             setSelectedVersionId(versionId);
           }
@@ -151,9 +148,7 @@ export default function FileView() {
         if ((doc as any).availableVersions && (doc as any).availableVersions.length > 0) {
           const firstVersionId = (doc as any).availableVersions[0].id;
           try {
-            console.log('📥 Chargement des commentaires pour la version:', firstVersionId);
             const loadedComments = await getCommentsByDocVersion(firstVersionId);
-            console.log('✅ Commentaires chargés:', loadedComments);
             setComments(loadedComments);
           } catch (err) {
             console.error('❌ Erreur lors du chargement des commentaires:', err);
@@ -177,35 +172,25 @@ export default function FileView() {
   useEffect(() => {
     const checkStudentSubscription = async () => {
       try {
-        console.log("🔍 [CheckSubscription] Début du chargement...");
-        console.log("🔍 [CheckSubscription] User de useAuth:", user);
-        
         if (user) {
-          console.log("✅ [CheckSubscription] Utilisateur connecté:", user);
 
           // Vérifier si ce prof suit déjà cet étudiant
           if (document && document.user_id && user.id) {
-            console.log(`🔍 [CheckSubscription] Vérification abonnement prof=${user.id}, étudiant=${document.user_id}`);
             const isSubscribed = await checkSubscription(user.id, document.user_id);
-            console.log(`🔍 [CheckSubscription] Résultat abonnement: ${isSubscribed}`);
             setFollowStudent(isSubscribed);
-            console.log(`✅ [CheckSubscription] Abonnement check: ${isSubscribed ? 'suivi' : 'non suivi'}`);
           } else {
-            console.warn("❌ [CheckSubscription] Document ou user_id manquant:", { document: !!document, user_id: document?.user_id, user_id_prof: user.id });
+            // Pas de document ou pas d'id
           }
         } else {
-          console.warn("❌ [CheckSubscription] Aucun utilisateur connecté");
+          // Aucun utilisateur connecté
         }
       } catch (error) {
-        console.error('❌ [CheckSubscription] Erreur lors du chargement de l\'utilisateur:', error);
+        console.error('[CheckSubscription] Erreur lors du chargement de l\'utilisateur:', error);
       }
     };
 
     if (document) {
-      console.log("🔍 [CheckSubscription] Document chargé, vérification de l'abonnement...");
       checkStudentSubscription();
-    } else {
-      console.log("🔍 [CheckSubscription] Document pas encore chargé");
     }
   }, [document, user, docId]);
 
@@ -218,9 +203,7 @@ export default function FileView() {
 
       try {
         setLoadingComments(true);
-        console.log('📥 Chargement des commentaires pour la version:', selectedVersionId);
         const loadedComments = await getCommentsByDocVersion(selectedVersionId);
-        console.log('✅ Commentaires chargés:', loadedComments);
         setComments(loadedComments);
       } catch (err) {
         console.error('❌ Erreur lors du chargement des commentaires:', err);
@@ -264,23 +247,18 @@ export default function FileView() {
 
   const handleUploadVersion = async () => {
     if (!selectedFile) {
-      console.warn('⚠️ Veuillez sélectionner un fichier');
       return;
     }
 
     if (!newVersionModal.doc) {
-      console.warn('⚠️ Erreur: document non trouvé');
       return;
     }
 
     try {
       setUploadingVersion(true);
 
-      console.log('📤 Uploading file:', selectedFile.name);
-
       // Utiliser la nouvelle API pour uploader
       const uploadResponse = await uploadFile(selectedFile, newVersionModal.doc.user_id);
-      console.log('✅ Upload success:', uploadResponse);
 
       if (!uploadResponse.url) {
         console.error('❌ Erreur: pas d\'URL retournée par le serveur');
@@ -290,20 +268,16 @@ export default function FileView() {
       const fileUrl = uploadResponse.url;
 
       // Créer une nouvelle version du document
-      console.log('📝 Adding new version for document:', newVersionModal.doc.id);
       
       await addVersion(newVersionModal.doc.id, fileUrl);
 
-      console.log('✅ Version added successfully');
-      console.log('✅ Nouvelle version ajoutée avec succès!');
-        
       // Recharger le document
       try {
         const updatedDoc = await getDocument(newVersionModal.doc.id);
         setDocument(updatedDoc as any);
         setSelectedVersion(updatedDoc.version);
       } catch (err) {
-        console.warn('Erreur recharge document:', err);
+        // Erreur lors de la recharge
       }
 
       // Réinitialiser le modal
@@ -353,7 +327,6 @@ export default function FileView() {
   };
 
   const handleVersionChange = (versionId: number, version: number) => {
-    console.log('📌 Changing to version:', version, 'ID:', versionId);
     setSelectedVersion(version);
     setSelectedVersionId(versionId);
   };
@@ -390,30 +363,18 @@ export default function FileView() {
 
   const handleAddComment = async () => {
     if (!newComment.trim() || !selectedVersionId) {
-      console.warn('⚠️ Commentaire vide ou version non sélectionnée');
       return;
     }
 
     try {
       setAddingComment(true);
-      console.log(`📤 Ajout du commentaire pour la version ${selectedVersionId}...`);
-      console.log(`   📝 Texte: ${newComment.trim()}`);
-      console.log(`   🔍 selectedVersionId type: ${typeof selectedVersionId}, value: ${selectedVersionId}`);
-      
       const newCommentData = await addComment(selectedVersionId, newComment.trim());
-      console.log('✅ Commentaire ajouté:', newCommentData);
       
       // Ajouter le commentaire à la liste
       setComments([newCommentData, ...comments]);
       setNewComment('');
     } catch (err) {
-      console.error('❌ Erreur lors de l\'ajout du commentaire:', err);
-      console.error(`   📋 Détails de l'erreur:`, {
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
-        selectedVersionId,
-        newComment: newComment.trim(),
-      });
+      console.error('Erreur lors de l\'ajout du commentaire:', err);
       alert('Erreur lors de l\'ajout du commentaire');
     } finally {
       setAddingComment(false);
@@ -422,16 +383,14 @@ export default function FileView() {
 
   const handleDeleteComment = async (commentId: number) => {
     // eslint-disable-next-line no-restricted-globals
-    if (confirm('🔔 Voulez-vous vraiment supprimer ce commentaire?')) {
+    if (confirm('Voulez-vous vraiment supprimer ce commentaire?')) {
       try {
-        console.log(`📤 Suppression du commentaire ${commentId}...`);
         await deleteComment(commentId);
-        console.log(`✅ Commentaire ${commentId} supprimé`);
         
         // Supprimer le commentaire de la liste
         setComments(comments.filter(c => c.id !== commentId));
       } catch (err) {
-        console.error('❌ Erreur lors de la suppression du commentaire:', err);
+        console.error('Erreur lors de la suppression du commentaire:', err);
         alert('Erreur lors de la suppression du commentaire');
       }
     }
@@ -439,21 +398,18 @@ export default function FileView() {
 
   const handleUpdateComment = async (commentId: number) => {
     if (!editCommentText.trim()) {
-      console.warn('⚠️ Commentaire vide');
       return;
     }
 
     try {
-      console.log(`📤 Mise à jour du commentaire ${commentId}...`);
       const updatedComment = await updateComment(commentId, editCommentText.trim());
-      console.log('✅ Commentaire mis à jour:', updatedComment);
       
-      // Mettre à jour le commentaire dans la liste
+      // Mettre a jour le commentaire dans la liste
       setComments(comments.map(c => c.id === commentId ? updatedComment : c));
       setEditingCommentId(null);
       setEditCommentText('');
     } catch (err) {
-      console.error('❌ Erreur lors de la mise à jour du commentaire:', err);
+      console.error('Erreur lors de la mise a jour du commentaire:', err);
       alert('Erreur lors de la mise à jour du commentaire');
     }
   };
@@ -464,53 +420,36 @@ export default function FileView() {
 
   // Fonction pour s'abonner/se désabonner
   const toggleSubscription = async (shouldSubscribe: boolean) => {
-    console.log("🔄 [toggleSubscription] DÉBUT - shouldSubscribe:", shouldSubscribe);
-    console.log("🔄 [toggleSubscription] user:", user);
-    console.log("🔄 [toggleSubscription] user.role:", user?.role);
-    console.log("🔄 [toggleSubscription] document:", document);
-    
     // Vérifier que c'est un professeur
     if (!user || user.role !== 'professor') {
-      console.error("❌ [toggleSubscription] Seul un professeur peut s'abonner à un étudiant");
-      console.error("  - user.role:", user?.role);
-      console.error("  - Expected: 'professor'");
+      console.error("Seul un professeur peut s'abonner à un étudiant");
       alert("Erreur : Seul un professeur peut suivre un étudiant.");
       return;
     }
     
     if (!document) {
-      console.error("❌ [toggleSubscription] document manquant");
+      console.error("document manquant");
       return;
     }
 
     setLoadingSubscription(true);
-    console.log("🔄 [toggleSubscription] setLoadingSubscription(true)");
 
     try {
       if (shouldSubscribe) {
         // S'abonner
-        console.log(`📡 [toggleSubscription] Appel createSubscription(prof_id=${user.id}, student_id=${document.user_id})`);
         await createSubscription(user.id, document.user_id);
-        console.log("✅ [toggleSubscription] Abonnement créé avec succès");
         setFollowStudent(true);
-        console.log(`✅ [toggleSubscription] Abonnement à l'étudiant ${document.user_id}`);
       } else {
         // Se désabonner
-        console.log(`📡 [toggleSubscription] Appel deleteSubscription(prof_id=${user.id}, student_id=${document.user_id})`);
         await deleteSubscription(user.id, document.user_id);
-        console.log("✅ [toggleSubscription] Abonnement supprimé avec succès");
         setFollowStudent(false);
-        console.log(`✅ [toggleSubscription] Désabonnement de l'étudiant ${document.user_id}`);
       }
     } catch (error) {
-      console.error(`❌ [toggleSubscription] Erreur lors du changement d'abonnement:`, error);
-      console.error("  - Message:", error instanceof Error ? error.message : String(error));
+      console.error(`Erreur lors du changement d'abonnement:`, error);
       // Revenir à l'état précédent
       setFollowStudent(!shouldSubscribe);
     } finally {
       setLoadingSubscription(false);
-      console.log("🔄 [toggleSubscription] setLoadingSubscription(false)");
-      console.log("🔄 [toggleSubscription] FIN");
     }
   };
 
@@ -563,13 +502,9 @@ export default function FileView() {
                     value={currentVersionNumber || ''}
                     onChange={(e) => {
                       const version = e.target.value; // Garder comme string pour comparaison
-                      console.log('🔄 Version sélectionnée:', version, 'currentVersionNumber:', currentVersionNumber);
                       const versionData = document.availableVersions.find(v => String(v.version) === String(version));
                       if (versionData) {
-                        console.log('✅ Trouvé version:', versionData);
                         handleVersionChange(versionData.id, versionData.version);
-                      } else {
-                        console.warn('❌ Version non trouvée:', version, 'disponibles:', document.availableVersions);
                       }
                     }}
                     className="px-[10px] py-[5px] border border-[#36302a] rounded text-[14px] font-['Inter:Regular',sans-serif]"
@@ -744,9 +679,6 @@ export default function FileView() {
                           type="checkbox"
                           checked={followStudent}
                           onChange={(e) => {
-                            console.log("🔍 [Checkbox onChange] Event triggered");
-                            console.log("  - checked:", e.target.checked);
-                            console.log("  - followStudent avant:", followStudent);
                             toggleSubscription(e.target.checked);
                           }}
                           disabled={loadingSubscription}

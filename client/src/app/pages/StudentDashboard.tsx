@@ -63,12 +63,9 @@ export default function StudentDashboard() {
 
   const loadVersionsForDocument = useCallback(async (docId: number) => {
     try {
-      console.log(`📦 Chargement des versions pour document ${docId}...`);
-      
       // Utiliser la nouvelle API
       const versions = await getVersions(docId);
       
-      console.log(`✅ Versions chargées:`, versions);
       setDocumentVersions(prev => ({
         ...prev,
         [docId]: versions
@@ -97,8 +94,6 @@ export default function StudentDashboard() {
   const loadDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      console.log(`📝 Chargement des documents pour user_id=${user?.id}...`);
-      
       // Utiliser la nouvelle API
       const docs = await getDocuments(user?.id || 0);
       
@@ -108,7 +103,7 @@ export default function StudentDashboard() {
         comment_count: 0  // Les commentaires sont gérés séparément
       }));
       
-      console.log(`✅ Documents chargés:`, formattedDocs);
+
       setDocuments(formattedDocs);
       
       // Charger les versions pour chaque document
@@ -208,17 +203,14 @@ export default function StudentDashboard() {
 
   const handleAddFile = async () => {
     if (!newFileType) {
-      console.warn('⚠️ Veuillez sélectionner un type');
       return;
     }
 
     if (sourceType === 'fichier' && !selectedFile) {
-      console.warn('⚠️ Veuillez sélectionner un fichier');
       return;
     }
 
     if (sourceType === 'url' && !newFileUrl) {
-      console.warn('⚠️ Veuillez entrer une URL');
       return;
     }
 
@@ -230,24 +222,14 @@ export default function StudentDashboard() {
       if (sourceType === 'fichier' && selectedFile) {
         // Upload optionnel du fichier
         try {
-          console.log(`📤 Upload du fichier: ${selectedFile.name}`);
           const uploadResponse = await uploadFile(selectedFile, user?.id || 0);
           fileUrl = uploadResponse.url;
-          console.log(`✅ Fichier uploadé:`, uploadResponse);
         } catch (uploadErr) {
-          console.warn('⚠️ Erreur upload (utilisant URL locale):', uploadErr);
+          console.error('❌ Erreur upload:', uploadErr);
           fileUrl = `/~valin6/cvtek/uploads/${selectedFile.name}`;
         }
       }
 
-      console.log(`📝 Création du document:`, {
-        user_id: user?.id || 0,
-        nom_fichier: fileName,
-        titre: newFileTitle || fileName,
-        type_fichier: newFileType,
-        url_fichier: fileUrl,
-        description: newFileDescription
-      });
 
       // Créer le document en BD
       const result = await createDocument({
@@ -273,7 +255,6 @@ export default function StudentDashboard() {
       };
 
       setDocuments([...documents, newDoc]);
-      console.log(`✅ Fichier "${fileName}" ajouté avec succès!`);
       
       // Réinitialiser les champs
       setNewFileName('');
@@ -288,23 +269,18 @@ export default function StudentDashboard() {
       }
     } catch (err) {
       console.error('❌ Erreur ajout fichier:', err);
-      console.error('❌ Erreur lors de l\'ajout du fichier: ' + (err instanceof Error ? err.message : 'Erreur inconnue'));
     }
   };
 
   const handleDeleteDocument = async (docId: number) => {
     try {
-      console.log(`🗑️ Suppression du document ${docId}...`);
-      
       // Utiliser la nouvelle API
       await deleteDocument(docId);
 
       // Supprimer du state local
       setDocuments(documents.filter(d => d.id !== docId));
-      console.log('✅ Fichier supprimé avec succès');
     } catch (err) {
-      console.error('Erreur suppression fichier:', err);
-      console.error('❌ Erreur lors de la suppression du fichier');
+      console.error('❌ Erreur suppression fichier:', err);
     }
   };
 
@@ -332,35 +308,25 @@ export default function StudentDashboard() {
 
   const handleNewVersion = async () => {
     if (!newVersionFile) {
-      console.warn('⚠️ Veuillez sélectionner un fichier');
       return;
     }
 
     if (!newVersionModal.doc) {
-      console.warn('⚠️ Erreur: document non trouvé');
       return;
     }
 
     try {
       setUploadingVersion(true);
       
-      console.log(`📤 Upload de la nouvelle version: ${newVersionFile.name}`);
-      
       // Uploader le fichier
       const uploadResponse = await uploadFile(newVersionFile, user?.id || 0);
       const newFileUrl = uploadResponse.url;
       
-      console.log(`✅ Fichier uploadé:`, uploadResponse);
-      
       // Créer une nouvelle version via la nouvelle API
       const docId = newVersionModal.doc.id;
       
-      console.log(`📝 Création d'une nouvelle version du document ${docId}...`);
-      
       // Ajouter la version
       await addVersion(docId, newFileUrl);
-      
-      console.log(`✅ Nouvelle version créée`);
       
       // Recharger les versions du document
       await loadVersionsForDocument(docId);
@@ -373,7 +339,6 @@ export default function StudentDashboard() {
       );
       setDocuments(updatedDocs);
       
-      console.log('✅ Nouvelle version créée avec succès!');
       setNewVersionModal({ show: false, doc: null });
       setNewVersionFile(null);
       setIsDraggingVersion(false);
@@ -399,14 +364,11 @@ export default function StudentDashboard() {
 
   const handleSaveEdit = async (titre: string, description: string) => {
     if (!editModal.doc) {
-      console.warn('⚠️ Erreur: document non trouvé');
       return;
     }
 
     try {
       setIsSavingEdit(true);
-      
-      console.log(`📝 Mise à jour du document ${editModal.doc.id}...`);
       
       // Utiliser la nouvelle API
       await updateDocument(editModal.doc.id, { titre, description });
@@ -419,11 +381,9 @@ export default function StudentDashboard() {
       );
       
       setDocuments(updatedDocs);
-      console.log('✅ Fichier modifié avec succès');
       setEditModal({ show: false, doc: null });
     } catch (err) {
       console.error('❌ Erreur modification fichier:', err);
-      console.error('❌ Erreur lors de la modification du fichier');
     } finally {
       setIsSavingEdit(false);
     }

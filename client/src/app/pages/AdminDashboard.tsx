@@ -10,18 +10,14 @@ export default function AdminDashboard() {
 
   const handleAddUser = () => {
     if (newUserEmail && newUserEmail.includes('@')) {
-      console.log(`✅ Accès ajouté pour: ${newUserEmail}`);
       setNewUserEmail('');
-    } else {
-      console.warn('⚠️ Veuillez entrer un email valide');
     }
   };
 
   const handleRemoveUser = (userId: string) => {
     // eslint-disable-next-line no-restricted-globals
-    if (confirm('🔔 Voulez-vous vraiment supprimer cet utilisateur?')) {
+    if (confirm('Voulez-vous vraiment supprimer cet utilisateur?')) {
       setProfessors(professors.filter(p => p.id !== userId));
-      console.log('✅ Utilisateur supprimé');
     }
   };
 
@@ -106,7 +102,7 @@ export default function AdminDashboard() {
                     <p className="decoration-solid leading-[normal] underline">5 commentaires</p>
                   </div>
                   <button
-                    onClick={() => console.log('ℹ️ Utilisateur de démonstration')}
+                    onClick={() => {}}
                     className="bg-[#b51621] content-stretch flex items-center justify-center p-[3px] relative rounded-[4px] shrink-0"
                   >
                     <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[#f7f7f7] text-[16px] whitespace-nowrap">supprimmer</p>
