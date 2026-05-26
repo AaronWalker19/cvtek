@@ -12,6 +12,10 @@ import {
   addComment,
   updateComment,
   deleteComment,
+  getCurrentUser,
+  checkSubscription,
+  createSubscription,
+  deleteSubscription,
   Document as ApiDocument 
 } from '../../../api/client';
 import Sidebar from '../../components/Sidebar';
@@ -68,6 +72,14 @@ export default function FileView() {
   const [newComment, setNewComment] = useState('');
   const [followStudent, setFollowStudent] = useState(false);
   const [studentUsername, setStudentUsername] = useState<string | null>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const [allStudents, setAllStudents] = useState<Array<{
+    name: string;
+    license?: string;
+    userId: number;
+    email?: string;
+  }>>([]);
+  const [documentVersions, setDocumentVersions] = useState<{ [docId: number]: any[] }>({});
   const [showVersionModal, setShowVersionModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadingVersion, setUploadingVersion] = useState(false);
@@ -160,6 +172,42 @@ export default function FileView() {
       fetchDocument();
     }
   }, [docId, searchParams]);
+
+  // Charger l'utilisateur connecté et vérifier l'abonnement
+  useEffect(() => {
+    const checkStudentSubscription = async () => {
+      try {
+        console.log("🔍 [CheckSubscription] Début du chargement...");
+        console.log("🔍 [CheckSubscription] User de useAuth:", user);
+        
+        if (user) {
+          console.log("✅ [CheckSubscription] Utilisateur connecté:", user);
+
+          // Vérifier si ce prof suit déjà cet étudiant
+          if (document && document.user_id && user.id) {
+            console.log(`🔍 [CheckSubscription] Vérification abonnement prof=${user.id}, étudiant=${document.user_id}`);
+            const isSubscribed = await checkSubscription(user.id, document.user_id);
+            console.log(`🔍 [CheckSubscription] Résultat abonnement: ${isSubscribed}`);
+            setFollowStudent(isSubscribed);
+            console.log(`✅ [CheckSubscription] Abonnement check: ${isSubscribed ? 'suivi' : 'non suivi'}`);
+          } else {
+            console.warn("❌ [CheckSubscription] Document ou user_id manquant:", { document: !!document, user_id: document?.user_id, user_id_prof: user.id });
+          }
+        } else {
+          console.warn("❌ [CheckSubscription] Aucun utilisateur connecté");
+        }
+      } catch (error) {
+        console.error('❌ [CheckSubscription] Erreur lors du chargement de l\'utilisateur:', error);
+      }
+    };
+
+    if (document) {
+      console.log("🔍 [CheckSubscription] Document chargé, vérification de l'abonnement...");
+      checkStudentSubscription();
+    } else {
+      console.log("🔍 [CheckSubscription] Document pas encore chargé");
+    }
+  }, [document, user, docId]);
 
   // Charger les commentaires quand la version sélectionnée change
   useEffect(() => {
@@ -414,6 +462,58 @@ export default function FileView() {
     setNewVersionModal({ show: true, doc: document });
   };
 
+  // Fonction pour s'abonner/se désabonner
+  const toggleSubscription = async (shouldSubscribe: boolean) => {
+    console.log("🔄 [toggleSubscription] DÉBUT - shouldSubscribe:", shouldSubscribe);
+    console.log("🔄 [toggleSubscription] user:", user);
+    console.log("🔄 [toggleSubscription] user.role:", user?.role);
+    console.log("🔄 [toggleSubscription] document:", document);
+    
+    // Vérifier que c'est un professeur
+    if (!user || user.role !== 'professor') {
+      console.error("❌ [toggleSubscription] Seul un professeur peut s'abonner à un étudiant");
+      console.error("  - user.role:", user?.role);
+      console.error("  - Expected: 'professor'");
+      alert("Erreur : Seul un professeur peut suivre un étudiant.");
+      return;
+    }
+    
+    if (!document) {
+      console.error("❌ [toggleSubscription] document manquant");
+      return;
+    }
+
+    setLoadingSubscription(true);
+    console.log("🔄 [toggleSubscription] setLoadingSubscription(true)");
+
+    try {
+      if (shouldSubscribe) {
+        // S'abonner
+        console.log(`📡 [toggleSubscription] Appel createSubscription(prof_id=${user.id}, student_id=${document.user_id})`);
+        await createSubscription(user.id, document.user_id);
+        console.log("✅ [toggleSubscription] Abonnement créé avec succès");
+        setFollowStudent(true);
+        console.log(`✅ [toggleSubscription] Abonnement à l'étudiant ${document.user_id}`);
+      } else {
+        // Se désabonner
+        console.log(`📡 [toggleSubscription] Appel deleteSubscription(prof_id=${user.id}, student_id=${document.user_id})`);
+        await deleteSubscription(user.id, document.user_id);
+        console.log("✅ [toggleSubscription] Abonnement supprimé avec succès");
+        setFollowStudent(false);
+        console.log(`✅ [toggleSubscription] Désabonnement de l'étudiant ${document.user_id}`);
+      }
+    } catch (error) {
+      console.error(`❌ [toggleSubscription] Erreur lors du changement d'abonnement:`, error);
+      console.error("  - Message:", error instanceof Error ? error.message : String(error));
+      // Revenir à l'état précédent
+      setFollowStudent(!shouldSubscribe);
+    } finally {
+      setLoadingSubscription(false);
+      console.log("🔄 [toggleSubscription] setLoadingSubscription(false)");
+      console.log("🔄 [toggleSubscription] FIN");
+    }
+  };
+
   /**
    * Récupère l'URL du fichier basé sur la version sélectionnée
    */
@@ -643,8 +743,14 @@ export default function FileView() {
                         <input
                           type="checkbox"
                           checked={followStudent}
-                          onChange={(e) => setFollowStudent(e.target.checked)}
-                          className="relative shrink-0 w-[20px] h-[20px] cursor-pointer"
+                          onChange={(e) => {
+                            console.log("🔍 [Checkbox onChange] Event triggered");
+                            console.log("  - checked:", e.target.checked);
+                            console.log("  - followStudent avant:", followStudent);
+                            toggleSubscription(e.target.checked);
+                          }}
+                          disabled={loadingSubscription}
+                          className="relative shrink-0 w-[20px] h-[20px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                         <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[#36302a] text-[16px] whitespace-nowrap">
                           Suivre l'étudiant

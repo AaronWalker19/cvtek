@@ -36,16 +36,57 @@ require_once __DIR__ . '/Controller/DocumentController.php';
 require_once __DIR__ . '/Controller/UploadController.php';
 require_once __DIR__ . '/Controller/SystemController.php';
 require_once __DIR__ . '/Controller/CommentController.php';
+require_once __DIR__ . '/Controller/AbonnementController.php';
 require_once __DIR__ . '/Repository/AuthRepository.php';
 require_once __DIR__ . '/Repository/DocumentRepository.php';
 require_once __DIR__ . '/Repository/UploadRepository.php';
 require_once __DIR__ . '/Repository/CommentRepository.php';
+require_once __DIR__ . '/Repository/AbonnementRepository.php';
 
 // ===== HEADERS =====
 
 header('Content-Type: application/json; charset=utf-8');
 setCorsHeaders();
 handleCorsPreFlight();
+
+// ===== ERROR HANDLERS - Capture TOUTES les erreurs PHP =====
+
+// Gestionnaire d'erreurs
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    error_log("[PHP ERROR] $errno - $errstr in $errfile:$errline");
+    
+    if (!(error_reporting() & $errno)) {
+        return false;
+    }
+    
+    // Pour les erreurs critiques, retourner du JSON
+    if ($errno === E_ERROR || $errno === E_PARSE || $errno === E_COMPILE_ERROR) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Erreur PHP critique',
+            'details' => "$errstr in $errfile:$errline"
+        ]);
+        exit;
+    }
+    
+    return true;
+});
+
+// Gestionnaire d'erreur fatale (shutdown)
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error !== null && ($error['type'] === E_ERROR || $error['type'] === E_PARSE)) {
+        error_log("[PHP FATAL] " . $error['type'] . " - " . $error['message'] . " in " . $error['file'] . ":" . $error['line']);
+        
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Erreur PHP fatale',
+            'details' => $error['message'] . " in " . $error['file'] . ":" . $error['line']
+        ]);
+    }
+});
 
 // ===== ROUTER =====
 
@@ -62,6 +103,7 @@ try {
         'upload' => new UploadController(),
         'system' => new SystemController(),
         'comments' => new CommentController(),
+        'abonnement' => new AbonnementController(),
     ];
 
     // Vérifier si le contrôleur existe

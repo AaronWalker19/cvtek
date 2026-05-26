@@ -106,6 +106,11 @@ class HttpRequest
         return $this->json;
     }
 
+    public function getJsonBody(): ?array
+    {
+        return $this->json;
+    }
+
     public function getJsonField(string $key, $default = null)
     {
         return $this->json[$key] ?? $default;

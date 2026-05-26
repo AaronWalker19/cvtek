@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import Sidebar from "../components/Sidebar";
 import svgPaths from "../../imports/PageDeBaseCoteProf/svg-9gqyfpru0n";
-import { getDocuments, getUserById, getDocument } from '../../api/client';
+import { getDocuments, getUserById, getDocument, checkSubscription, createSubscription, deleteSubscription } from '../../api/client';
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<{
@@ -29,6 +31,67 @@ export default function ProfessorDashboard() {
     email?: string;
   }>>([]);
   const [documentVersions, setDocumentVersions] = useState<{ [docId: number]: any[] }>({});
+  const [subscriptions, setSubscriptions] = useState<Set<number>>(new Set());
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
+
+  // Charger l'état d'abonnement quand un étudiant est sélectionné
+  useEffect(() => {
+    const checkStudentSubscription = async () => {
+      if (!user || !selectedStudent) {
+        setSubscriptions(new Set());
+        return;
+      }
+
+      try {
+        console.log(`🔍 [CheckSubscription] Vérification prof=${user.id}, étudiant=${selectedStudent.userId}`);
+        const isSubscribed = await checkSubscription(user.id, selectedStudent.userId);
+        console.log(`✅ [CheckSubscription] Résultat: ${isSubscribed}`);
+        setSubscriptions(new Set(isSubscribed ? [selectedStudent.userId] : []));
+      } catch (error) {
+        console.error('❌ [CheckSubscription] Erreur:', error);
+      }
+    };
+
+    checkStudentSubscription();
+  }, [user, selectedStudent]);
+
+  // Fonction pour s'abonner/se désabonner
+  const toggleSubscription = async () => {
+    if (!user || !selectedStudent) {
+      console.error('❌ [toggleSubscription] user ou selectedStudent manquant');
+      return;
+    }
+
+    const isCurrentlySubscribed = subscriptions.has(selectedStudent.userId);
+    setLoadingSubscription(true);
+
+    try {
+      if (isCurrentlySubscribed) {
+        // Désabonner
+        console.log(`📡 deleteSubscription(prof=${user.id}, student=${selectedStudent.userId})`);
+        await deleteSubscription(user.id, selectedStudent.userId);
+        setSubscriptions(new Set());
+        console.log(`✅ Désabonnement réussi`);
+      } else {
+        // S'abonner
+        console.log(`📡 createSubscription(prof=${user.id}, student=${selectedStudent.userId})`);
+        await createSubscription(user.id, selectedStudent.userId);
+        setSubscriptions(new Set([selectedStudent.userId]));
+        console.log(`✅ Abonnement réussi`);
+      }
+    } catch (error) {
+      console.error(`❌ [toggleSubscription] Erreur:`, error);
+      // En cas d'erreur, recharger l'état d'abonnement
+      try {
+        const isSubscribed = await checkSubscription(user.id, selectedStudent.userId);
+        setSubscriptions(new Set(isSubscribed ? [selectedStudent.userId] : []));
+      } catch (checkError) {
+        console.error(`❌ Erreur lors du re-check:`, checkError);
+      }
+    } finally {
+      setLoadingSubscription(false);
+    }
+  };
 
   // Charger tous les documents de la base de données
   useEffect(() => {
@@ -330,12 +393,32 @@ export default function ProfessorDashboard() {
                 </div>
               </div>
 
-              <button
-                onClick={() => setSelectedStudent(null)}
-                className="text-[#4b575f] text-[32px] font-bold hover:text-[#36302a]"
-              >
-                ×
-              </button>
+              <div className="flex items-center gap-[15px]">
+                <button
+                  onClick={() => {
+                    console.log("🖱️ [Button onClick] Bouton Suivre cliqué!");
+                    toggleSubscription();
+                  }}
+                  disabled={loadingSubscription}
+                  className={`px-6 py-2 rounded font-['Inter:Medium',sans-serif] text-base font-medium transition-all whitespace-nowrap ${
+                    subscriptions.has(selectedStudent.userId)
+                      ? 'bg-red-500 hover:bg-red-600 text-[#ffffff]'
+                      : 'bg-[#4b575f] hover:bg-[#36302a] text-[#ffffff]'
+                  } ${loadingSubscription ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  title={subscriptions.has(selectedStudent.userId) ? 'Cliquez pour arrêter de suivre' : 'Cliquez pour suivre cet étudiant'}
+                >
+                  <span className="inline-block">
+                    {loadingSubscription ? '⏳ ...' : (subscriptions.has(selectedStudent.userId) ? '✓ Suivi' : '+ Suivre')}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedStudent(null)}
+                  className="text-[#4b575f] text-[32px] font-bold hover:text-[#36302a] transition-colors"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             {/* Modal Content - Files List */}

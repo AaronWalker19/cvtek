@@ -679,3 +679,91 @@ export async function deleteComment(commentId: number): Promise<void> {
         throw new Error(response.error || 'Erreur lors de la suppression du commentaire');
     }
 }
+
+// ===============================================
+// Abonnements (Professeur suivant un étudiant)
+// ===============================================
+
+export interface Subscription {
+    id: number;
+    id_prof: number;
+    id_user: number;
+    created_at: string;
+    username?: string;
+    email?: string;
+    parcour?: string;
+}
+
+/**
+ * Vérifie si un professeur suit un étudiant
+ * Endpoint: GET /api/abonnement/check?prof_id={profId}&user_id={userId}
+ */
+export async function checkSubscription(profId: number, userId: number): Promise<boolean> {
+    const response = await apiCall<{ subscribed: boolean }>(
+        `/abonnement/check?prof_id=${profId}&user_id=${userId}`,
+        { method: 'GET', throwOnError: false }
+    );
+
+    return response.success && response.data?.subscribed ? true : false;
+}
+
+/**
+ * Récupère tous les abonnements d'un professeur
+ * Endpoint: GET /api/abonnement?prof_id={profId}
+ */
+export async function getSubscriptionsByProf(profId: number): Promise<Subscription[]> {
+    const response = await apiCall<{ subscriptions: Subscription[] }>(
+        `/abonnement?prof_id=${profId}`,
+        { method: 'GET', throwOnError: false }
+    );
+
+    return response.success && response.data?.subscriptions ? response.data.subscriptions : [];
+}
+
+/**
+ * Récupère tous les abonnements d'un étudiant
+ * Endpoint: GET /api/abonnement?user_id={userId}
+ */
+export async function getSubscriptionsByUser(userId: number): Promise<Subscription[]> {
+    const response = await apiCall<{ subscriptions: Subscription[] }>(
+        `/abonnement?user_id=${userId}`,
+        { method: 'GET', throwOnError: false }
+    );
+
+    return response.success && response.data?.subscriptions ? response.data.subscriptions : [];
+}
+
+/**
+ * Crée un abonnement (professeur suit un étudiant)
+ * Endpoint: POST /api/abonnement
+ */
+export async function createSubscription(profId: number, userId: number): Promise<Subscription> {
+    const response = await apiCall<Subscription>(
+        '/abonnement',
+        {
+            method: 'POST',
+            body: JSON.stringify({ prof_id: profId, user_id: userId }),
+        }
+    );
+
+    if (!response.success) {
+        throw new Error(response.error || 'Erreur lors de la création de l\'abonnement');
+    }
+
+    return response.data as Subscription;
+}
+
+/**
+ * Supprime un abonnement
+ * Endpoint: DELETE /api/abonnement?prof_id={profId}&user_id={userId}
+ */
+export async function deleteSubscription(profId: number, userId: number): Promise<void> {
+    const response = await apiCall(
+        `/abonnement?prof_id=${profId}&user_id=${userId}`,
+        { method: 'DELETE' }
+    );
+
+    if (!response.success) {
+        throw new Error(response.error || 'Erreur lors de la suppression de l\'abonnement');
+    }
+}
