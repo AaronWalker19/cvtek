@@ -10,6 +10,7 @@ import {
   getDocuments,
   getCommentsByDocVersion,
   addComment,
+  updateComment,
   deleteComment,
   Document as ApiDocument 
 } from '../../../api/client';
@@ -77,6 +78,8 @@ export default function FileView() {
   const [otherStudentDocuments, setOtherStudentDocuments] = useState<Document[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [addingComment, setAddingComment] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editCommentText, setEditCommentText] = useState<string>('');
 
   useEffect(() => {
     const fetchDocument = async () => {
@@ -386,6 +389,27 @@ export default function FileView() {
     }
   };
 
+  const handleUpdateComment = async (commentId: number) => {
+    if (!editCommentText.trim()) {
+      console.warn('⚠️ Commentaire vide');
+      return;
+    }
+
+    try {
+      console.log(`📤 Mise à jour du commentaire ${commentId}...`);
+      const updatedComment = await updateComment(commentId, editCommentText.trim());
+      console.log('✅ Commentaire mis à jour:', updatedComment);
+      
+      // Mettre à jour le commentaire dans la liste
+      setComments(comments.map(c => c.id === commentId ? updatedComment : c));
+      setEditingCommentId(null);
+      setEditCommentText('');
+    } catch (err) {
+      console.error('❌ Erreur lors de la mise à jour du commentaire:', err);
+      alert('Erreur lors de la mise à jour du commentaire');
+    }
+  };
+
   const handleNewVersion = () => {
     setNewVersionModal({ show: true, doc: document });
   };
@@ -549,7 +573,10 @@ export default function FileView() {
                                     {!isStudent && (
                                       <div className="content-stretch flex flex-row gap-[5px] items-center relative shrink-0">
                                         <button
-                                          onClick={() => setEditingCommentId(comment.id)}
+                                          onClick={() => {
+                                            setEditingCommentId(comment.id);
+                                            setEditCommentText(comment.text);
+                                          }}
                                           className="relative shrink-0 size-[16px]"
                                         >
                                           <div className="absolute inset-[8.33%]">
@@ -692,6 +719,42 @@ export default function FileView() {
           onDragLeave={handleVersionDragLeave}
           onDrop={handleVersionDrop}
         />
+
+        {/* Modal Édition Commentaire */}
+        {editingCommentId !== null && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+            <div className="bg-[#ffffff] rounded-[8px] shadow-lg p-[20px] max-w-[500px] w-[90%]">
+              <h3 className="font-['Inter:Bold',sans-serif] font-bold text-[20px] mb-[15px]" style={{ color: accentColor }}>
+                Modifier le commentaire
+              </h3>
+              <textarea
+                value={editCommentText}
+                onChange={(e) => setEditCommentText(e.target.value)}
+                placeholder="Modifier votre commentaire..."
+                className="w-full p-[10px] border border-[#d9d9d9] rounded text-[14px] font-['Inter:Regular',sans-serif] focus:outline-none focus:border-2 resize-none"
+                rows={4}
+              />
+              <div className="flex gap-[10px] mt-[15px] justify-end">
+                <button
+                  onClick={() => {
+                    setEditingCommentId(null);
+                    setEditCommentText('');
+                  }}
+                  className="px-[15px] py-[8px] border border-[#d9d9d9] rounded text-[14px] font-['Inter:Medium',sans-serif] text-[#36302a] hover:bg-[#f7f7f7]"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => handleUpdateComment(editingCommentId)}
+                  className="px-[15px] py-[8px] rounded text-[14px] font-['Inter:Medium',sans-serif] text-[#ffffff]"
+                  style={{ backgroundColor: accentColor }}
+                >
+                  Sauvegarder
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
