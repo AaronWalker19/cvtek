@@ -2,6 +2,9 @@
 
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Repository/DocumentRepository.php';
+require_once __DIR__ . '/../Repository/UserRepository.php';
+require_once __DIR__ . '/../Repository/AbonnementRepository.php';
+require_once __DIR__ . '/../Service/EmailService.php';
 
 /**
  * DocumentController
@@ -10,10 +13,16 @@ require_once __DIR__ . '/../Repository/DocumentRepository.php';
 class DocumentController extends Controller
 {
     private DocumentRepository $documents;
+    private UserRepository $users;
+    private AbonnementRepository $abonnements;
+    private EmailService $emailService;
 
     public function __construct()
     {
         $this->documents = new DocumentRepository();
+        $this->users = new UserRepository();
+        $this->abonnements = new AbonnementRepository();
+        $this->emailService = new EmailService();
     }
 
     protected function processGetRequest(HttpRequest $request): ?array
@@ -148,7 +157,62 @@ class DocumentController extends Controller
 
             $this->documents->addVersion($id, $urlFichier);
 
-            return ['message' => 'Nouvelle version créée avec succès'];
+            // Initialiser les variables pour la réponse
+            $emailSent = false;
+            $recipientsCount = 0;
+            $emailError = null;
+
+            // Récupérer les infos du document et du propriétaire
+            $docWithOwner = $this->documents->findByIdWithOwner($id);
+            if ($docWithOwner && isset($docWithOwner['user_id'])) {
+                $studentId = $docWithOwner['user_id'];
+                $student = $this->users->findById($studentId);
+                
+                if ($student) {
+                    // Récupérer les emails des professeurs abonnés
+                    $profEmails = $this->abonnements->getProfEmailsByUser($studentId);
+                    
+                    error_log("========== DOCUMENT CONTROLLER ==========");
+                    error_log("[DOC] 📄 Nouvelle version du document #$id");
+                    error_log("[DOC] 👤 Étudiant: {$student['username']} ({$student['email']})");
+                    error_log("[DOC] 📋 Document: " . ($docWithOwner['titre'] ?: $docWithOwner['nom_fichier']));
+                    error_log("[DOC] 📨 Profs abonnés trouvés: " . count($profEmails));
+                    error_log("=========================================");
+                    
+                    if (!empty($profEmails)) {
+                        // Envoyer un email à chaque professeur abonné
+                        $result = $this->emailService->sendNewDocumentNotification(
+                            $student['email'],
+                            $student['username'],
+                            $docWithOwner['titre'] ?: $docWithOwner['nom_fichier'],
+                            $profEmails
+                        );
+                        
+                        if ($result['success']) {
+                            $emailSent = true;
+                            $recipientsCount = count($profEmails);
+                            error_log("[DOC] ✅ Notifications d'emails déclenchées avec succès");
+                        } else {
+                            $emailError = $result['error'] ?? 'Erreur inconnue';
+                            error_log("[DOC] ⚠️ Erreur lors de l'envoi des notifications: $emailError");
+                        }
+                    } else {
+                        error_log("[DOC] ⚠️ Aucun professeur abonné trouvé");
+                    }
+                }
+            }
+
+            $response = [
+                'message' => 'Nouvelle version créée avec succès',
+                'email_sent' => $emailSent,
+                'recipients_count' => $recipientsCount
+            ];
+            
+            if ($emailError) {
+                $response['email_error'] = $emailError;
+            }
+            
+            return $response;
         }
 
         // PUT /api/documents/123 -> mettre à jour le document

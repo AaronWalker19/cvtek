@@ -2,6 +2,9 @@
 
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Repository/CommentRepository.php';
+require_once __DIR__ . '/../Repository/UserRepository.php';
+require_once __DIR__ . '/../Repository/DocumentRepository.php';
+require_once __DIR__ . '/../Service/EmailService.php';
 
 /**
  * CommentController
@@ -10,10 +13,16 @@ require_once __DIR__ . '/../Repository/CommentRepository.php';
 class CommentController extends Controller
 {
     private CommentRepository $comments;
+    private UserRepository $users;
+    private DocumentRepository $documents;
+    private EmailService $emailService;
 
     public function __construct()
     {
         $this->comments = new CommentRepository();
+        $this->users = new UserRepository();
+        $this->documents = new DocumentRepository();
+        $this->emailService = new EmailService();
     }
 
     protected function processGetRequest(HttpRequest $request): ?array
@@ -110,10 +119,24 @@ class CommentController extends Controller
         $comment = $this->comments->create($userId, $docVersionId, $text);
 
         if ($comment) {
-            return [
+            // Envoyer un email de notification à l'étudiant
+            $emailInfo = $this->sendCommentNotificationEmail($userId, $docVersionId, $text);
+            
+            $response = [
                 'message' => 'Commentaire créé',
-                'comment' => $comment
+                'comment' => $comment,
+                'email_sent' => $emailInfo['success'],
+                'email_recipient' => $emailInfo['student_email'],
+                'email_recipient_name' => $emailInfo['student_name'],
+                'email_sender_name' => $emailInfo['professor_name']
             ];
+            
+            // Ajouter le message d'erreur s'il y en a un
+            if (!$emailInfo['success'] && isset($emailInfo['error'])) {
+                $response['email_error'] = $emailInfo['error'];
+            }
+            
+            return $response;
         } else {
             return ['error' => 'Erreur lors de la création du commentaire'];
         }
@@ -222,8 +245,89 @@ class CommentController extends Controller
     }
 
     /**
-     * Vérifie l'authentification et retourne l'ID utilisateur depuis le token JWT
+     * Envoie un email de notification de nouveau commentaire
      */
+    private function sendCommentNotificationEmail(int $profId, int $docVersionId, string $comment): array
+    {
+        $result = [
+            'success' => false,
+            'student_email' => null,
+            'student_name' => null,
+            'professor_name' => null,
+            'document_title' => null,
+            'error' => null
+        ];
+        
+        try {
+            error_log("========== COMMENT CONTROLLER ===========");
+            error_log("[COM] 💬 Nouveau commentaire créé");
+            error_log("[COM] ID Version: $docVersionId");
+            error_log("[COM] ID Prof: $profId");
+            
+            // Récupérer le document associé à cette version
+            $doc = $this->documents->findDocByVersionId($docVersionId);
+            
+            if (!$doc) {
+                error_log("[COM] ❌ Document non trouvé pour la version $docVersionId");
+                error_log("=========================================");
+                return $result;
+            }
+
+            $studentId = $doc['user_id'];
+            
+            // Récupérer les infos de l'étudiant
+            $student = $this->users->findById($studentId);
+            if (!$student || !$student['email']) {
+                error_log("[COM] ❌ Étudiant non trouvé ou pas d'email (ID: $studentId)");
+                error_log("=========================================");
+                return $result;
+            }
+            
+            $result['student_email'] = $student['email'];
+            $result['student_name'] = $student['username'];
+            error_log("[COM] 👤 Étudiant: {$student['username']} ({$student['email']})");
+
+            // Récupérer les infos du professeur
+            $professor = $this->users->findById($profId);
+            if (!$professor) {
+                error_log("[COM] ❌ Professeur non trouvé (ID: $profId)");
+                error_log("=========================================");
+                return $result;
+            }
+            
+            $result['professor_name'] = $professor['username'];
+            error_log("[COM] 👨‍🏫 Professeur: {$professor['username']}");
+            
+            $documentTitle = $doc['titre'] ?: $doc['nom_fichier'];
+            $result['document_title'] = $documentTitle;
+            error_log("[COM] 📋 Document: $documentTitle");
+
+            // Envoyer l'email
+            $emailResult = $this->emailService->sendNewCommentNotification(
+                $student['email'],
+                $student['username'],
+                $professor['username'],
+                $documentTitle,
+                $comment
+            );
+            
+            if ($emailResult['success']) {
+                $result['success'] = true;
+                error_log("[COM] ✅ Email de notification envoyé avec succès");
+            } else {
+                $result['error'] = $emailResult['error'] ?? 'Erreur inconnue lors de l\'envoi d\'email';
+                error_log("[COM] ⚠️ Erreur lors de l'envoi de l'email: " . $result['error']);
+            }
+            error_log("=========================================");
+            
+            return $result;
+        } catch (Exception $e) {
+            error_log("[COM] ❌ Exception: " . $e->getMessage());
+            error_log("=========================================");
+            return $result;
+        }
+    }
+
     private function checkAuth(): ?int
     {
         $token = $this->getAuthToken();

@@ -198,6 +198,41 @@ class DocumentRepository extends Repository
     }
 
     /**
+     * Récupère la dernière version d'un document
+     */
+    public function getLatestVersion(int $docId): ?array
+    {
+        return $this->executeOne(
+            "SELECT id, id_doc, version, url_fichier, created_at FROM doc_version 
+             WHERE id_doc = ? 
+             ORDER BY version DESC 
+             LIMIT 1",
+            [$docId]
+        );
+    }
+
+    /**
+     * Récupère un document avec les infos du propriétaire
+     */
+    public function findByIdWithOwner(int $id): ?array
+    {
+        $result = $this->executeOne(
+            "SELECT d.id, d.user_id, d.nom_fichier, d.titre, d.type_fichier, 
+                    d.description, d.created_at, u.username, u.email
+             FROM documents d
+             LEFT JOIN users u ON d.user_id = u.id
+             WHERE d.id = ?",
+            [$id]
+        );
+
+        if ($result) {
+            return $this->formatDocument($result);
+        }
+
+        return null;
+    }
+
+    /**
      * Formate un document (conversion types)
      */
     private function formatDocument(array $doc): array
@@ -219,5 +254,26 @@ class DocumentRepository extends Repository
     private function formatDocuments(array $docs): array
     {
         return array_map([$this, 'formatDocument'], $docs);
+    }
+
+    /**
+     * Récupère le document associé à une version
+     */
+    public function findDocByVersionId(int $versionId): ?array
+    {
+        $result = $this->executeOne(
+            "SELECT d.id, d.user_id, d.nom_fichier, d.titre, d.type_fichier, 
+                    d.description, d.created_at
+             FROM documents d
+             INNER JOIN doc_version dv ON dv.id_doc = d.id
+             WHERE dv.id = ?",
+            [$versionId]
+        );
+
+        if ($result) {
+            return $this->formatDocument($result);
+        }
+
+        return null;
     }
 }

@@ -155,5 +155,27 @@ class AbonnementRepository extends Repository
             [$id]
         );
     }
+
+    /**
+     * Récupère les emails des professeurs abonnés à un étudiant
+     */
+    public function getProfEmailsByUser(int $userId): array
+    {
+        $results = $this->execute(
+            "SELECT u.email, u.username
+             FROM abonnement a
+             LEFT JOIN users u ON a.id_prof = u.id
+             WHERE a.id_user = ? AND u.email IS NOT NULL",
+            [$userId]
+        );
+
+        $emails = [];
+        if ($results) {
+            foreach ($results as $row) {
+                $emails[] = $row['email'];
+            }
+        }
+        return $emails;
+    }
 }
 ?>

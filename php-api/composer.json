@@ -1,0 +1,14 @@
+{
+    "name": "cvtek/php-api",
+    "description": "CVTEK PHP API",
+    "require": {
+        "php": ">=7.4",
+        "phpmailer/phpmailer": "^6.8"
+    },
+    "autoload": {
+        "files": [
+            "helpers.php",
+            "db.php"
+        ]
+    }
+}

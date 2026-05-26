@@ -3,6 +3,6 @@
 /.env
 /node_modules
 /version exemple
-
+/php-api/EMAIL_SYSTEM.md
 
 /db/database.sqlite

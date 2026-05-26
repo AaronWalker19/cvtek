@@ -504,7 +504,15 @@ export async function addVersion(
     docId: number,
     urlFichier: string
 ): Promise<{ message: string }> {
-    const response = await apiCall<{ message: string }>(
+    console.log(`📄 [addVersion] Ajout version du document #${docId}`);
+    console.log(`   🔗 URL: ${urlFichier}`);
+    
+    const response = await apiCall<{ 
+        message: string;
+        email_sent?: boolean;
+        recipients_count?: number;
+        email_error?: string;
+    }>(
         `${API_CONFIG.ROUTES.DOCUMENTS}/${docId}/version`,
         {
             method: 'PUT',
@@ -514,6 +522,18 @@ export async function addVersion(
 
     if (!response.success || !response.data) {
         throw new Error(response.error || 'Erreur lors de la création de la version');
+    }
+
+    // Afficher les infos d'email si disponibles
+    if (response.data?.email_sent) {
+        console.log(`%c📧 EMAILS DE NOTIFICATION ENVOYÉS`, 'color: #4CAF50; font-weight: bold; font-size: 14px;');
+        console.log(`   📨 Nombre de professeurs notifiés: ${response.data.recipients_count || 'plusieurs'}`);
+        console.log(`   Message: Nouvelle version du document ajoutée`);
+    } else if (response.data?.email_sent === false) {
+        console.warn(`%c⚠️ EMAILS NON ENVOYÉS`, 'color: #FF9800; font-weight: bold; font-size: 14px;');
+        const errorMsg = response.data?.email_error || 'Aucun professeur abonné ou erreur d\'envoi';
+        console.log(`   Raison: ${errorMsg}`);
+        console.log(`   Professeurs notifiés: ${response.data.recipients_count || 0}`);
     }
 
     return response.data;
@@ -625,6 +645,10 @@ export async function addComment(docVersionId: number, text: string): Promise<Co
     
     const response = await apiCall<{
         comment: Comment;
+        email_sent?: boolean;
+        email_recipient?: string;
+        email_recipient_name?: string;
+        email_sender_name?: string;
     }>(
         API_CONFIG.ROUTES.COMMENTS,
         {
@@ -638,6 +662,19 @@ export async function addComment(docVersionId: number, text: string): Promise<Co
     if (!response.success || !response.data?.comment) {
         console.error(`❌ [addComment] Erreur - success: ${response.success}, data: ${response.data}`);
         throw new Error(response.error || 'Erreur lors de la création du commentaire');
+    }
+
+    // Afficher les infos d'email si disponibles
+    if (response.data?.email_sent) {
+        console.log(`%c📧 EMAIL ENVOYÉ AVEC SUCCÈS`, 'color: #4CAF50; font-weight: bold; font-size: 14px;');
+        console.log(`   ✉️  À: ${response.data.email_recipient} (${response.data.email_recipient_name})`);
+        console.log(`   Envoyé par: ${response.data.email_sender_name}`);
+        console.log(`   Message: Notification de commentaire`);
+    } else if (response.data?.email_sent === false) {
+        console.warn(`%c⚠️ EMAIL NON ENVOYÉ`, 'color: #FF9800; font-weight: bold; font-size: 14px;');
+        const errorMsg = (response.data as any)?.email_error || 'Le système n\'a pas pu envoyer l\'email de notification';
+        console.log(`   Raison: ${errorMsg}`);
+        console.log(`   Étudiant cible: ${response.data.email_recipient}`);
     }
 
     return response.data.comment;
