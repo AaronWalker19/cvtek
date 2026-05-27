@@ -103,6 +103,15 @@ class DocumentController extends Controller
         $typeFichier = sanitizeString($data['type_fichier']);
         $description = sanitizeString($data['description'] ?? '');
 
+        error_log("========== DOCUMENT CONTROLLER ==========");
+        error_log("[DOC] 📄 CRÉATION DE DOCUMENT");
+        error_log("[DOC] 👤 ID Utilisateur: $userId");
+        error_log("[DOC] 📝 Nom fichier: $nomFichier");
+        error_log("[DOC] 📂 Type: $typeFichier");
+        error_log("[DOC] 📋 Titre: " . ($titre ?: '(non fourni)'));
+        error_log("[DOC] 📖 Description: " . ($description ?: '(aucune)'));
+        error_log("=========================================");
+
         logAction("CREATE_DOCUMENT", ['user_id' => $userId, 'nom_fichier' => $nomFichier]);
 
         // Créer le document
@@ -114,12 +123,18 @@ class DocumentController extends Controller
             $description
         );
 
+        error_log("[DOC] ✅ Document créé avec ID: $docId");
+
         // Si url_fichier est fourni, créer la première version (1.0)
         if (!empty($data['url_fichier'])) {
             $urlFichier = sanitizeString($data['url_fichier']);
             $this->documents->addVersion($docId, $urlFichier);
+            error_log("[DOC] 📌 Première version créée: $urlFichier");
             logAction("ADD_FIRST_VERSION", ['docId' => $docId, 'url_fichier' => $urlFichier]);
         }
+
+        error_log("[DOC] 🎉 Document et première version prêts");
+        error_log("========================================= ");
 
         return [
             'message' => 'Document créé avec succès',

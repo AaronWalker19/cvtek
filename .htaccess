@@ -1,7 +1,12 @@
 RewriteEngine On
 
+# Redirection de /cvtek vers /cvtek/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^cvtek$ cvtek/ [R=301,L]
+
 # React Router - NE PAS rediriger les appels API vers index.html
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/~valin6/cvtek/api/
-RewriteRule . /~valin6/cvtek/index.html [L]
+RewriteCond %{REQUEST_URI} !^/cvtek/api/
+RewriteRule . /cvtek/index.html [L]

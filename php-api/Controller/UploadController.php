@@ -81,7 +81,17 @@ class UploadController extends Controller
 
         // Vérifier les erreurs d'upload
         if ($fileError !== UPLOAD_ERR_OK) {
-            return ['error' => "Erreur d'upload: $fileError", 'code' => 400];
+            $errorMessages = [
+                UPLOAD_ERR_INI_SIZE => 'Le fichier dépasse la limite upload_max_filesize en php.ini',
+                UPLOAD_ERR_FORM_SIZE => 'Le fichier dépasse la limite MAX_FILE_SIZE',
+                UPLOAD_ERR_PARTIAL => 'Le fichier n\'a été que partiellement téléchargé',
+                UPLOAD_ERR_NO_FILE => 'Aucun fichier n\'a été téléchargé',
+                UPLOAD_ERR_NO_TMP_DIR => 'Le répertoire temporaire est manquant',
+                UPLOAD_ERR_CANT_WRITE => 'Impossible d\'écrire le fichier sur le disque',
+                UPLOAD_ERR_EXTENSION => 'Une extension PHP a arrêté le téléchargement',
+            ];
+            $errorMsg = $errorMessages[$fileError] ?? "Erreur d'upload inconnue: $fileError";
+            return ['error' => $errorMsg, 'code' => 400];
         }
 
         // Vérifier la taille
@@ -141,7 +151,7 @@ class UploadController extends Controller
             'file' => $uniqueName,
             'original_name' => $fileName,
             'size' => $fileSize,
-            'url' => '/~valin6/cvtek/uploads/' . $uniqueName,
+            'url' => '/cvtek/uploads/' . $uniqueName,
             'type' => $ext,
         ];
     }

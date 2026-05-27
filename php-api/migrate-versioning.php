@@ -25,7 +25,7 @@ try {
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 id_doc INT NOT NULL COMMENT 'Référence au document parent',
                 version DECIMAL(3,1) NOT NULL COMMENT 'Numéro de version (1.0, 2.0, etc)',
-                url_fichier VARCHAR(255) NOT NULL COMMENT 'Chemin du fichier: /~valin6/cvtek/uploads/filename.ext',
+                url_fichier VARCHAR(255) NOT NULL COMMENT 'Chemin du fichier: /cvtek/uploads/filename.ext',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 
                 -- Contraintes

@@ -42,7 +42,7 @@ define('DB_PASSWORD', getenv('DB_PASSWORD') ?: '');
 define('CORS_ORIGIN', getenv('CORS_ORIGIN') ?: 'https://mmi.unilim.fr');
 
 // API
-define('API_BASE_URL', getenv('API_BASE_URL') ?: '/~valin6/cvtek/api');
+define('API_BASE_URL', getenv('API_BASE_URL') ?: '/cvtek/api');
 
 // Sessions
 define('SESSION_LIFETIME', (int)(getenv('SESSION_LIFETIME') ?: 86400));

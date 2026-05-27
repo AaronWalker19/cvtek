@@ -109,7 +109,7 @@ try {
             $stmt->execute([
                 $doc['id'],
                 1.0,
-                '/~valin6/cvtek/uploads/' . $doc['nom_fichier'],
+                '/cvtek/uploads/' . $doc['nom_fichier'],
                 $doc['created_at']
             ]);
         }

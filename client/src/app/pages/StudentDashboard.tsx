@@ -218,20 +218,29 @@ export default function StudentDashboard() {
       let fileUrl = newFileUrl;
       const fileName = sourceType === 'fichier' ? selectedFile!.name : newFileUrl;
 
+      console.group('📤 PUBLICATION DOCUMENT');
+      console.log('🎯 Type source:', sourceType);
+      console.log('📝 Nom fichier:', fileName);
+      console.log('📂 Type:', newFileType);
+      console.log('📄 Description:', newFileDescription || '(aucune)');
+      console.log('👤 ID Utilisateur:', user?.id);
+
       // Si c'est un fichier, on peut l'uploader
       if (sourceType === 'fichier' && selectedFile) {
         // Upload optionnel du fichier
         try {
+          console.log('⬆️ Upload du fichier en cours...');
           const uploadResponse = await uploadFile(selectedFile, user?.id || 0);
           fileUrl = uploadResponse.url;
+          console.log('✅ Upload réussi:', uploadResponse.url);
         } catch (uploadErr) {
           console.error('❌ Erreur upload:', uploadErr);
-          fileUrl = `/~valin6/cvtek/uploads/${selectedFile.name}`;
+          fileUrl = `/cvtek/uploads/${selectedFile.name}`;
         }
       }
 
-
       // Créer le document en BD
+      console.log('📨 Création du document dans la BD...');
       const result = await createDocument({
         user_id: user?.id || 0,
         nom_fichier: fileName,
@@ -240,6 +249,11 @@ export default function StudentDashboard() {
         url_fichier: fileUrl,
         description: newFileDescription
       });
+
+      console.log('✅ Document créé avec succès!');
+      console.log('   ID:', result.id);
+      console.log('   URL:', fileUrl);
+      console.log('   Message:', result.message);
 
       const newDoc: Document = {
         id: result.id,
@@ -267,8 +281,15 @@ export default function StudentDashboard() {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+
+      console.log('🎉 Tous les emails de notification devraient avoir été envoyés!');
+      console.log('   Vérifiez les logs PHP pour voir l\'état du serveur');
+      console.groupEnd();
     } catch (err) {
-      console.error('❌ Erreur ajout fichier:', err);
+      console.group('❌ ERREUR PUBLICATION DOCUMENT');
+      console.error('Erreur:', err);
+      console.log('💡 Conseil: Vérifiez la console PHP et les logs serveur');
+      console.groupEnd();
     }
   };
 

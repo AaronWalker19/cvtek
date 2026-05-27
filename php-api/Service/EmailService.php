@@ -118,13 +118,30 @@ class EmailService
      */
     private function sendEmail(string $to, string $subject, string $body): array
     {
-        // Vérifier si la fonction mail() est disponible
-        if (function_exists('mail')) {
+        // Sur Windows, essayer PHP mail() d'abord (plus fiable)
+        $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+        
+        if ($isWindows && function_exists('mail')) {
+            $result = $this->sendViaPhpMail($to, $subject, $body);
+            if ($result['success']) {
+                return $result;
+            }
+            error_log("[EMAIL] ⚠️  mail() a échoué, tentative SMTP...");
+        }
+        
+        // Essayer SMTP
+        $smtpResult = $this->sendViaSMTP($to, $subject, $body);
+        if ($smtpResult['success']) {
+            return $smtpResult;
+        }
+        
+        // Sur non-Windows, fallback sur mail()
+        if (!$isWindows && function_exists('mail')) {
+            error_log("[EMAIL] ⚠️  SMTP a échoué, tentative mail()...");
             return $this->sendViaPhpMail($to, $subject, $body);
         }
         
-        // Sinon essayer SMTP
-        return $this->sendViaSMTP($to, $subject, $body);
+        return $smtpResult;
     }
     
     /**
@@ -141,8 +158,18 @@ class EmailService
             error_log("[EMAIL] 📤 Tentative envoi via mail() à: $to");
             
             // Vérifier la configuration de mail()
-            if (!ini_get('sendmail_path') && !ini_get('SMTP')) {
-                error_log("[EMAIL] ⚠️ AVERTISSEMENT: mail() peut ne pas être configuré (pas de sendmail_path ni SMTP)");
+            $sendmailPath = ini_get('sendmail_path');
+            $smtpHost = ini_get('SMTP');
+            $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+            
+            if ($isWindows && !$smtpHost) {
+                error_log("[EMAIL] ⚠️  INFO: Windows détecté, pas d'SMTP configuré");
+                error_log("[EMAIL]    mail() peut ne pas fonctionner sans configuration SMTP");
+                error_log("[EMAIL]    À configurer dans php.ini: SMTP=smtp.gmail.com, smtp_port=587");
+            }
+            
+            if (!$isWindows && !$sendmailPath) {
+                error_log("[EMAIL] ⚠️  AVERTISSEMENT: sendmail_path non configuré");
             }
             
             $result = @mail($to, $subject, $body, $headers);
@@ -155,9 +182,11 @@ class EmailService
                 ];
             } else {
                 error_log("[EMAIL] ❌ ERREUR: mail() a retourné false pour: $to");
+                error_log("[EMAIL]    Cause probable sur Windows: SMTP non configuré");
+                error_log("[EMAIL]    Cause probable sur Linux: sendmail non disponible");
                 return [
                     'success' => false,
-                    'error' => 'mail() a échoué - vérifiez la configuration sendmail',
+                    'error' => 'mail() a échoué - Vérifiez la configuration sendmail/SMTP',
                     'method' => 'php_mail'
                 ];
             }
@@ -179,12 +208,27 @@ class EmailService
         try {
             error_log("[EMAIL] 📤 Tentative envoi via SMTP à: $to");
             
+            // Vérifier la disponibilité d'OpenSSL
+            if (!extension_loaded('openssl')) {
+                error_log("[EMAIL] ❌ ERREUR: Extension OpenSSL non disponible");
+                error_log("[EMAIL]    Activez OpenSSL dans php.ini: extension=openssl");
+                return [
+                    'success' => false,
+                    'error' => 'Extension OpenSSL requise - vérifiez php.ini',
+                    'method' => 'smtp'
+                ];
+            }
+            
             // Créer une connexion SMTP
             error_log("[EMAIL] 🔗 Connexion à {$this->smtpHost}:{$this->smtpPort}...");
             $sock = @fsockopen($this->smtpHost, $this->smtpPort, $errno, $errstr, 10);
             
             if (!$sock) {
                 error_log("[EMAIL] ❌ ERREUR: Impossible de se connecter à SMTP: $errstr ($errno)");
+                error_log("[EMAIL]    Causes possibles:");
+                error_log("[EMAIL]    • Firewall/pare-feu bloque le port 587");
+                error_log("[EMAIL]    • Serveur SMTP non accessible");
+                error_log("[EMAIL]    • Problème de connectivité réseau");
                 return [
                     'success' => false,
                     'error' => "Connexion SMTP échouée: $errstr ($errno)",
@@ -234,10 +278,12 @@ class EmailService
             if (!$tlsActive) {
                 fclose($sock);
                 error_log("[EMAIL] ❌ ERREUR: Impossible d'activer TLS");
-                error_log("[EMAIL] ⚠️  Vérifiez que OpenSSL est installé et activé dans PHP");
+                error_log("[EMAIL] ⚠️  Vérifiez que OpenSSL est correctement configuré");
+                error_log("[EMAIL]    On Windows: extension=php_openssl.dll doit être dans php.ini");
+                error_log("[EMAIL]    Sur Linux: openssl extension doit être installée");
                 return [
                     'success' => false,
-                    'error' => 'Impossible d\'activer TLS/SSL - OpenSSL requis',
+                    'error' => 'Impossible d\'activer TLS/SSL - Vérifiez OpenSSL',
                     'method' => 'smtp'
                 ];
             }
@@ -259,9 +305,12 @@ class EmailService
             if (strpos($response, '235') === false) {
                 fclose($sock);
                 error_log("[EMAIL] ❌ ERREUR: Authentification échouée");
+                error_log("[EMAIL]    Vérifiez les identifiants Gmail");
+                error_log("[EMAIL]    Email: benoitccasibio@gmail.com");
+                error_log("[EMAIL]    Code app: aiwachtcdfioihsi");
                 return [
                     'success' => false,
-                    'error' => 'Authentification Gmail SMTP échouée',
+                    'error' => 'Authentification Gmail SMTP échouée - Vérifiez les identifiants',
                     'method' => 'smtp'
                 ];
             }
@@ -430,11 +479,12 @@ HTML;
      */
     public function testConnection(): bool
     {
-        return $this->sendEmail(
+        $result = $this->sendEmail(
             $this->fromEmail,
             "Test CVTEK",
             "Ce mail teste la connexion email de CVTEK."
         );
+        return $result['success'] ?? false;
     }
 }
 

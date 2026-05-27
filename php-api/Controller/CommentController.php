@@ -100,6 +100,10 @@ class CommentController extends Controller
 
         // Validation
         if (!$docVersionId || !$text) {
+            error_log("========== COMMENT CONTROLLER ==========");
+            error_log("[COM] ❌ VALIDATION ÉCHOUÉE");
+            error_log("[COM] Paramètres manquants: id_docversion=$docVersionId, text=" . ($text ? 'OK' : 'MANQUANT'));
+            error_log("=========================================");
             return ['error' => 'Paramètres manquants: id_docversion, text'];
         }
 
@@ -107,8 +111,19 @@ class CommentController extends Controller
         $text = trim($text);
 
         if (empty($text)) {
+            error_log("========== COMMENT CONTROLLER ==========");
+            error_log("[COM] ❌ VALIDATION ÉCHOUÉE: Texte vide");
+            error_log("=========================================");
             return ['error' => 'Le texte du commentaire ne peut pas être vide'];
         }
+
+        error_log("========== COMMENT CONTROLLER ==========");
+        error_log("[COM] 💬 CRÉATION COMMENTAIRE");
+        error_log("[COM] 👤 Professeur ID: $userId");
+        error_log("[COM] 📌 Version ID: $docVersionId");
+        error_log("[COM] 📝 Texte: " . substr($text, 0, 60) . (strlen($text) > 60 ? '...' : ''));
+        error_log("[COM] 📊 Longueur: " . strlen($text) . " caractères");
+        error_log("=========================================");
 
         logAction("CREATE_COMMENT", [
             'userId' => $userId,
@@ -119,7 +134,10 @@ class CommentController extends Controller
         $comment = $this->comments->create($userId, $docVersionId, $text);
 
         if ($comment) {
+            error_log("[COM] ✅ Commentaire créé avec ID: {$comment['id']}");
+            
             // Envoyer un email de notification à l'étudiant
+            error_log("[COM] 📧 Envoi de l'email de notification...");
             $emailInfo = $this->sendCommentNotificationEmail($userId, $docVersionId, $text);
             
             $response = [
@@ -134,10 +152,16 @@ class CommentController extends Controller
             // Ajouter le message d'erreur s'il y en a un
             if (!$emailInfo['success'] && isset($emailInfo['error'])) {
                 $response['email_error'] = $emailInfo['error'];
+                error_log("[COM] ⚠️ Email non envoyé: " . $emailInfo['error']);
+            } else if ($emailInfo['success']) {
+                error_log("[COM] ✅ Email envoyé avec succès");
             }
+            error_log("=========================================");
             
             return $response;
         } else {
+            error_log("[COM] ❌ Erreur lors de la création du commentaire");
+            error_log("=========================================");
             return ['error' => 'Erreur lors de la création du commentaire'];
         }
     }

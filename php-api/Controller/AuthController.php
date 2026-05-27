@@ -302,7 +302,7 @@ class AuthController extends Controller
                     $stmt->execute([
                         $doc['id'],
                         1.0,
-                        '/~valin6/cvtek/uploads/placeholder.pdf',
+                        '/cvtek/uploads/placeholder.pdf',
                         $doc['created_at'] ?? date('Y-m-d H:i:s')
                     ]);
                     $migratedCount++;

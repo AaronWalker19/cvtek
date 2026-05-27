@@ -77,7 +77,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <Router basename="/~valin6/cvtek">
+      <Router basename="/cvtek">
         <div className="size-full">
           <AppRoutes />
           <DemoUserSwitcher />

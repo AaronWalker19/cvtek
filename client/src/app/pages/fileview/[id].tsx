@@ -367,14 +367,35 @@ export default function FileView() {
     }
 
     try {
+      console.group('💬 PUBLICATION COMMENTAIRE');
+      console.log('📝 Texte:', newComment.trim());
+      console.log('📄 Version ID:', selectedVersionId);
+      console.log('📋 Document ID:', document?.id);
+      console.log('👤 ID Utilisateur:', user?.id);
+      console.log('🎯 Rôle utilisateur:', user?.role);
+
       setAddingComment(true);
+      console.log('⏳ Envoi du commentaire en cours...');
+      
       const newCommentData = await addComment(selectedVersionId, newComment.trim());
       
+      console.log('✅ Commentaire créé avec succès!');
+      console.log('   ID:', newCommentData.id);
+      console.log('   Auteur:', newCommentData.username);
+      console.log('   Contenu:', newCommentData.text?.substring(0, 50) + '...');
+
       // Ajouter le commentaire à la liste
       setComments([newCommentData, ...comments]);
       setNewComment('');
+
+      console.log('🎉 Un email de notification devrait avoir été envoyé à l\'étudiant!');
+      console.log('   Vérifiez les logs PHP pour voir l\'état du serveur');
+      console.groupEnd();
     } catch (err) {
-      console.error('Erreur lors de l\'ajout du commentaire:', err);
+      console.group('❌ ERREUR PUBLICATION COMMENTAIRE');
+      console.error('Erreur:', err);
+      console.log('💡 Conseil: Vérifiez la console PHP et les logs serveur');
+      console.groupEnd();
       alert('Erreur lors de l\'ajout du commentaire');
     } finally {
       setAddingComment(false);

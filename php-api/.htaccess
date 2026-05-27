@@ -1,6 +1,6 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /~valin6/cvtek/api/
+    RewriteBase /cvtek/api/
     
     # Ne pas traiter les fichiers ou répertoires réels
     RewriteCond %{REQUEST_FILENAME} !-f

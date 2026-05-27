@@ -7,7 +7,7 @@
  * - Repositories: Accès base de données
  * 
  * DÉPLOIEMENT:
- * - En production: utilise les chemins relatifs /~valin6/cvtek/api/
+ * - En production: utilise les chemins relatifs /cvtek/api/
  * - En développement: utilise http://localhost:8000/api/
  */
 
@@ -40,8 +40,8 @@ const API_CONFIG = {
  */
 function getApiBaseUrl(): string {
     if (process.env.NODE_ENV === 'production') {
-        // En production: les APIs sont dans /~valin6/cvtek/api/
-        return '/~valin6/cvtek/api';
+        // En production: les APIs sont dans /cvtek/api/
+        return '/cvtek/api';
     }
 
     // En développement: serveur PHP local
