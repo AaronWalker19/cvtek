@@ -6,6 +6,17 @@
  * Compatible PHP 8+
  */
 
+// Load .env file
+if (file_exists(__DIR__ . '/.env')) {
+    $lines = file(__DIR__ . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos($line, '=') !== false && strpos($line, '#') !== 0) {
+            list($key, $value) = explode('=', $line, 2);
+            putenv(trim($key) . '=' . trim($value));
+        }
+    }
+}
+
 class Database {
     private static ?PDO $connection = null;
     
@@ -31,6 +42,9 @@ class Database {
             $password = getenv('DB_PASSWORD') ?: '';
             $port = getenv('DB_PORT') ?: 3306;
             
+            // Log parameters
+            error_log("DB Connection attempt: host=$host, port=$port, db=$dbname, user=$user");
+            
             // DSN PDO
             $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
             
@@ -44,11 +58,11 @@ class Database {
             // Connexion
             self::$connection = new PDO($dsn, $user, $password, $options);
             
-            error_log("✅ Base de données connectée: {$dbname}@{$host}");
+            error_log("OK: Database connected");
             
         } catch (PDOException $e) {
-            error_log("❌ Erreur connexion BD: " . $e->getMessage());
-            throw new Exception("Erreur connexion base de données", 500);
+            error_log("ERROR DB: " . $e->getMessage());
+            throw new Exception("Database connection error: " . $e->getMessage(), 500);
         }
     }
     

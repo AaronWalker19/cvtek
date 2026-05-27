@@ -1,5 +1,6 @@
 <?php
 
+require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Repository/CommentRepository.php';
 require_once __DIR__ . '/../Repository/UserRepository.php';
@@ -284,64 +285,70 @@ class CommentController extends Controller
         
         try {
             error_log("========== COMMENT CONTROLLER ===========");
-            error_log("[COM] 💬 Nouveau commentaire créé");
+            error_log("[COM] Nouveau commentaire cree");
             error_log("[COM] ID Version: $docVersionId");
             error_log("[COM] ID Prof: $profId");
             
-            // Récupérer le document associé à cette version
-            $doc = $this->documents->findDocByVersionId($docVersionId);
+            // Get database connection
+            $db = Database::getConnection();
+            
+            // Recuperer le document associe a cette version
+            $stmt = $db->prepare("SELECT d.id, d.user_id, d.nom_fichier, d.titre FROM documents d INNER JOIN doc_version dv ON dv.id_doc = d.id WHERE dv.id = ?");
+            $stmt->execute([$docVersionId]);
+            $doc = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$doc) {
-                error_log("[COM] ❌ Document non trouvé pour la version $docVersionId");
-                error_log("[COM] ℹ️ Vérifier que la version $docVersionId existe et est liée à un document");
+                error_log("[COM] Document non trouve pour version $docVersionId");
                 error_log("=========================================");
                 return $result;
             }
 
-            error_log("[COM] ✅ Document trouvé - ID: {$doc['id']}, user_id: {$doc['user_id']}");
+            error_log("[COM] Document trouve - ID: {$doc['id']}, user_id: {$doc['user_id']}");
 
             $studentId = $doc['user_id'];
             
             if (!$studentId) {
-                error_log("[COM] ❌ Document n'a pas de user_id!");
+                error_log("[COM] Document n'a pas de user_id!");
                 error_log("=========================================");
                 return $result;
             }
             
-            // Récupérer les infos de l'étudiant
-            $student = $this->users->findById($studentId);
+            // Recuperer les infos de l'etudiant
+            $stmt = $db->prepare("SELECT id, username, email FROM users WHERE id = ?");
+            $stmt->execute([$studentId]);
+            $student = $stmt->fetch(PDO::FETCH_ASSOC);
             if (!$student) {
-                error_log("[COM] ❌ Étudiant non trouvé - ID: $studentId");
-                error_log("[COM] ℹ️ Vérifier que l'utilisateur $studentId existe en BD");
+                error_log("[COM] Etudiant non trouve - ID: $studentId");
                 error_log("=========================================");
                 return $result;
             }
             
             if (!$student['email']) {
-                error_log("[COM] ❌ Étudiant trouvé ({$student['username']}) mais sans email!");
-                error_log("[COM] ℹ️ L'utilisateur $studentId ({$student['username']}) doit avoir un email pour recevoir les notifications");
+                error_log("[COM] Etudiant trouve ({$student['username']}) mais sans email!");
                 error_log("=========================================");
                 return $result;
             }
             
             $result['student_email'] = $student['email'];
             $result['student_name'] = $student['username'];
-            error_log("[COM] 👤 Étudiant: {$student['username']} ({$student['email']})");
+            error_log("[COM] Etudiant: {$student['username']} ({$student['email']})");
 
-            // Récupérer les infos du professeur
-            $professor = $this->users->findById($profId);
+            // Recuperer les infos du professeur
+            $stmt = $db->prepare("SELECT id, username FROM users WHERE id = ?");
+            $stmt->execute([$profId]);
+            $professor = $stmt->fetch(PDO::FETCH_ASSOC);
             if (!$professor) {
-                error_log("[COM] ❌ Professeur non trouvé (ID: $profId)");
+                error_log("[COM] Professeur non trouve (ID: $profId)");
                 error_log("=========================================");
                 return $result;
             }
             
             $result['professor_name'] = $professor['username'];
-            error_log("[COM] 👨‍🏫 Professeur: {$professor['username']}");
+            error_log("[COM] Professeur: {$professor['username']}");
             
             $documentTitle = $doc['titre'] ?: $doc['nom_fichier'];
             $result['document_title'] = $documentTitle;
-            error_log("[COM] 📋 Document: $documentTitle");
+            error_log("[COM] Document: $documentTitle");
 
             // Envoyer l'email
             $emailResult = $this->emailService->sendNewCommentNotification(
@@ -354,16 +361,16 @@ class CommentController extends Controller
             
             if ($emailResult['success']) {
                 $result['success'] = true;
-                error_log("[COM] ✅ Email de notification envoyé avec succès");
+                error_log("[COM] Email de notification envoye avec succes");
             } else {
                 $result['error'] = $emailResult['error'] ?? 'Erreur inconnue lors de l\'envoi d\'email';
-                error_log("[COM] ⚠️ Erreur lors de l'envoi de l'email: " . $result['error']);
+                error_log("[COM] Erreur lors de l'envoi de l'email: " . $result['error']);
             }
             error_log("=========================================");
             
             return $result;
         } catch (Exception $e) {
-            error_log("[COM] ❌ Exception: " . $e->getMessage());
+            error_log("[COM] Exception: " . $e->getMessage());
             error_log("=========================================");
             return $result;
         }

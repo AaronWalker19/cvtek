@@ -80,18 +80,35 @@ if (!$doc) {
 } else {
     echo "✅ Document 36 existe: {$doc['nom_fichier']}\n";
     
-    // Vérifier la version
-    $stmt = $db->prepare("SELECT * FROM doc_version WHERE id_doc = 36");
+    // Vérifier les versions du document 36
+    $stmt = $db->prepare("SELECT id, version FROM doc_version WHERE id_doc = 36 ORDER BY id");
     $stmt->execute();
-    $version = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$version) {
-        echo "❌ Version 1.0 n'existe pas, création...\n";
+    $versions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (empty($versions)) {
+        echo "❌ Aucune version trouvée, création de v1.0...\n";
         $db->prepare(
             "INSERT INTO doc_version (id_doc, version, url_fichier) VALUES (36, 1.0, '/cvtek/uploads/test-document.pdf')"
         )->execute();
         echo "✅ Version 1.0 créée\n";
     } else {
-        echo "✅ Versions existent\n";
+        echo "✅ " . count($versions) . " version(s) trouvée(s):\n";
+        foreach ($versions as $v) {
+            echo "   - ID {$v['id']}: v{$v['version']}\n";
+        }
+    }
+    
+    // Vérifier que la version ID 22 existe et pointe sur le doc 36
+    $stmt = $db->prepare("SELECT id, id_doc, version FROM doc_version WHERE id = 22");
+    $stmt->execute();
+    $version22 = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$version22) {
+        echo "⚠️ Version ID 22 n'existe pas (pour les tests de commentaires)\n";
+        echo "   Vous pouvez ajouter manuellement: INSERT INTO doc_version (id, id_doc, version, url_fichier) VALUES (22, 36, 2.0, '/cvtek/uploads/test-document-v2.pdf')\n";
+    } elseif ($version22['id_doc'] != 36) {
+        echo "⚠️ Version ID 22 existe mais est liée au doc {$version22['id_doc']}, pas au doc 36!\n";
+    } else {
+        echo "✅ Version ID 22 existe et est correctement liée au document 36\n";
     }
 }
 
