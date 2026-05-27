@@ -255,6 +255,19 @@ export default function StudentDashboard() {
       console.log('   URL:', fileUrl);
       console.log('   Message:', result.message);
 
+      // Afficher les infos d'email avec adresses exactes
+      if (result.email_sent && result.recipient_emails?.length) {
+        console.log('📧 Emails de notification envoyés!');
+        console.log(`   📮 ${result.recipients_count} destinataire(s):`);
+        result.recipient_emails.forEach((recipient, index) => {
+          console.log(`      ${index + 1}. ${recipient.name} <${recipient.email}>`);
+        });
+      } else if (result.recipients_count === 0) {
+        console.log('ℹ️ Aucun professeur abonné à cet étudiant');
+      } else if (result.email_error) {
+        console.log('⚠️ Erreur lors de l\'envoi des emails:', result.email_error);
+      }
+
       const newDoc: Document = {
         id: result.id,
         user_id: user?.id || 0,
@@ -282,8 +295,7 @@ export default function StudentDashboard() {
         fileInputRef.current.value = '';
       }
 
-      console.log('🎉 Tous les emails de notification devraient avoir été envoyés!');
-      console.log('   Vérifiez les logs PHP pour voir l\'état du serveur');
+      console.log('🎉 Upload et notification terminés!');
       console.groupEnd();
     } catch (err) {
       console.group('❌ ERREUR PUBLICATION DOCUMENT');

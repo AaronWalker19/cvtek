@@ -134,12 +134,74 @@ class DocumentController extends Controller
         }
 
         error_log("[DOC] 🎉 Document et première version prêts");
+        
+        // Envoyer les emails de notification aux professeurs abonnés
+        $emailSent = false;
+        $recipientsCount = 0;
+        $emailError = null;
+        $recipientEmails = [];
+        
+        if ($userId > 0) {
+            // Récupérer les infos du document et du propriétaire
+            $docWithOwner = $this->documents->findByIdWithOwner($docId);
+            if ($docWithOwner && isset($docWithOwner['user_id'])) {
+                $student = $this->users->findById($userId);
+                
+                if ($student) {
+                    // Récupérer les infos des professeurs abonnés (email + username)
+                    $profInfos = $this->abonnements->getProfInfoByUser($userId);
+                    
+                    error_log("[DOC] 📨 Profs abonnés trouvés: " . count($profInfos));
+                    
+                    if (!empty($profInfos)) {
+                        // Extraire les emails pour l'envoi
+                        $profEmails = array_column($profInfos, 'email');
+                        
+                        // Envoyer un email à chaque professeur abonné
+                        $result = $this->emailService->sendNewDocumentNotification(
+                            $student['email'],
+                            $student['username'],
+                            $docWithOwner['titre'] ?: $docWithOwner['nom_fichier'],
+                            $profEmails
+                        );
+                        
+                        if ($result['success']) {
+                            $emailSent = true;
+                            $recipientsCount = count($profInfos);
+                            // Formater les infos des destinataires
+                            foreach ($profInfos as $prof) {
+                                $recipientEmails[] = [
+                                    'email' => $prof['email'],
+                                    'name' => $prof['username']
+                                ];
+                            }
+                            error_log("[DOC] ✅ Notifications d'emails déclenchées avec succès");
+                        } else {
+                            $emailError = $result['error'] ?? 'Erreur inconnue';
+                            error_log("[DOC] ⚠️ Erreur lors de l'envoi des notifications: $emailError");
+                        }
+                    } else {
+                        error_log("[DOC] ℹ️ Aucun professeur abonné trouvé");
+                    }
+                }
+            }
+        }
+        
         error_log("========================================= ");
 
-        return [
+        $response = [
             'message' => 'Document créé avec succès',
             'id' => $docId,
+            'email_sent' => $emailSent,
+            'recipients_count' => $recipientsCount,
+            'recipient_emails' => $recipientEmails
         ];
+        
+        if ($emailError) {
+            $response['email_error'] = $emailError;
+        }
+        
+        return $response;
     }
 
     protected function processPutRequest(HttpRequest $request): ?array

@@ -293,16 +293,33 @@ class CommentController extends Controller
             
             if (!$doc) {
                 error_log("[COM] ❌ Document non trouvé pour la version $docVersionId");
+                error_log("[COM] ℹ️ Vérifier que la version $docVersionId existe et est liée à un document");
                 error_log("=========================================");
                 return $result;
             }
 
+            error_log("[COM] ✅ Document trouvé - ID: {$doc['id']}, user_id: {$doc['user_id']}");
+
             $studentId = $doc['user_id'];
+            
+            if (!$studentId) {
+                error_log("[COM] ❌ Document n'a pas de user_id!");
+                error_log("=========================================");
+                return $result;
+            }
             
             // Récupérer les infos de l'étudiant
             $student = $this->users->findById($studentId);
-            if (!$student || !$student['email']) {
-                error_log("[COM] ❌ Étudiant non trouvé ou pas d'email (ID: $studentId)");
+            if (!$student) {
+                error_log("[COM] ❌ Étudiant non trouvé - ID: $studentId");
+                error_log("[COM] ℹ️ Vérifier que l'utilisateur $studentId existe en BD");
+                error_log("=========================================");
+                return $result;
+            }
+            
+            if (!$student['email']) {
+                error_log("[COM] ❌ Étudiant trouvé ({$student['username']}) mais sans email!");
+                error_log("[COM] ℹ️ L'utilisateur $studentId ({$student['username']}) doit avoir un email pour recevoir les notifications");
                 error_log("=========================================");
                 return $result;
             }

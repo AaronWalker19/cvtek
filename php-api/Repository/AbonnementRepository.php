@@ -177,5 +177,34 @@ class AbonnementRepository extends Repository
         }
         return $emails;
     }
+
+    /**
+     * Récupère les infos complètes (email + username) des professeurs abonnés à un étudiant
+     */
+    public function getProfInfoByUser(int $userId): array
+    {
+        error_log("[AbonnementRepository::getProfInfoByUser] Début - userId=$userId");
+        
+        // IMPORTANT: INNER JOIN au lieu de LEFT JOIN pour ne retourner que les profs avec email
+        $sql = "SELECT u.id, u.email, u.username
+                FROM abonnement a
+                INNER JOIN users u ON a.id_prof = u.id
+                WHERE a.id_user = ? AND u.email IS NOT NULL";
+        
+        error_log("[AbonnementRepository::getProfInfoByUser] SQL: $sql");
+        error_log("[AbonnementRepository::getProfInfoByUser] Params: userId=$userId");
+        
+        $results = $this->execute($sql, [$userId]);
+        
+        error_log("[AbonnementRepository::getProfInfoByUser] Résultats: " . count($results ?? []) . " professeur(s)");
+        
+        if ($results && count($results) > 0) {
+            foreach ($results as $row) {
+                error_log("[AbonnementRepository::getProfInfoByUser]   - {$row['username']} ({$row['email']})");
+            }
+        }
+        
+        return $results ?? [];
+    }
 }
 ?>

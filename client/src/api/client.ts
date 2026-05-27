@@ -395,8 +395,22 @@ export async function createDocument(data: {
     description?: string;
     version?: number;
     parent_document_id?: number;
-}): Promise<{ message: string; id: number }> {
-    const response = await apiCall<{ message: string; id: number }>(
+}): Promise<{ 
+    message: string; 
+    id: number;
+    email_sent?: boolean;
+    recipients_count?: number;
+    recipient_emails?: Array<{ email: string; name: string }>;
+    email_error?: string;
+}> {
+    const response = await apiCall<{ 
+        message: string; 
+        id: number;
+        email_sent?: boolean;
+        recipients_count?: number;
+        recipient_emails?: Array<{ email: string; name: string }>;
+        email_error?: string;
+    }>(
         API_CONFIG.ROUTES.DOCUMENTS,
         {
             method: 'POST',
@@ -406,6 +420,18 @@ export async function createDocument(data: {
 
     if (!response.success || !response.data) {
         throw new Error(response.error || 'Erreur lors de la création du document');
+    }
+
+    // 📧 Afficher les informations d'email de notification
+    if (response.data?.email_sent && response.data?.recipient_emails?.length) {
+        console.log(`📧 Emails de notification envoyés!`);
+        response.data.recipient_emails.forEach((recipient, index) => {
+            console.log(`   📮 ${index + 1}. ${recipient.name} <${recipient.email}>`);
+        });
+    } else if (response.data?.email_sent === false && response.data?.recipients_count === 0) {
+        console.log(`ℹ️ Aucun professeur abonné - pas d'email à envoyer`);
+    } else if (response.data?.email_error) {
+        console.warn(`⚠️ Erreur lors de l'envoi des emails: ${response.data.email_error}`);
     }
 
     return response.data;
@@ -607,6 +633,16 @@ export async function addComment(docVersionId: number, text: string): Promise<Co
     if (!response.success || !response.data?.comment) {
         console.error(`❌ [addComment] Erreur - success: ${response.success}, data: ${response.data}`);
         throw new Error(response.error || 'Erreur lors de la création du commentaire');
+    }
+
+    // 📧 Afficher les informations d'email de notification
+    if (response.data?.email_sent) {
+        console.log(`📧 Email de notification envoyé avec succès`);
+        console.log(`   📮 Destinataire: ${response.data.email_recipient_name} <${response.data.email_recipient}>`);
+        console.log(`   👨‍🏫 Professeur: ${response.data.email_sender_name}`);
+    } else if (response.data?.email_sent === false) {
+        console.warn(`⚠️ Email de notification non envoyé`);
+        console.log(`   📮 Destinataire prévu: ${response.data.email_recipient_name} <${response.data.email_recipient}>`);
     }
 
     return response.data.comment;
