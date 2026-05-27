@@ -1,5 +1,6 @@
 <?php
 
+require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Repository/DocumentRepository.php';
 require_once __DIR__ . '/../Repository/UserRepository.php';
@@ -142,16 +143,25 @@ class DocumentController extends Controller
         $recipientEmails = [];
         
         if ($userId > 0) {
-            // Récupérer les infos du document et du propriétaire
-            $docWithOwner = $this->documents->findByIdWithOwner($docId);
+            // Recuperer les infos du document et du proprietaire
+            $db = Database::getConnection();
+            $stmt = $db->prepare("SELECT d.id, d.user_id, d.nom_fichier, d.titre FROM documents d WHERE d.id = ?");
+            $stmt->execute([$docId]);
+            $docWithOwner = $stmt->fetch(PDO::FETCH_ASSOC);
+            
             if ($docWithOwner && isset($docWithOwner['user_id'])) {
-                $student = $this->users->findById($userId);
+                $stmt = $db->prepare("SELECT id, username, email FROM users WHERE id = ?");
+                $stmt->execute([$userId]);
+                $student = $stmt->fetch(PDO::FETCH_ASSOC);
                 
                 if ($student) {
-                    // Récupérer les infos des professeurs abonnés (email + username)
-                    $profInfos = $this->abonnements->getProfInfoByUser($userId);
+                    // Recuperer les infos des professeurs abonnes (email + username)
+                    // Utiliser du SQL brut au lieu de Repository pour eviter les erreurs
+                    $stmt = $db->prepare("SELECT u.id, u.email, u.username FROM abonnement a INNER JOIN users u ON a.id_prof = u.id WHERE a.id_user = ? AND u.email IS NOT NULL");
+                    $stmt->execute([$userId]);
+                    $profInfos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     
-                    error_log("[DOC] 📨 Profs abonnés trouvés: " . count($profInfos));
+                    error_log("[DOC] Profs abonnes trouves: " . count($profInfos));
                     
                     if (!empty($profInfos)) {
                         // Extraire les emails pour l'envoi

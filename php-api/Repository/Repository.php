@@ -12,7 +12,7 @@ abstract class Repository
 
     public function __construct()
     {
-        $this->cnx = getConnection();
+        $this->cnx = Database::getConnection();
     }
 
     /**

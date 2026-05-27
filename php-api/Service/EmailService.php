@@ -118,26 +118,22 @@ class EmailService
      */
     private function sendEmail(string $to, string $subject, string $body): array
     {
-        // Sur Windows, essayer PHP mail() d'abord (plus fiable)
+        // IMPORTANT: Sur Windows, TOUJOURS essayer SMTP d'abord!
+        // mail() peut retourner true sans vraiment envoyer si SMTP n'est pas configuré dans php.ini
         $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
         
-        if ($isWindows && function_exists('mail')) {
-            $result = $this->sendViaPhpMail($to, $subject, $body);
-            if ($result['success']) {
-                return $result;
-            }
-            error_log("[EMAIL] ⚠️  mail() a échoué, tentative SMTP...");
-        }
-        
-        // Essayer SMTP
+        // Sur Windows: SMTP d'abord (fiable), puis fallback mail()
+        // Sur Linux: SMTP d'abord (fiable), puis fallback mail()
+        error_log("[EMAIL] 📤 Tentative SMTP d'abord...");
         $smtpResult = $this->sendViaSMTP($to, $subject, $body);
         if ($smtpResult['success']) {
             return $smtpResult;
         }
         
-        // Sur non-Windows, fallback sur mail()
-        if (!$isWindows && function_exists('mail')) {
-            error_log("[EMAIL] ⚠️  SMTP a échoué, tentative mail()...");
+        error_log("[EMAIL] ⚠️  SMTP a échoué, tentative mail()...");
+        
+        // Fallback sur mail() seulement si SMTP échoue
+        if (function_exists('mail')) {
             return $this->sendViaPhpMail($to, $subject, $body);
         }
         
@@ -253,12 +249,32 @@ class EmailService
             // EHLO
             error_log("[EMAIL] 🤝 Envoi EHLO...");
             $this->writeCommand($sock, "EHLO cvtek.local");
-            $this->readResponse($sock);
+            $ehloResponse = $this->readResponse($sock);
+            if (strpos($ehloResponse, '250') === false) {
+                fclose($sock);
+                error_log("[EMAIL] ❌ ERREUR: Serveur SMTP a rejeté EHLO: $ehloResponse");
+                return [
+                    'success' => false,
+                    'error' => "Serveur SMTP a rejeté EHLO: $ehloResponse",
+                    'method' => 'smtp'
+                ];
+            }
+            error_log("[EMAIL] ✅ EHLO accepté");
             
             // STARTTLS
             error_log("[EMAIL] 🔒 Activation STARTTLS...");
             $this->writeCommand($sock, "STARTTLS");
-            $this->readResponse($sock);
+            $starttlsResponse = $this->readResponse($sock);
+            if (strpos($starttlsResponse, '220') === false) {
+                fclose($sock);
+                error_log("[EMAIL] ❌ ERREUR: Serveur SMTP a rejeté STARTTLS: $starttlsResponse");
+                return [
+                    'success' => false,
+                    'error' => "Serveur SMTP a rejeté STARTTLS: $starttlsResponse",
+                    'method' => 'smtp'
+                ];
+            }
+            error_log("[EMAIL] ✅ STARTTLS accepté");
             
             // Activer encryption TLS
             $tlsActive = false;
@@ -292,13 +308,33 @@ class EmailService
             // AUTH LOGIN
             error_log("[EMAIL] 🔐 Authentification...");
             $this->writeCommand($sock, "AUTH LOGIN");
-            $this->readResponse($sock);
+            $authResponse = $this->readResponse($sock);
+            if (strpos($authResponse, '334') === false) {
+                fclose($sock);
+                error_log("[EMAIL] ❌ ERREUR: Serveur SMTP n'a pas demandé d'authentification: $authResponse");
+                return [
+                    'success' => false,
+                    'error' => "Serveur SMTP: $authResponse",
+                    'method' => 'smtp'
+                ];
+            }
             
             // Envoyer username encodé en base64
+            error_log("[EMAIL] 📝 Envoi du username...");
             $this->writeCommand($sock, base64_encode($this->username));
-            $this->readResponse($sock);
+            $userResponse = $this->readResponse($sock);
+            if (strpos($userResponse, '334') === false) {
+                fclose($sock);
+                error_log("[EMAIL] ❌ ERREUR: Serveur SMTP n'a pas demandé le password: $userResponse");
+                return [
+                    'success' => false,
+                    'error' => "Serveur SMTP: $userResponse",
+                    'method' => 'smtp'
+                ];
+            }
             
             // Envoyer password encodé en base64
+            error_log("[EMAIL] 📝 Envoi du password...");
             $this->writeCommand($sock, base64_encode($this->password));
             $response = $this->readResponse($sock);
             
@@ -319,16 +355,45 @@ class EmailService
             // MAIL FROM
             error_log("[EMAIL] 📧 Expéditeur: {$this->fromEmail}");
             $this->writeCommand($sock, "MAIL FROM:<{$this->fromEmail}>");
-            $this->readResponse($sock);
+            $mailFromResponse = $this->readResponse($sock);
+            if (strpos($mailFromResponse, '250') === false) {
+                fclose($sock);
+                error_log("[EMAIL] ❌ ERREUR: Serveur SMTP a rejeté MAIL FROM: $mailFromResponse");
+                return [
+                    'success' => false,
+                    'error' => "Serveur SMTP a rejeté MAIL FROM: $mailFromResponse",
+                    'method' => 'smtp'
+                ];
+            }
+            error_log("[EMAIL] ✅ Expéditeur accepté");
             
             // RCPT TO
             error_log("[EMAIL] 📨 Destinataire: $to");
             $this->writeCommand($sock, "RCPT TO:<$to>");
-            $this->readResponse($sock);
+            $rcptToResponse = $this->readResponse($sock);
+            if (strpos($rcptToResponse, '250') === false) {
+                fclose($sock);
+                error_log("[EMAIL] ❌ ERREUR: Serveur SMTP a rejeté RCPT TO: $rcptToResponse");
+                return [
+                    'success' => false,
+                    'error' => "Serveur SMTP a rejeté RCPT TO: $rcptToResponse",
+                    'method' => 'smtp'
+                ];
+            }
+            error_log("[EMAIL] ✅ Destinataire accepté");
             
             // DATA
             $this->writeCommand($sock, "DATA");
-            $this->readResponse($sock);
+            $dataResponse = $this->readResponse($sock);
+            if (strpos($dataResponse, '354') === false) {
+                fclose($sock);
+                error_log("[EMAIL] ❌ ERREUR: Serveur SMTP n'est pas prêt pour les données: $dataResponse");
+                return [
+                    'success' => false,
+                    'error' => "Serveur SMTP a rejeté DATA: $dataResponse",
+                    'method' => 'smtp'
+                ];
+            }
             
             // Construire les headers et le body
             $headers = "From: {$this->fromName} <{$this->fromEmail}>\r\n";
@@ -342,7 +407,19 @@ class EmailService
             
             error_log("[EMAIL] 📝 Envoi du contenu...");
             fwrite($sock, $message);
-            $this->readResponse($sock);
+            $submitResponse = $this->readResponse($sock);
+            
+            // Vérifier le code 250 (OK - Message queued for delivery)
+            if (strpos($submitResponse, '250') === false) {
+                fclose($sock);
+                error_log("[EMAIL] ❌ ERREUR: Serveur SMTP a rejeté le message: $submitResponse");
+                return [
+                    'success' => false,
+                    'error' => "Serveur SMTP a rejeté le message: $submitResponse",
+                    'method' => 'smtp'
+                ];
+            }
+            error_log("[EMAIL] ✅ Serveur a accepté le message (code 250)");
             
             // QUIT
             $this->writeCommand($sock, "QUIT");
