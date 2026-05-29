@@ -97,10 +97,10 @@ export default function StudentDashboard() {
       // Utiliser la nouvelle API
       const docs = await getDocuments(user?.id || 0);
       
-      // S'assurer que comment_count existe
+      // Utiliser le comment_count du backend
       const formattedDocs = docs.map((doc: ApiDocument) => ({
         ...doc,
-        comment_count: 0  // Les commentaires sont gérés séparément
+        comment_count: doc.comment_count ?? 0
       }));
       
 

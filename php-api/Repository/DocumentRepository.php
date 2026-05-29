@@ -13,9 +13,13 @@ class DocumentRepository extends Repository
     {
         $results = $this->execute(
             "SELECT d.id, d.user_id, d.nom_fichier, d.titre, d.type_fichier, 
-                    d.description, d.created_at, u.username, u.email
+                    d.description, d.created_at, u.username, u.email,
+                    COUNT(c.id) as comment_count
              FROM documents d
              LEFT JOIN users u ON d.user_id = u.id
+             LEFT JOIN doc_version dv ON dv.id_doc = d.id
+             LEFT JOIN commentaire c ON c.id_docversion = dv.id
+             GROUP BY d.id
              ORDER BY d.created_at DESC"
         );
 
@@ -29,9 +33,13 @@ class DocumentRepository extends Repository
     {
         $results = $this->execute(
             "SELECT d.id, d.user_id, d.nom_fichier, d.titre, d.type_fichier, 
-                    d.description, d.created_at
+                    d.description, d.created_at,
+                    COUNT(c.id) as comment_count
              FROM documents d
+             LEFT JOIN doc_version dv ON dv.id_doc = d.id
+             LEFT JOIN commentaire c ON c.id_docversion = dv.id
              WHERE d.user_id = ?
+             GROUP BY d.id
              ORDER BY d.created_at DESC",
             [$userId]
         );
@@ -46,9 +54,13 @@ class DocumentRepository extends Repository
     {
         $result = $this->executeOne(
             "SELECT d.id, d.user_id, d.nom_fichier, d.titre, d.type_fichier, 
-                    d.description, d.created_at
+                    d.description, d.created_at,
+                    COUNT(c.id) as comment_count
              FROM documents d
-             WHERE d.id = ?",
+             LEFT JOIN doc_version dv ON dv.id_doc = d.id
+             LEFT JOIN commentaire c ON c.id_docversion = dv.id
+             WHERE d.id = ?
+             GROUP BY d.id",
             [$id]
         );
 
@@ -245,6 +257,7 @@ class DocumentRepository extends Repository
             'type_fichier' => $doc['type_fichier'],
             'description' => $doc['description'] ?? '',
             'created_at' => $doc['created_at'],
+            'comment_count' => (int)($doc['comment_count'] ?? 0),
         ];
     }
 
@@ -263,10 +276,13 @@ class DocumentRepository extends Repository
     {
         $result = $this->executeOne(
             "SELECT d.id, d.user_id, d.nom_fichier, d.titre, d.type_fichier, 
-                    d.description, d.created_at
+                    d.description, d.created_at,
+                    COUNT(c.id) as comment_count
              FROM documents d
              INNER JOIN doc_version dv ON dv.id_doc = d.id
-             WHERE dv.id = ?",
+             LEFT JOIN commentaire c ON c.id_docversion = dv.id
+             WHERE dv.id = ?
+             GROUP BY d.id",
             [$versionId]
         );
 

@@ -57,6 +57,25 @@ class CommentRepository extends Repository
     }
 
     /**
+     * Récupère tous les commentaires sur les documents d'un utilisateur (propriétaire)
+     */
+    public function findByDocumentOwnerId(int $ownerId): array
+    {
+        $results = $this->execute(
+            "SELECT c.id, c.id_user, c.id_docversion, c.text, c.date, u.username, u.email
+             FROM commentaire c
+             LEFT JOIN users u ON c.id_user = u.id
+             LEFT JOIN document_version dv ON c.id_docversion = dv.id
+             LEFT JOIN documents d ON dv.id_document = d.id
+             WHERE d.user_id = ?
+             ORDER BY c.date DESC",
+            [$ownerId]
+        );
+
+        return $results ?? [];
+    }
+
+    /**
      * Crée un nouveau commentaire
      */
     public function create(int $userId, int $docVersionId, string $text): ?array
