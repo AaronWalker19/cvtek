@@ -62,6 +62,51 @@ class UserRepository extends Repository
     }
 
     /**
+     * Récupère les professeurs avec le nombre de commentaires
+     */
+    public function findProfessorsWithCommentCount(): array
+    {
+        $results = $this->execute(
+            "SELECT u.id, u.username, u.email, u.role, u.parcour, u.created_at,
+                    COUNT(c.id) as comment_count
+             FROM users u
+             LEFT JOIN commentaire c ON u.id = c.id_user
+             WHERE u.role = 'professor'
+             GROUP BY u.id
+             ORDER BY u.username ASC"
+        );
+
+        return $results ?? [];
+    }
+
+    /**
+     * Crée un utilisateur sans password (pour l'intégration université)
+     */
+    public function createWithoutPassword(
+        string $email,
+        string $role = 'professor'
+    ): ?array {
+        // Vérifier que l'utilisateur n'existe pas déjà
+        $existing = $this->findByEmail($email);
+        if ($existing) {
+            return $existing;
+        }
+
+        // Créer un username à partir de l'email
+        $username = explode('@', $email)[0];
+        
+        // Insérer l'utilisateur
+        $this->executeUpdate(
+            "INSERT INTO users (username, email, role) 
+             VALUES (?, ?, ?)",
+            [$username, $email, $role]
+        );
+
+        $id = (int)$this->getLastInsertId();
+        return $this->findById($id);
+    }
+
+    /**
      * Récupère tous les utilisateurs
      */
     public function findAll(): array

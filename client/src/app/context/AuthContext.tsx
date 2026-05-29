@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { login as apiLogin, register as apiRegister, getCurrentUser, logout as apiLogout, User, storeToken, getToken, clearToken, getDemoToken, initializeDemoUsers } from '../../api/client';
+import { login as apiLogin, register as apiRegister, getCurrentUser, logout as apiLogout, User, storeToken, getToken, clearToken, getDemoToken, initializeDemoUsers, initializeAdmin } from '../../api/client';
 
 export interface DemoUser extends User {
   userId?: number;  // Compat avec ancien code
@@ -34,13 +34,6 @@ const demoUsers: DemoUser[] = [
     email: 'professor@cvtek.fr',
     role: 'professor',
   },
-  {
-    id: 18,
-    userId: 18,
-    username: 'admin',
-    email: 'admin@cvtek.fr',
-    role: 'admin',
-  },
 ];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -54,6 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         // D'abord, initialiser les utilisateurs démo
         await initializeDemoUsers();
+        
+        // Initialiser l'admin (crée l'admin en base si n'existe pas)
+        await initializeAdmin();
 
         const currentUser = await getCurrentUser();
         if (currentUser) {

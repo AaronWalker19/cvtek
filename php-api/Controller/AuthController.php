@@ -81,7 +81,7 @@ class AuthController extends Controller
 
     /**
      * Gère le login admin (email + password)
-     * En mode démo: accepte n'importe quel email/password
+     * Crée automatiquement l'admin à la première tentative de connexion
      */
     private function handleLogin(HttpRequest $request): ?array
     {
@@ -94,14 +94,50 @@ class AuthController extends Controller
         $email = sanitizeString($data['email']);
         $password = $data['password'] ?? '';
 
+        if (empty($password)) {
+            return ['error' => 'Mot de passe requis', 'code' => 400];
+        }
+
         logAction("LOGIN_ATTEMPT", ['email' => $email]);
 
-        $user = $this->auth->findByEmail($email);
-
-        // En MODE DÉMO: accepter n'importe quel login pour les 3 utilisateurs de test
-        if (!$user) {
-            logAction("LOGIN_FAILED", ['email' => $email, 'reason' => 'user_not_found']);
-            return ['error' => 'Utilisateur non trouvé', 'code' => 401];
+        // Vérifier si c'est l'email admin
+        $adminEmail = getenv('ADMIN_EMAIL') ?: 'admin@cvtek.fr';
+        
+        if ($email === $adminEmail) {
+            // Vérifier ou créer l'admin
+            $user = $this->auth->findByEmail($email);
+            
+            if (!$user) {
+                // Créer l'admin avec le mot de passe depuis .env
+                $adminUsername = getenv('ADMIN_USERNAME') ?: 'admin';
+                $adminPassword = getenv('ADMIN_PASSWORD') ?: 'admin123';
+                
+                logAction("ADMIN_CREATE", ['email' => $email, 'username' => $adminUsername]);
+                
+                $passwordHash = hashPassword($adminPassword);
+                $adminId = $this->auth->create($adminUsername, $email, 'admin', $passwordHash, null);
+                
+                if (!$adminId) {
+                    logAction("LOGIN_FAILED", ['email' => $email, 'reason' => 'admin_creation_failed']);
+                    return ['error' => 'Erreur création admin', 'code' => 500];
+                }
+                
+                $user = $this->auth->findById($adminId);
+            }
+            
+            // Vérifier le mot de passe
+            if (!$user['password_hash'] || !verifyPassword($password, $user['password_hash'])) {
+                logAction("LOGIN_FAILED", ['email' => $email, 'reason' => 'invalid_password']);
+                return ['error' => 'Mot de passe incorrect', 'code' => 401];
+            }
+        } else {
+            // Utilisateur normal: authentification externe
+            $user = $this->auth->findByEmail($email);
+            
+            if (!$user) {
+                logAction("LOGIN_FAILED", ['email' => $email, 'reason' => 'user_not_found']);
+                return ['error' => 'Utilisateur non trouvé', 'code' => 401];
+            }
         }
 
         // Générer token

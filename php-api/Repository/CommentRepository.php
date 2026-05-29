@@ -114,6 +114,19 @@ class CommentRepository extends Repository
     }
 
     /**
+     * Supprime tous les commentaires d'un utilisateur
+     */
+    public function deleteByUserId(int $userId): bool
+    {
+        $success = $this->execute(
+            "DELETE FROM commentaire WHERE id_user = ?",
+            [$userId]
+        );
+
+        return $success !== false;
+    }
+
+    /**
      * Compte le nombre de commentaires pour une version
      */
     public function countByDocVersionId(int $docVersionId): int

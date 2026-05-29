@@ -177,8 +177,26 @@ function logoutUser(): void {
 
 /**
  * Vérifie que l'utilisateur est authentifié
+ * Supporte à la fois le token Bearer et la session
  */
 function requireAuth(): array {
+    // D'abord, essayer de récupérer le token Bearer
+    $bearerToken = getBearerToken();
+    
+    if ($bearerToken) {
+        $payload = verifyToken($bearerToken);
+        
+        if ($payload) {
+            // Token valide - retourner les informations depuis le payload
+            return [
+                'id' => $payload['sub'] ?? null,
+                'username' => $payload['username'] ?? null,
+                'role' => $payload['role'] ?? null,
+            ];
+        }
+    }
+    
+    // Sinon, essayer la session (rétro-compatibilité)
     $user = getSessionUser();
     
     if (!$user) {
@@ -317,6 +335,50 @@ function generateToken(int $userId, string $username, string $role): string {
     $signature_b64 = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
     
     return "$header_b64.$payload_b64.$signature_b64";
+}
+
+/**
+ * Vérifie un token JWT et retourne le payload
+ */
+function verifyToken(string $token): ?array {
+    try {
+        $parts = explode('.', $token);
+        
+        if (count($parts) !== 3) {
+            return null;
+        }
+        
+        list($header_b64, $payload_b64, $signature_b64) = $parts;
+        
+        // Clé secrète depuis .env ou variable d'environnement
+        $secret = getenv('JWT_SECRET') ?: 'your-secret-key-change-in-production';
+        
+        // Vérifier la signature
+        $signature = hash_hmac('sha256', "$header_b64.$payload_b64", $secret, true);
+        $expected_signature = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+        
+        if (!hash_equals($signature_b64, $expected_signature)) {
+            return null;  // Signature invalide
+        }
+        
+        // Décoder le payload
+        $payload_json = base64_decode(strtr($payload_b64, '-_', '+/'));
+        $payload = json_decode($payload_json, true);
+        
+        if (!$payload) {
+            return null;  // JSON invalide
+        }
+        
+        // Vérifier l'expiration
+        if (isset($payload['exp']) && $payload['exp'] < time()) {
+            return null;  // Token expiré
+        }
+        
+        return $payload;
+        
+    } catch (Exception $e) {
+        return null;
+    }
 }
 
 /**

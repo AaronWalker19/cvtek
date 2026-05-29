@@ -317,6 +317,25 @@ export async function initializeDemoUsers(): Promise<any> {
     }
 }
 
+/**
+ * Initialise l'utilisateur admin (crée l'admin en base si n'existe pas)
+ * Endpoint: POST /api/admin/init
+ */
+export async function initializeAdmin(): Promise<any> {
+    try {
+        const response = await apiCall<any>(
+            `/admin/init`,
+            { method: 'POST', throwOnError: false }
+        );
+
+        console.log('✅ Admin initialisé:', response);
+        return response.data;
+    } catch (error) {
+        console.error(`⚠️ Erreur lors de l'initialisation admin (non bloquant):`, error);
+        return null;
+    }
+}
+
 // ===============================================
 // Documents
 // ===============================================
@@ -772,3 +791,89 @@ export async function deleteSubscription(profId: number, userId: number): Promis
         throw new Error(response.error || 'Erreur lors de la suppression de l\'abonnement');
     }
 }
+
+// ===============================================
+// Administration
+// ===============================================
+
+export interface Professor extends User {
+    comment_count?: number;
+}
+
+/**
+ * Récupère la liste de tous les professeurs avec le nombre de commentaires
+ * Endpoint: GET /api/admin/professors
+ */
+export async function getProfessors(): Promise<Professor[]> {
+    const response = await apiCall<{ professors: Professor[] }>(
+        '/admin/professors',
+        { method: 'GET' }
+    );
+
+    if (!response.success) {
+        throw new Error(response.error || 'Erreur lors de la récupération des professeurs');
+    }
+
+    return response.data?.professors ?? [];
+}
+
+/**
+ * Récupère les détails d'un professeur avec ses commentaires
+ * Endpoint: GET /api/admin/professors/{professorId}
+ */
+export async function getProfessor(professorId: number): Promise<{
+    professor: Professor;
+    comments: Comment[];
+    comment_count: number;
+}> {
+    const response = await apiCall<{
+        professor: Professor;
+        comments: Comment[];
+        comment_count: number;
+    }>(
+        `/admin/professors/${professorId}`,
+        { method: 'GET' }
+    );
+
+    if (!response.success) {
+        throw new Error(response.error || 'Erreur lors de la récupération du professeur');
+    }
+
+    return response.data as any;
+}
+
+/**
+ * Crée un nouveau professeur avec email uniquement
+ * Endpoint: POST /api/admin/professors
+ */
+export async function createProfessor(email: string): Promise<Professor> {
+    const response = await apiCall<{ professor: Professor }>(
+        '/admin/professors',
+        {
+            method: 'POST',
+            body: JSON.stringify({ email }),
+        }
+    );
+
+    if (!response.success) {
+        throw new Error(response.error || 'Erreur lors de la création du professeur');
+    }
+
+    return response.data?.professor as Professor;
+}
+
+/**
+ * Supprime un professeur
+ * Endpoint: DELETE /api/admin/professors/{professorId}
+ */
+export async function deleteProfessor(professorId: number): Promise<void> {
+    const response = await apiCall(
+        `/admin/professors/${professorId}`,
+        { method: 'DELETE' }
+    );
+
+    if (!response.success) {
+        throw new Error(response.error || 'Erreur lors de la suppression du professeur');
+    }
+}
+

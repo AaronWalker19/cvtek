@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Sidebar from "../components/Sidebar";
+import AdminLoginModal from "../../components/AdminLoginModal";
 import svgPaths from "../../imports/PageDeBaseCoteProf/svg-9gqyfpru0n";
 import { getDocuments, getUserById, getDocument, checkSubscription, createSubscription, deleteSubscription } from '../../api/client';
 
@@ -10,6 +11,7 @@ export default function ProfessorDashboard() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<{
     name: string;
     license?: string;
@@ -237,7 +239,7 @@ export default function ProfessorDashboard() {
         <div className="flex flex-col items-stretch w-full h-full">
           <div className="content-stretch flex flex-col gap-[50px] items-stretch p-[40px] relative w-full h-full">
             {/* Header */}
-            <div className="content-stretch flex items-center py-[10px] relative shrink-0 w-full">
+            <div className="content-stretch flex items-center justify-between py-[10px] relative shrink-0 w-full">
               <div
                 aria-hidden="true"
                 className="absolute border-[#4b575f] border-b-3 border-solid inset-0 pointer-events-none"
@@ -245,6 +247,12 @@ export default function ProfessorDashboard() {
               <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[#4b575f] text-[32px] whitespace-nowrap">
                 Documents postée
               </p>
+              <button
+                onClick={() => setShowAdminModal(true)}
+                className="relative shrink-0 px-4 py-2 bg-[#b51621] text-white rounded font-['Inter:Medium',sans-serif] font-medium hover:bg-[#932117] transition-colors"
+              >
+                Passer en Admin
+              </button>
             </div>
 
             {/* Search and Filter */}
@@ -470,6 +478,16 @@ export default function ProfessorDashboard() {
           </div>
         </div>
       )}
+
+      {/* Admin Login Modal */}
+      <AdminLoginModal
+        show={showAdminModal}
+        onClose={() => setShowAdminModal(false)}
+        onSuccess={() => {
+          setShowAdminModal(false);
+          navigate('/admin');
+        }}
+      />
     </div>
   );
 }

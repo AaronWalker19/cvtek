@@ -37,6 +37,7 @@ require_once __DIR__ . '/Controller/UploadController.php';
 require_once __DIR__ . '/Controller/SystemController.php';
 require_once __DIR__ . '/Controller/CommentController.php';
 require_once __DIR__ . '/Controller/AbonnementController.php';
+require_once __DIR__ . '/Controller/AdminController.php';
 require_once __DIR__ . '/Repository/AuthRepository.php';
 require_once __DIR__ . '/Repository/DocumentRepository.php';
 require_once __DIR__ . '/Repository/UploadRepository.php';
@@ -104,6 +105,7 @@ try {
         'system' => new SystemController(),
         'comments' => new CommentController(),
         'abonnement' => new AbonnementController(),
+        'admin' => new AdminController(),
     ];
 
     // Vérifier si le contrôleur existe

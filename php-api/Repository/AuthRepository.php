@@ -73,6 +73,17 @@ class AuthRepository extends Repository
     }
 
     /**
+     * Met à jour le mot de passe hashé d'un utilisateur
+     */
+    public function updatePassword(int $userId, string $passwordHash): bool
+    {
+        return $this->executeUpdate(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            [$passwordHash, $userId]
+        );
+    }
+
+    /**
      * Met à jour le dernier token d'un utilisateur
      */
     public function updateLastToken(int $userId, string $token): bool
