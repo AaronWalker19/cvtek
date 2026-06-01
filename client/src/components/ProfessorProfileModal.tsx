@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Professor, Comment } from '../api/client';
+import { useState } from 'react';
+import { Professor, Comment, deleteComment } from '../api/client';
 
 interface ProfessorProfileModalProps {
   show: boolean;
   professor: Professor | null;
   comments: Comment[];
+  writtenComments?: Comment[];
   onClose: () => void;
 }
 
@@ -12,8 +13,26 @@ export default function ProfessorProfileModal({
   show,
   professor,
   comments = [],
+  writtenComments = [],
   onClose,
 }: ProfessorProfileModalProps) {
+  const [deleting, setDeleting] = useState<number | null>(null);
+
+  const handleDeleteComment = async (commentId: number) => {
+    try {
+      setDeleting(commentId);
+      await deleteComment(commentId);
+      // La suppression est gérée par le parent qui rechargerait les données
+      alert('Commentaire supprimé avec succès');
+      onClose(); // Fermer et recharger
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erreur lors de la suppression');
+      console.error('Erreur:', err);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   if (!show || !professor) return null;
 
   return (
@@ -32,29 +51,82 @@ export default function ProfessorProfileModal({
         </div>
 
         {/* Comments Section */}
-        <div className="mb-6">
-          <h3 className="text-xl font-semibold text-[#36302a] mb-4">
-            Commentaires ({comments.length})
-          </h3>
+        {comments.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold text-[#36302a] mb-4">
+              Commentaires ({comments.length})
+            </h3>
 
-          {comments.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-[#999]">Aucun commentaire pour le moment</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
               {comments.map((comment) => (
                 <div
                   key={comment.id}
-                  className="bg-[#ffffff] p-4 rounded border-l-4 border-[#4b575f]"
+                  className="bg-gradient-to-br from-[#ffffff] to-[#f9f9f9] p-5 rounded-lg border-l-4 border-[#4b575f] shadow-md hover:shadow-lg transition-shadow"
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <p className="font-semibold text-[#36302a]">{comment.username}</p>
-                    <p className="text-sm text-[#999]">
-                      {new Date(comment.date).toLocaleDateString('fr-FR')}
-                    </p>
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <p className="font-bold text-[#36302a] text-base">{comment.username}</p>
+                      <p className="text-xs text-[#999] mt-1">
+                        {new Date(comment.date).toLocaleDateString('fr-FR', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[#36302a] text-sm">{comment.text}</p>
+                  <p className="text-[#36302a] text-sm leading-relaxed bg-[#fafafa] p-3 rounded border border-[#e0e0e0]">
+                    {comment.text}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Written Comments Section */}
+        <div className="mb-6">
+          <h3 className="text-xl font-semibold text-[#36302a] mb-4">
+            Commentaires écrits ({writtenComments.length})
+          </h3>
+
+          {writtenComments.length === 0 ? (
+            <div className="text-center py-12 bg-[#f5f5f5] rounded-lg border-2 border-dashed border-[#d0d0d0]">
+              <p className="text-[#999] text-lg">Aucun commentaire écrit</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {writtenComments.map((comment) => (
+                <div
+                  key={comment.id}
+                  className="bg-gradient-to-br from-[#ffffff] to-[#f9f9f9] p-5 rounded-lg border-l-4 border-[#2ecc71] shadow-md hover:shadow-lg transition-shadow"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <p className="font-bold text-[#36302a] text-base">Réponse à l'étudiant</p>
+                      <p className="text-xs text-[#999] mt-1">
+                        {new Date(comment.date).toLocaleDateString('fr-FR', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteComment(comment.id)}
+                      disabled={deleting === comment.id}
+                      className="ml-4 bg-[#b51621] text-white px-3 py-1 rounded text-sm hover:bg-[#8e1119] transition-colors disabled:opacity-50"
+                    >
+                      {deleting === comment.id ? '...' : 'Supprimer'}
+                    </button>
+                  </div>
+                  <p className="text-[#36302a] text-sm leading-relaxed bg-[#fafafa] p-3 rounded border border-[#e0e0e0] mb-3">
+                    {comment.text}
+                  </p>
                 </div>
               ))}
             </div>

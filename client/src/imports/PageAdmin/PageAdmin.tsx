@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getProfessors, createProfessor, deleteProfessor, getProfessor, Professor, Comment } from '../../api/client';
+import { getProfessors, createProfessor, deleteProfessor, getProfessor, getCommentsByUserId, Professor, Comment } from '../../api/client';
 import ProfessorProfileModal from '../../components/ProfessorProfileModal';
 
 interface PageAdminProps {
@@ -14,6 +14,7 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedProfessor, setSelectedProfessor] = useState<Professor | null>(null);
   const [profComments, setProfComments] = useState<Comment[]>([]);
+  const [profWrittenComments, setProfWrittenComments] = useState<Comment[]>([]);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
 
@@ -72,9 +73,37 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
   const handleRowClick = async (prof: Professor) => {
     try {
       setSelectedProfessor(prof);
-      // Récupérer les détails du professeur avec les commentaires
+      // Récupérer les détails du professeur avec les commentaires reçus
       const data = await getProfessor(prof.id);
       setProfComments(data.comments);
+      
+      // Récupérer les commentaires écrits par le professeur
+      const writtenComments = await getCommentsByUserId(prof.id);
+      setProfWrittenComments(writtenComments);
+      
+      // Afficher les informations dans la console
+      console.group('👨‍🏫 Profil Professeur');
+      console.log('Nom:', prof.username);
+      console.log('Email:', prof.email);
+      console.log('ID:', prof.id);
+      console.log('Rôle:', prof.role);
+      console.groupEnd();
+      
+      console.group('💬 Commentaires reçus');
+      console.log('Nombre total:', data.comment_count);
+      if (data.comments && data.comments.length > 0) {
+        data.comments.forEach((comment, index) => {
+          console.log(`\n📝 Commentaire ${index + 1}:`);
+          console.log('Auteur:', comment.username);
+          console.log('Email auteur:', comment.email);
+          console.log('Date:', new Date(comment.date).toLocaleDateString('fr-FR'));
+          console.log('Texte:', comment.text);
+        });
+      } else {
+        console.log('Aucun commentaire');
+      }
+      console.groupEnd();
+      
       setShowProfileModal(true);
     } catch (err) {
       console.error('Erreur:', err);
@@ -221,10 +250,12 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
           show={showProfileModal}
           professor={selectedProfessor}
           comments={profComments}
+          writtenComments={profWrittenComments}
           onClose={() => {
             setShowProfileModal(false);
             setSelectedProfessor(null);
             setProfComments([]);
+            setProfWrittenComments([]);
           }}
         />
       )}

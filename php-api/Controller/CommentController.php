@@ -366,6 +366,12 @@ class CommentController extends Controller
                 $result['error'] = $emailResult['error'] ?? 'Erreur inconnue lors de l\'envoi d\'email';
                 error_log("[COM] Erreur lors de l'envoi de l'email: " . $result['error']);
             }
+            
+            // Inclure les logs du service d'email
+            if (isset($emailResult['logs'])) {
+                $result['logs'] = $emailResult['logs'];
+            }
+            
             error_log("=========================================");
             
             return $result;

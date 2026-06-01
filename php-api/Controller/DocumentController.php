@@ -141,6 +141,7 @@ class DocumentController extends Controller
         $recipientsCount = 0;
         $emailError = null;
         $recipientEmails = [];
+        $emailLogs = []; // Initialiser les logs email
         
         if ($userId > 0) {
             // Recuperer les infos du document et du proprietaire
@@ -174,6 +175,11 @@ class DocumentController extends Controller
                             $docWithOwner['titre'] ?: $docWithOwner['nom_fichier'],
                             $profEmails
                         );
+                        
+                        // Récupérer les logs du service email
+                        if (isset($result['logs'])) {
+                            $emailLogs = $result['logs'];
+                        }
                         
                         if ($result['success']) {
                             $emailSent = true;
@@ -209,6 +215,11 @@ class DocumentController extends Controller
         
         if ($emailError) {
             $response['email_error'] = $emailError;
+        }
+        
+        // Toujours inclure les logs du service d'email s'ils existent
+        if (!empty($emailLogs)) {
+            $response['logs'] = $emailLogs;
         }
         
         return $response;

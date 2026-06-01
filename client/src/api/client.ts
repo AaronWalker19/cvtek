@@ -92,6 +92,47 @@ export interface ApiResponse<T = any> {
 }
 
 /**
+ * Affiche les logs contenus dans une réponse API dans la console du navigateur
+ */
+function displayLogsFromResponse(data: any): void {
+    if (!data) return;
+
+    let totalLogsFound = 0;
+
+    // Fonction récursive pour trouver tous les logs dans un objet
+    const findAndDisplayLogs = (obj: any, path: string = '', depth: number = 0) => {
+        if (!obj || typeof obj !== 'object' || depth > 5) return;
+
+        // Vérifier si cet objet a une propriété 'logs'
+        if (Array.isArray(obj.logs) && obj.logs.length > 0) {
+            totalLogsFound += obj.logs.length;
+            const label = path ? `📋 Logs (${path})` : '📋 Logs';
+            console.group(label);
+            obj.logs.forEach((log: string) => {
+                console.log(log);
+            });
+            console.groupEnd();
+        }
+
+        // Parcourir les propriétés de l'objet
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key) && typeof obj[key] === 'object' && obj[key] !== null && key !== 'logs') {
+                const newPath = path ? `${path}.${key}` : key;
+                findAndDisplayLogs(obj[key], newPath, depth + 1);
+            }
+        }
+    };
+
+    // Chercher les logs partout dans la réponse
+    findAndDisplayLogs(data);
+    
+    // Debug: afficher un message si aucun log n'a été trouvé
+    if (totalLogsFound === 0 && process.env.NODE_ENV === 'development') {
+        console.debug('ℹ️ Aucun log trouvé dans la réponse API');
+    }
+}
+
+/**
  * Fait un appel API
  */
 export async function apiCall<T = any>(
@@ -133,6 +174,16 @@ export async function apiCall<T = any>(
                 success: false,
                 error: 'Réponse serveur invalide (pas du JSON)',
             };
+        }
+
+        // Afficher les logs s'ils existent dans la réponse
+        displayLogsFromResponse(data);
+        
+        // Log de débogage pour les réponses de création/modification
+        if (endpoint.includes('/documents') || endpoint.includes('/comments')) {
+            if (data.logs || (data.data && typeof data.data === 'object' && data.data.logs)) {
+                console.log('📦 Structure de réponse:', JSON.stringify(data, null, 2));
+            }
         }
 
         // Vérifier le statut HTTP
@@ -615,6 +666,26 @@ export async function getCommentsByDocVersion(docVersionId: number): Promise<Com
         comments: Comment[];
     }>(
         `${API_CONFIG.ROUTES.COMMENTS}?doc_version_id=${docVersionId}`,
+        { method: 'GET' }
+    );
+
+    if (!response.success || !response.data?.comments) {
+        return [];
+    }
+
+    return response.data.comments;
+}
+
+/**
+ * Récupère tous les commentaires d'un utilisateur
+ * Endpoint: GET /api/comments?user_id={id}
+ */
+export async function getCommentsByUserId(userId: number): Promise<Comment[]> {
+    const response = await apiCall<{
+        count: number;
+        comments: Comment[];
+    }>(
+        `${API_CONFIG.ROUTES.COMMENTS}?user_id=${userId}`,
         { method: 'GET' }
     );
 

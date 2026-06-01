@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../Service/EmailService.php';
 
 /**
  * SystemController
@@ -34,6 +35,19 @@ class SystemController extends Controller
             logAction("SYSTEM_NORMALIZE", ['action' => 'normalize']);
             return $this->normalizeStructure();
         }
+        
+        // GET /api/system/test-email → Tester l'envoi multiples emails
+        if ($id === 'test-email') {
+            logAction("SYSTEM_TEST_EMAIL", ['action' => 'test-email']);
+            return $this->testEmailNotification();
+        }
+        
+        // GET /api/system/test-email-real - Test avec les VRAIES adresses Gmail
+        if ($id === 'test-email-real') {
+            logAction("SYSTEM_TEST_EMAIL_REAL", ['action' => 'test-email-real']);
+            return $this->testRealEmailAddresses();
+        }
+        
         return ["error" => "Action système non reconnue", "id" => $id];
     }
 
@@ -364,6 +378,197 @@ class SystemController extends Controller
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
+                'code' => 500
+            ];
+        }
+    }
+
+    /**
+     * Tester l'envoi multiples emails
+     * GET /api/system/test-email?emails=email1,email2,email3
+     * ou
+     * GET /api/system/test-email (utilise des emails fictifs)
+     */
+    private function testEmailNotification(): array
+    {
+        try {
+            error_log("========================================");
+            error_log("[TEST-EMAIL] 🧪 TEST D'ENVOI MULTIPLES");
+            error_log("========================================");
+
+            $emailService = new EmailService();
+
+            // Récupérer les emails depuis les paramètres GET si fournis
+            $emailsParam = $_GET['emails'] ?? null;
+            
+            // Simulation de notification de document
+            $studentName = "Test Student";
+            $studentEmail = "test@cvtek.local";
+            $documentTitle = "Document de Test";
+
+            // Plusieurs emails destinataires
+            if ($emailsParam) {
+                $professorEmails = array_filter(array_map('trim', explode(',', $emailsParam)));
+                error_log("[TEST-EMAIL] Utilisation des emails fournis: " . implode(', ', $professorEmails));
+            } else {
+                // Par défaut, utiliser des emails fictifs pour test
+                $professorEmails = [
+                    "prof1@cvtek.local",
+                    "prof2@cvtek.local",
+                    "prof3@cvtek.local"
+                ];
+                error_log("[TEST-EMAIL] ⚠️ ATTENTION: Utilisant des emails FICTIFS (prof@cvtek.local)");
+                error_log("[TEST-EMAIL] Pour tester avec vos vrais emails, utilisez: /api/system/test-email?emails=email1@domain.com,email2@domain.com");
+            }
+
+            error_log("[TEST-EMAIL] Configuration test:");
+            error_log("[TEST-EMAIL]   Étudiant: $studentName ($studentEmail)");
+            error_log("[TEST-EMAIL]   Document: $documentTitle");
+            error_log("[TEST-EMAIL]   Destinataires: " . count($professorEmails));
+            foreach ($professorEmails as $i => $email) {
+                error_log("[TEST-EMAIL]   " . ($i + 1) . ". " . $email);
+            }
+            
+            error_log("[TEST-EMAIL] 📤 Démarrage de l'envoi...");
+            $startTime = microtime(true);
+
+            $result = $emailService->sendNewDocumentNotification(
+                $studentEmail,
+                $studentName,
+                $documentTitle,
+                $professorEmails
+            );
+
+            $duration = microtime(true) - $startTime;
+            error_log("[TEST-EMAIL] ✅ Envoi terminé en " . round($duration, 2) . "s");
+            error_log("[TEST-EMAIL] Résultat: " . json_encode($result));
+
+            return [
+                'success' => true,
+                'test' => 'email_multiples',
+                'message' => 'Test d\'envoi multiples emails exécuté',
+                'duration_seconds' => round($duration, 2),
+                'configuration' => [
+                    'student' => $studentName . ' (' . $studentEmail . ')',
+                    'document' => $documentTitle,
+                    'recipients_count' => count($professorEmails),
+                    'recipients' => $professorEmails,
+                    'using_real_emails' => !is_null($emailsParam),
+                    'using_test_emails' => is_null($emailsParam)
+                ],
+                'result' => $result,
+                'status' => [
+                    'emails_sent' => $result['success'] ? ($result['count'] ?? 'unknown') : 0,
+                    'total_recipients' => count($professorEmails),
+                    'overall_success' => $result['success'] ?? false
+                ],
+                'instructions' => [
+                    '📋 COMMENT UTILISER CE TEST:',
+                    '1. Avec emails réels: GET /api/system/test-email?emails=prof1@domain.com,prof2@domain.com',
+                    '2. Avec emails fictifs: GET /api/system/test-email',
+                    '3. Vérifiez les logs PHP pour le détail complet de chaque envoi',
+                    '4. Les logs affichent les délais SMTP, les codes de réponse, et les erreurs',
+                    '',
+                    '⚠️ IMPORTANT:',
+                    '- Les emails fictifs (prof@cvtek.local) ne recevront rien',
+                    '- Utilisez des adresses emails RÉELLES pour un test valide',
+                    '- Même si "success: true", vérifiez les logs pour les faux positifs'
+                ]
+            ];
+
+        } catch (Exception $e) {
+            error_log("[TEST-EMAIL] ❌ Erreur: " . $e->getMessage());
+            error_log("[TEST-EMAIL] Trace: " . $e->getTraceAsString());
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'code' => 500
+            ];
+        }
+    }
+
+    /**
+     * Test avec les VRAIES adresses Gmail
+     * GET /api/system/test-email-real
+     */
+    private function testRealEmailAddresses(): array
+    {
+        try {
+            error_log("========================================");
+            error_log("[TEST-EMAIL-REAL] 🧪 TEST AVEC VRAIES EMAILS");
+            error_log("========================================");
+
+            $emailService = new EmailService();
+
+            // Les VRAIES adresses fournies par l'utilisateur
+            $realEmails = [
+                "maelmy19@gmail.com",
+                "malpriv19@gmail.com"
+            ];
+
+            $studentName = "Test Réel";
+            $studentEmail = "test.real@local";
+            $documentTitle = "Document Réel - Test Multiple";
+
+            error_log("[TEST-EMAIL-REAL] Configuration:");
+            error_log("[TEST-EMAIL-REAL]   Étudiant: $studentName");
+            error_log("[TEST-EMAIL-REAL]   Document: $documentTitle");
+            error_log("[TEST-EMAIL-REAL]   Destinataires: " . implode(", ", $realEmails));
+            error_log("[TEST-EMAIL-REAL] 📤 Démarrage de l'envoi...");
+
+            $startTime = microtime(true);
+
+            $result = $emailService->sendNewDocumentNotification(
+                $studentEmail,
+                $studentName,
+                $documentTitle,
+                $realEmails
+            );
+
+            $duration = microtime(true) - $startTime;
+            error_log("[TEST-EMAIL-REAL] ✅ Envoi terminé en " . round($duration, 2) . "s");
+            error_log("[TEST-EMAIL-REAL] Résultat: " . json_encode($result));
+
+            return [
+                'success' => true,
+                'test' => 'email_real_addresses',
+                'message' => 'Test avec vraies adresses Gmail exécuté',
+                'duration_seconds' => round($duration, 2),
+                'configuration' => [
+                    'student' => $studentName,
+                    'document' => $documentTitle,
+                    'recipients_count' => count($realEmails),
+                    'recipients' => $realEmails
+                ],
+                'result' => $result,
+                'status' => [
+                    'emails_sent' => $result['success'] ? ($result['count'] ?? 'unknown') : 0,
+                    'total_recipients' => count($realEmails),
+                    'overall_success' => $result['success'] ?? false
+                ],
+                'instructions' => [
+                    '📋 RÉSULTATS:',
+                    '✅ Si success: true → Les emails ont été envoyés à SMTP',
+                    '📧 Vérifiez maelmy19@gmail.com et malpriv19@gmail.com',
+                    '',
+                    '⏱️ Attendez 5-10 secondes pour la réception',
+                    '',
+                    '❌ Si success: false → Vérifiez les logs PHP pour l\'erreur SMTP',
+                    '',
+                    '📋 Cherchez dans les logs:',
+                    '[EMAIL] ❌ ERREUR: ...',
+                    'Les codes 550, 553, 535 indiquent une erreur'
+                ]
+            ];
+
+        } catch (Exception $e) {
+            error_log("[TEST-EMAIL-REAL] ❌ Erreur: " . $e->getMessage());
+            error_log("[TEST-EMAIL-REAL] Trace: " . $e->getTraceAsString());
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
                 'code' => 500
             ];
         }
