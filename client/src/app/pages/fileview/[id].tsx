@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NewVersionModal from '../../../components/NewVersionModal';
 import { 
   uploadFile, 
   getDocument,
+  getDocumentByVersionId,
+  findDocumentByVersionIdFallback,
   addVersion,
   getUserById,
   getDocuments,
@@ -44,6 +46,7 @@ interface DocumentWithVersions extends Document {
   availableVersions: Array<{
     id: number;
     version: number;
+    url_fichier?: string;
     created_at: string;
   }>;
 }
@@ -60,6 +63,7 @@ interface Comment {
 
 export default function FileView() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { id, fileId } = useParams<{ id?: string; fileId?: string }>();
   const [searchParams] = useSearchParams();
   const docId = id || fileId;
@@ -104,7 +108,47 @@ export default function FileView() {
           return;
         }
 
-        const doc = await getDocument(parseInt(docId));
+        // Vérifier si c'est un ID de version (paramètre 'version' présent)
+        const versionParam = searchParams.get('version');
+        let doc: any;
+
+        if (versionParam) {
+          // Charger le document par ID de version
+          try {
+            doc = await getDocumentByVersionId(parseInt(versionParam));
+          } catch (err) {
+            // Fallback: chercher en itérant sur les documents
+            try {
+              console.warn('Tentative de fallback pour trouver le document par version ID:', err);
+              doc = await findDocumentByVersionIdFallback(parseInt(versionParam), user?.id);
+            } catch (fallbackErr) {
+              // Dernier fallback: charger comme ID de document normal si ce n'est pas un ID de version 0
+              if (parseInt(docId) !== 0) {
+                console.warn('Fallback échoué, tentative avec document ID normal:', fallbackErr);
+                doc = await getDocument(parseInt(docId));
+              } else {
+                throw fallbackErr;
+              }
+            }
+          }
+        } else {
+          // Si docId est 0 et pas de paramètre version, c'est une erreur
+          if (parseInt(docId) === 0) {
+            setError('ID du document manquant');
+            return;
+          }
+          // Charger comme ID de document normal
+          console.log('📄 Chargement du document ID:', docId);
+          doc = await getDocument(parseInt(docId));
+          console.log('📄 Document chargé:', {
+            id: doc.id,
+            titre: doc.titre,
+            nom_fichier: doc.nom_fichier,
+            url_fichier: doc.url_fichier,
+            availableVersions: doc.availableVersions,
+            versionsCount: doc.availableVersions?.length
+          });
+        }
         
         setDocument(doc as any);
         
@@ -127,28 +171,28 @@ export default function FileView() {
         }
         
         // Lire la version depuis le query param si elle existe
-        const versionParam = searchParams.get('version');
+        let versionToLoad = null;
         if (versionParam) {
           const versionId = parseInt(versionParam);
           const versionObj = (doc as any).availableVersions?.find((v: any) => v.id === versionId);
           if (versionObj) {
-
             setSelectedVersion(versionObj.version);
             setSelectedVersionId(versionId);
-          }
-        } else {
-          // Charger la première version par défaut
-          const firstVersion = (doc as any).availableVersions?.[0];
-          if (firstVersion) {
-            setSelectedVersionId(firstVersion.id);
+            versionToLoad = versionId;
           }
         }
         
-        // Charger les commentaires de la première version
-        if ((doc as any).availableVersions && (doc as any).availableVersions.length > 0) {
-          const firstVersionId = (doc as any).availableVersions[0].id;
+        // Si pas de version sélectionnée via param, charger la première version
+        if (!versionToLoad && (doc as any).availableVersions && (doc as any).availableVersions.length > 0) {
+          const firstVersion = (doc as any).availableVersions[0];
+          setSelectedVersionId(firstVersion.id);
+          versionToLoad = firstVersion.id;
+        }
+        
+        // Charger les commentaires de la version sélectionnée
+        if (versionToLoad) {
           try {
-            const loadedComments = await getCommentsByDocVersion(firstVersionId);
+            const loadedComments = await getCommentsByDocVersion(versionToLoad);
             setComments(loadedComments);
           } catch (err) {
             console.error('❌ Erreur lors du chargement des commentaires:', err);
@@ -355,10 +399,10 @@ export default function FileView() {
   }
 
   const isStudent = user?.role === 'student';
+  const isAdmin = user?.role === 'admin';
   const svgPaths = isStudent ? studentSvgPaths : professorSvgPaths;
   const sidebarColor = isStudent ? 'bg-[#b51621]' : 'bg-[#4b575f]';
   const accentColor = isStudent ? '#b51621' : '#4b575f';
-  const backLink = isStudent ? '/' : '/professor';
   const currentVersionNumber = selectedVersion || document?.availableVersions?.[0]?.version || document?.version;
 
   const handleAddComment = async () => {
@@ -482,12 +526,12 @@ export default function FileView() {
       return document?.url_fichier || '';
     }
 
-    // Si une version est sélectionnée, trouver son URL
-    if (selectedVersion) {
+    // Si un ID de version est sélectionné, trouver son URL
+    if (selectedVersionId) {
       const selectedVersionObj = document.availableVersions.find(
-        (v: any) => String(v.version) === String(selectedVersion)
+        (v: any) => v.id === selectedVersionId
       );
-      if (selectedVersionObj) {
+      if (selectedVersionObj && selectedVersionObj.url_fichier) {
         return selectedVersionObj.url_fichier;
       }
     }
@@ -511,13 +555,13 @@ export default function FileView() {
                 style={{ borderColor: accentColor }}
               />
               <div className="flex items-center gap-[20px]">
-                <Link
-                  to={backLink}
-                  className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[32px] whitespace-nowrap hover:underline"
+                <button
+                  onClick={() => navigate(-1)}
+                  className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[32px] whitespace-nowrap hover:underline cursor-pointer"
                   style={{ color: accentColor }}
                 >
                   ← {document.titre || document.nom_fichier}
-                </Link>
+                </button>
                 {document.availableVersions && document.availableVersions.length > 1 && (
                   <select
                     value={currentVersionNumber || ''}
@@ -685,7 +729,7 @@ export default function FileView() {
                       </div>
                     </div>
                   </button>
-                ) : (
+                ) : !isAdmin ? (
                   <div className="content-stretch flex flex-col gap-[15px] relative shrink-0 w-full">
                     <textarea
                       value={newComment}
@@ -725,10 +769,10 @@ export default function FileView() {
                       </button>
                     </div>
                   </div>
-                )}
+                ) : null}
 
-                {/* Autres fichiers de l'étudiant (Professor only) */}
-                {!isStudent && otherStudentDocuments.length > 0 && (
+                {/* Autres fichiers de l'étudiant (Professor only, not Admin) */}
+                {!isStudent && !isAdmin && otherStudentDocuments.length > 0 && (
                   <div className="bg-[#f7f7f7] relative shrink-0 w-full rounded-[4px]">
                     <div className="content-stretch flex flex-col gap-[10px] items-start pl-[20px] pr-[10px] py-[20px] relative size-full">
                       <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[20px] text-right whitespace-nowrap" style={{ color: accentColor }}>

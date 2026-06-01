@@ -453,6 +453,71 @@ export async function getDocument(id: number): Promise<Document> {
 }
 
 /**
+ * Récupère le document en fonction de l'ID de version
+ * Endpoint: GET /api/documents/version/{versionId}
+ */
+export async function getDocumentByVersionId(versionId: number): Promise<Document> {
+    const response = await apiCall<{ document: Document }>(
+        `${API_CONFIG.ROUTES.DOCUMENTS}/version/${versionId}`,
+        { method: 'GET' }
+    );
+
+    if (!response.success || !response.data?.document) {
+        throw new Error(response.error || 'Erreur lors de la récupération du document');
+    }
+
+    return response.data.document;
+}
+
+/**
+ * Fonction de secours: trouve le document en cherchant par l'ID de version
+ * Cherche d'abord dans tous les documents (pour admins/profs)
+ * Puis dans les documents spécifiques de l'utilisateur
+ */
+export async function findDocumentByVersionIdFallback(versionId: number, userId?: number): Promise<Document> {
+    try {
+        // Essayer d'abord avec TOUS les documents (pour admins/profs)
+        let documents: Document[] = [];
+        try {
+            const response = await apiCall<{ documents: Document[] }>(
+                API_CONFIG.ROUTES.DOCUMENTS,
+                { method: 'GET' }
+            );
+            if (response.success && response.data?.documents) {
+                documents = response.data.documents;
+            }
+        } catch (err) {
+            // Si on n'a pas accès à tous les documents, chercher juste nos documents
+            if (userId) {
+                documents = await getDocuments(userId);
+            }
+        }
+        
+        if (documents.length === 0) {
+            throw new Error(`Aucun document trouvé pour chercher la version ${versionId}`);
+        }
+        
+        // Pour chaque document, chercher les versions
+        for (const doc of documents) {
+            try {
+                const versions = await getVersions(doc.id);
+                const foundVersion = versions.find(v => v.id === versionId);
+                if (foundVersion) {
+                    return doc;
+                }
+            } catch (err) {
+                // Continuer avec le document suivant
+                continue;
+            }
+        }
+        
+        throw new Error(`Version ${versionId} non trouvée`);
+    } catch (err) {
+        throw new Error(`Erreur lors de la recherche du document: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
+    }
+}
+
+/**
  * Crée un nouveau document
  * Endpoint: POST /api/documents
  */
@@ -927,7 +992,13 @@ export async function createProfessor(email: string): Promise<Professor> {
     );
 
     if (!response.success) {
-        throw new Error(response.error || 'Erreur lors de la création du professeur');
+        const errorMsg = response.error || 'Erreur lors de la création du professeur';
+        console.error('❌ createProfessor failed:', { 
+            error: response.error, 
+            details: response.details,
+            fullResponse: response 
+        });
+        throw new Error(errorMsg);
     }
 
     return response.data?.professor as Professor;

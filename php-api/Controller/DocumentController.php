@@ -69,11 +69,37 @@ class DocumentController extends Controller
             ];
         }
 
+        // GET /api/documents/version/456 -> récupère le document associé à une version
+        if ($id === 'version' && $action) {
+            $versionId = (int)$action;
+            error_log("[CONTROLLER] GET_DOCUMENT_BY_VERSION ID = $versionId");
+            logAction("GET_DOCUMENT_BY_VERSION", ['version_id' => $versionId]);
+            
+            // Trouver le document associé à cette version
+            $doc = $this->documents->findByVersionId($versionId);
+            
+            if (!$doc) {
+                error_log("[CONTROLLER] Version $versionId non trouvée");
+                return ['error' => 'Document non trouvé', 'code' => 404];
+            }
+
+            error_log("[CONTROLLER] Document trouvé pour version $versionId");
+            return ['document' => $doc];
+        }
+
         // GET /api/documents/123 -> un document spécifique avec ses versions
         if ($id) {
             $id = (int)$id;
+            error_log("========================================");
+            error_log("[CONTROLLER] GET_DOCUMENT ID = $id");
             logAction("GET_DOCUMENT", ['id' => $id]);
             $doc = $this->documents->findByIdWithVersions($id);
+            
+            error_log("[CONTROLLER] Document retourné: " . ($doc ? "OK" : "NULL"));
+            if ($doc && isset($doc['availableVersions'])) {
+                error_log("[CONTROLLER] Versions: " . count($doc['availableVersions']) . " versions");
+            }
+            error_log("========================================");
             
             if (!$doc) {
                 return ['error' => 'Document non trouvé', 'code' => 404];

@@ -76,14 +76,24 @@ class DocumentRepository extends Repository
      */
     public function findByIdWithVersions(int $id): ?array
     {
+        error_log("[DEBUG] findByIdWithVersions: Récupération du document ID = $id");
+        
         // Récupérer le document
         $doc = $this->findById($id);
         if (!$doc) {
+            error_log("[DEBUG] findByIdWithVersions: Document introuvable");
             return null;
         }
 
+        error_log("[DEBUG] findByIdWithVersions: Document trouvé = " . json_encode($doc));
+
         // Récupérer toutes les versions
         $versions = $this->findVersions($id);
+        
+        error_log("[DEBUG] findByIdWithVersions: Versions trouvées = " . count($versions) . " versions");
+        if (!empty($versions)) {
+            error_log("[DEBUG] findByIdWithVersions: Première version = " . json_encode($versions[0]));
+        }
 
         // Ajouter les versions au document
         $doc['availableVersions'] = $versions;
@@ -99,6 +109,38 @@ class DocumentRepository extends Repository
             $doc['version'] = 0;
         }
 
+        error_log("[DEBUG] findByIdWithVersions: Document final = " . json_encode(array_keys($doc)));
+
+        return $doc;
+    }
+
+    /**
+     * Récupère le document associé à un ID de version
+     */
+    public function findByVersionId(int $versionId): ?array
+    {
+        error_log("[DEBUG] findByVersionId: Cherche la version ID = $versionId");
+        
+        // Trouver le document associé à cette version
+        $version = $this->executeOne(
+            "SELECT id_doc FROM doc_version WHERE id = ?",
+            [$versionId]
+        );
+
+        error_log("[DEBUG] findByVersionId: Résultat query = " . json_encode($version));
+
+        if (!$version) {
+            error_log("[DEBUG] findByVersionId: Version non trouvée");
+            return null;
+        }
+
+        error_log("[DEBUG] findByVersionId: Document ID trouvé = " . $version['id_doc']);
+
+        // Récupérer le document avec toutes ses versions
+        $doc = $this->findByIdWithVersions($version['id_doc']);
+        
+        error_log("[DEBUG] findByVersionId: Document récupéré = " . json_encode(isset($doc) ? 'OK' : 'NULL'));
+        
         return $doc;
     }
 

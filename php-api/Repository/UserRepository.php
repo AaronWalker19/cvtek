@@ -96,14 +96,18 @@ class UserRepository extends Repository
         $username = explode('@', $email)[0];
         
         // Insérer l'utilisateur
-        $this->executeUpdate(
+        $success = $this->executeUpdate(
             "INSERT INTO users (username, email, role) 
              VALUES (?, ?, ?)",
             [$username, $email, $role]
         );
 
-        $id = (int)$this->getLastInsertId();
-        return $this->findById($id);
+        if (!$success) {
+            return null;
+        }
+
+        // Récupérer par email (plus fiable que lastInsertId)
+        return $this->findByEmail($email);
     }
 
     /**
