@@ -4,7 +4,6 @@ import StudentDashboard from './pages/StudentDashboard';
 import FileView from './pages/fileview/[id]';
 import ProfessorDashboard from './pages/ProfessorDashboard';
 import AdminDashboard from './pages/AdminDashboard';
-import Profile from './pages/Profile';
 import DemoUserSwitcher from './components/DemoUserSwitcher';
 
 function AppRoutes() {
@@ -50,9 +49,6 @@ function AppRoutes() {
       {/* File View Routes - Available for all authenticated users */}
       <Route path="/file/:fileId" element={<FileView />} />
       <Route path="/professor/file/:fileId" element={<FileView />} />
-
-      {/* Common Routes */}
-      <Route path="/profile" element={<Profile />} />
 
       {/* Default redirect based on role */}
       <Route

@@ -17,6 +17,25 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// ===== Gestion localStorage pour persister la session utilisateur =====
+function saveUserToStorage(user: User): void {
+  localStorage.setItem('auth_user', JSON.stringify(user));
+}
+
+function getUserFromStorage(): User | null {
+  const stored = localStorage.getItem('auth_user');
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return null;
+  }
+}
+
+function clearUserFromStorage(): void {
+  localStorage.removeItem('auth_user');
+}
+
 // Convertir les utilisateurs démo en format User pour l'API
 // ⚠️ Les IDs doivent correspondre aux IDs en base de données (vérifier phpMyAdmin)
 const demoUsers: DemoUser[] = [
@@ -55,29 +74,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (currentUser) {
           setIsAuthenticated(true);
           setUser(currentUser);
+          saveUserToStorage(currentUser);
         } else {
-          // En mode démo, charger le premier utilisateur et générer un token
-          setIsAuthenticated(true);
-          setUser(demoUsers[0] as User);
-          
-          // Générer un token de démo pour le premier utilisateur
-          try {
-            await getDemoToken(demoUsers[0].id);
-          } catch (err) {
-            console.error('❌ Erreur lors de la génération du token de démo initial:', err);
+          // Essayer de récupérer l'utilisateur sauvegardé en local
+          const storedUser = getUserFromStorage();
+          if (storedUser) {
+            setIsAuthenticated(true);
+            setUser(storedUser);
+            console.log('✅ Utilisateur restauré depuis localStorage:', storedUser.username);
+          } else {
+            // En mode démo, charger le premier utilisateur et générer un token
+            setIsAuthenticated(true);
+            setUser(demoUsers[0] as User);
+            
+            // Générer un token de démo pour le premier utilisateur
+            try {
+              await getDemoToken(demoUsers[0].id);
+            } catch (err) {
+              console.error('❌ Erreur lors de la génération du token de démo initial:', err);
+            }
           }
         }
       } catch (err) {
         console.error('Erreur vérification auth:', err);
-        // En mode démo, charger le premier utilisateur
-        setIsAuthenticated(true);
-        setUser(demoUsers[0] as User);
-        
-        // Générer un token de démo pour le premier utilisateur en cas d'erreur
-        try {
-          await getDemoToken(demoUsers[0].id);
-        } catch (tokenErr) {
-          console.error('❌ Erreur lors de la génération du token de démo en fallback:', tokenErr);
+        // Essayer de récupérer l'utilisateur sauvegardé en local
+        const storedUser = getUserFromStorage();
+        if (storedUser) {
+          setIsAuthenticated(true);
+          setUser(storedUser);
+          console.log('✅ Utilisateur restauré depuis localStorage (fallback):', storedUser.username);
+        } else {
+          // En mode démo, charger le premier utilisateur
+          setIsAuthenticated(true);
+          setUser(demoUsers[0] as User);
+          
+          // Générer un token de démo pour le premier utilisateur en cas d'erreur
+          try {
+            await getDemoToken(demoUsers[0].id);
+          } catch (tokenErr) {
+            console.error('❌ Erreur lors de la génération du token de démo en fallback:', tokenErr);
+          }
         }
       } finally {
         setLoading(false);
@@ -92,12 +128,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const currentUser = await apiLogin({ email, password });
       setIsAuthenticated(true);
       setUser(currentUser);
+      saveUserToStorage(currentUser);
     } catch (error) {
       // Fallback mode démo
       const demoUser = demoUsers.find(u => u.email === email);
       if (demoUser) {
         setIsAuthenticated(true);
         setUser(demoUser as User);
+        saveUserToStorage(demoUser as User);
       } else {
         throw error;
       }
@@ -109,6 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const currentUser = await apiRegister({ username, email, password, role: role as any });
       setIsAuthenticated(true);
       setUser(currentUser);
+      saveUserToStorage(currentUser);
     } catch (error) {
       throw error;
     }
@@ -121,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Erreur logout:', err);
     } finally {
       clearToken();
+      clearUserFromStorage();
       setIsAuthenticated(false);
       setUser(null);
     }
@@ -131,6 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const selectedUser = demoUsers.find(u => u.userId?.toString() === userId || u.id.toString() === userId);
     if (selectedUser) {
       setUser(selectedUser as User);
+      saveUserToStorage(selectedUser as User);
       
       // Générer un token démo en appelant la fonction du client API
       try {

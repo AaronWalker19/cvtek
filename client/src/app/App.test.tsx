@@ -22,12 +22,6 @@ jest.mock('./pages/AdminDashboard', () => {
   };
 });
 
-jest.mock('./pages/Profile', () => {
-  return function MockProfile() {
-    return <div>Profile</div>;
-  };
-});
-
 describe('App Component', () => {
   // Mock du contexte d'authentification
   beforeEach(() => {
