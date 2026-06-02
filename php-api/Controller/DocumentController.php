@@ -23,7 +23,7 @@ class DocumentController extends Controller
         $this->documents = new DocumentRepository();
         $this->users = new UserRepository();
         $this->abonnements = new AbonnementRepository();
-        $this->emailService = new EmailService();
+        $this->emailService = new EmailService(true); // Mode debug activé
     }
 
     protected function processGetRequest(HttpRequest $request): ?array

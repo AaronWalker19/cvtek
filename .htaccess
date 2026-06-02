@@ -3,12 +3,12 @@ RewriteEngine On
 # Redirection de /cvtek vers /cvtek/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^cvtek$ cvtek/ [R=301,L]
+
 
 # React Router - Rediriger toutes les routes React (sauf fichiers/dossiers existants et API) vers index.html
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} ^/cvtek/
+RewriteCond %{REQUEST_URI} ^/cvtek
 RewriteCond %{REQUEST_URI} !^/cvtek/api/
 RewriteCond %{REQUEST_URI} !^/cvtek/php-api/
 RewriteRule ^(.*)$ /cvtek/index.html [L]

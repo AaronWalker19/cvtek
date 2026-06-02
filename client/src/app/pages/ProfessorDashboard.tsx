@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import Sidebar from "../components/Sidebar";
 import AdminLoginModal from "../../components/AdminLoginModal";
 import svgPaths from "../../imports/PageDeBaseCoteProf/svg-9gqyfpru0n";
-import { getDocuments, getUserById, getDocument, checkSubscription, createSubscription, deleteSubscription } from '../../api/client';
+import { getDocuments, getUserById, getDocument, checkSubscription, createSubscription, deleteSubscription, getCommentsByDocVersion, Comment } from '../../api/client';
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
@@ -33,8 +33,12 @@ export default function ProfessorDashboard() {
     email?: string;
   }>>([]);
   const [documentVersions, setDocumentVersions] = useState<{ [docId: number]: any[] }>({});
+  const [documentComments, setDocumentComments] = useState<{ [docVersionId: number]: Comment[] }>({});
   const [subscriptions, setSubscriptions] = useState<Set<number>>(new Set());
   const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const [sortColumn, setSortColumn] = useState<'name' | 'lastDeposit' | 'lastComment'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [selectedLicenses, setSelectedLicenses] = useState<Set<string>>(new Set());
 
   // Charger l'état d'abonnement quand un étudiant est sélectionné
   useEffect(() => {
@@ -103,6 +107,65 @@ export default function ProfessorDashboard() {
 
     loadAllDocuments();
   }, []);
+
+  // Charger les commentaires pour tous les documents au démarrage
+  useEffect(() => {
+    const loadInitialComments = async () => {
+      const allComments: { [docVersionId: number]: Comment[] } = {};
+
+      for (const doc of allDocuments) {
+        try {
+          // Charger le document complet pour obtenir les versions
+          const fullDoc = await getDocument(doc.id);
+          const versions = (fullDoc as any).availableVersions || [];
+          
+          // Pour chaque version, charger les commentaires
+          for (const version of versions) {
+            if (version.id) {
+              try {
+                const comments = await getCommentsByDocVersion(version.id);
+                allComments[version.id] = comments;
+              } catch (error) {
+                console.error(`❌ Erreur chargement commentaires version ${version.id}:`, error);
+                allComments[version.id] = [];
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Erreur chargement document ${doc.id}:`, error);
+        }
+      }
+
+      setDocumentComments(allComments);
+    };
+
+    if (allDocuments.length > 0) {
+      loadInitialComments();
+    }
+  }, [allDocuments]);
+
+  // Charger les versions complètes pour TOUS les documents au démarrage
+  useEffect(() => {
+    const loadAllDocumentVersions = async () => {
+      const allVersions: { [docId: number]: any[] } = {};
+
+      for (const doc of allDocuments) {
+        try {
+          const fullDoc = await getDocument(doc.id);
+          allVersions[doc.id] = (fullDoc as any).availableVersions || [{ version: doc.version }];
+        } catch (error) {
+          console.error(`❌ Erreur chargement versions doc ${doc.id}:`, error);
+          allVersions[doc.id] = [{ version: doc.version }];
+        }
+      }
+
+      setDocumentVersions(allVersions);
+    };
+
+    if (allDocuments.length > 0) {
+      loadAllDocumentVersions();
+    }
+  }, [allDocuments]);
 
   // Extraire les étudiants uniques et créer la liste
   useEffect(() => {
@@ -177,7 +240,42 @@ export default function ProfessorDashboard() {
     loadUserDetails();
   }, [selectedStudent]);
 
+  // Charger les commentaires pour tous les documents
+  useEffect(() => {
+    const loadAllComments = async () => {
+      const allComments: { [docVersionId: number]: Comment[] } = {};
+
+      for (const doc of allDocuments) {
+        try {
+          const fullDoc = await getDocument(doc.id);
+          const versions = (fullDoc as any).availableVersions || [{ version: doc.version, id: doc.id }];
+
+          for (const version of versions) {
+            if (version.id) {
+              try {
+                const comments = await getCommentsByDocVersion(version.id);
+                allComments[version.id] = comments;
+              } catch (error) {
+                console.error(`❌ Erreur chargement commentaires version ${version.id}:`, error);
+                allComments[version.id] = [];
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Erreur chargement versions doc ${doc.id}:`, error);
+        }
+      }
+
+      setDocumentComments(allComments);
+    };
+
+    if (allDocuments.length > 0) {
+      loadAllComments();
+    }
+  }, [allDocuments]);
+
   // Charger les versions des fichiers de l'étudiant sélectionné
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const loadDocumentVersions = async () => {
       if (!selectedStudent) {
@@ -191,7 +289,7 @@ export default function ProfessorDashboard() {
       for (const doc of studentDocs) {
         try {
           const fullDoc = await getDocument(doc.id);
-          versions[doc.id] = fullDoc.availableVersions || [{ version: doc.version }];
+          versions[doc.id] = (fullDoc as any).availableVersions || [{ version: doc.version }];
         } catch (error) {
           console.error(`❌ Erreur chargement versions doc ${doc.id}:`, error);
           versions[doc.id] = [{ version: doc.version }];
@@ -202,14 +300,38 @@ export default function ProfessorDashboard() {
     };
 
     loadDocumentVersions();
-  }, [selectedStudent, allDocuments]);
+  }, [selectedStudent, allDocuments]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Filtrer les étudiants selon la recherche
-  const filteredStudents = allStudents.filter(
-    (student) =>
-      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.license?.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Charger les commentaires pour les versions des documents de l'étudiant sélectionné
+  useEffect(() => {
+    const loadCommentsForVersions = async () => {
+      const allComments: { [docVersionId: number]: Comment[] } = { ...documentComments };
+
+      for (const docId in documentVersions) {
+        const versions = documentVersions[parseInt(docId)];
+        if (versions && versions.length > 0) {
+          for (const version of versions) {
+            if (version.id && !allComments[version.id]) {
+              try {
+                const comments = await getCommentsByDocVersion(version.id);
+                allComments[version.id] = comments;
+              } catch (error) {
+                console.error(`❌ Erreur chargement commentaires version ${version.id}:`, error);
+                allComments[version.id] = [];
+              }
+            }
+          }
+        }
+      }
+
+      setDocumentComments(allComments);
+    };
+
+    if (Object.keys(documentVersions).length > 0) {
+      loadCommentsForVersions();
+    }
+  }, [documentVersions]);
 
   // Récupérer les documents d'un étudiant
   const getStudentDocuments = (userId: number) => {
@@ -229,6 +351,141 @@ export default function ProfessorDashboard() {
       return sorted[0].version || '1.0';
     }
     return doc.version || '1.0';
+  };
+
+  // Obtenir la date du dernier dépôt pour un étudiant
+  const getLatestDepositDate = (userId: number): Date | null => {
+    const studentDocs = allDocuments.filter((doc) => doc.user_id === userId);
+    if (studentDocs.length === 0) return null;
+    
+    const latestDoc = studentDocs.reduce((latest: any, current: any) => {
+      const latestDate = new Date(latest.created_at).getTime();
+      const currentDate = new Date(current.created_at).getTime();
+      return currentDate > latestDate ? current : latest;
+    });
+    
+    return new Date(latestDoc.created_at);
+  };
+
+  // Obtenir la date du dernier commentaire pour un étudiant
+  const getLatestCommentDate = (userId: number): Date | null => {
+    const studentDocs = allDocuments.filter((doc) => doc.user_id === userId);
+    if (studentDocs.length === 0) return null;
+    
+    let latestCommentDate: Date | null = null;
+    
+    for (const doc of studentDocs) {
+      // Obtenir les versions complètes si disponibles
+      const versions = documentVersions[doc.id] || [];
+      
+      // Si pas de versions chargées, essayer avec juste l'ID du document
+      const versionsToCheck = versions.length > 0 ? versions : [{ id: doc.id }];
+      
+      for (const version of versionsToCheck) {
+        const versionId = version.id || doc.id;
+        const comments = documentComments[versionId];
+        
+        if (comments && comments.length > 0) {
+          for (const comment of comments) {
+            const commentDate = new Date(comment.date);
+            if (!latestCommentDate || commentDate > latestCommentDate) {
+              latestCommentDate = commentDate;
+            }
+          }
+        }
+      }
+    }
+    
+    return latestCommentDate;
+  };
+
+  // Gérer le changement de colonne de tri
+  const handleSort = (column: 'name' | 'lastDeposit' | 'lastComment') => {
+    if (sortColumn === column) {
+      // Si on clique sur la même colonne, inverser la direction
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Si on clique sur une nouvelle colonne, l'ordre par défaut est ascendant
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Obtenir les licences uniques
+  const getUniqueLicenses = (): string[] => {
+    const licenses = new Set<string>();
+    allStudents.forEach((student) => {
+      if (student.license && student.license !== 'N/A') {
+        licenses.add(student.license);
+      }
+    });
+    return Array.from(licenses).sort();
+  };
+
+  // Basculer la sélection d'une licence
+  const toggleLicenseFilter = (license: string) => {
+    const newSelected = new Set(selectedLicenses);
+    if (newSelected.has(license)) {
+      newSelected.delete(license);
+    } else {
+      newSelected.add(license);
+    }
+    setSelectedLicenses(newSelected);
+  };
+
+  // Filtrer les étudiants selon la recherche ET les licences
+  const getFilteredStudents = () => {
+    let result = allStudents.filter(
+      (student) =>
+        student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.license?.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+
+    // Si des licences sont sélectionnées, filtrer par licence
+    if (selectedLicenses.size > 0) {
+      result = result.filter((student) => selectedLicenses.has(student.license || ''));
+    }
+
+    return result;
+  };
+
+  // Obtenir les étudiants triés
+  const getSortedStudents = (students: ReturnType<typeof getFilteredStudents>) => {
+    const sorted = [...students];
+    
+    sorted.sort((a, b) => {
+      let compareValue = 0;
+      
+      switch (sortColumn) {
+        case 'name':
+          compareValue = a.name.localeCompare(b.name);
+          break;
+        case 'lastDeposit': {
+          const dateA = getLatestDepositDate(a.userId)?.getTime() || 0;
+          const dateB = getLatestDepositDate(b.userId)?.getTime() || 0;
+          compareValue = dateA - dateB;
+          break;
+        }
+        case 'lastComment': {
+          const dateA = getLatestCommentDate(a.userId)?.getTime() || 0;
+          const dateB = getLatestCommentDate(b.userId)?.getTime() || 0;
+          compareValue = dateA - dateB;
+          break;
+        }
+      }
+      
+      return sortDirection === 'asc' ? compareValue : -compareValue;
+    });
+    
+    return sorted;
+  };
+
+  // Composant pour afficher la flèche de tri
+  const SortArrow = ({ column }: { column: 'name' | 'lastDeposit' | 'lastComment' }) => {
+    if (sortColumn === column) {
+      return <span className="ml-2">{sortDirection === 'asc' ? '↑' : '↓'}</span>;
+    }
+    return <span className="ml-2 opacity-30">↕</span>;
   };
 
   return (
@@ -314,31 +571,97 @@ export default function ProfessorDashboard() {
               </button>
             </div>
 
+            {/* Filter Panel */}
+            {showFilters && (
+              <div className="bg-[#f5f5f5] rounded-lg p-[20px] relative shrink-0 w-full border border-[#d9d9d9]">
+                <div className="flex flex-col gap-[15px]">
+                  <p className="font-['Inter:Medium',sans-serif] font-medium text-[#36302a] text-[16px]">
+                    Filtrer par licence/parcours :
+                  </p>
+                  <div className="flex flex-col gap-[10px]">
+                    {getUniqueLicenses().map((license) => (
+                      <label key={license} className="flex items-center gap-[10px] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedLicenses.has(license)}
+                          onChange={() => toggleLicenseFilter(license)}
+                          className="w-[18px] h-[18px] cursor-pointer"
+                        />
+                        <span className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px]">
+                          {license}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {selectedLicenses.size > 0 && (
+                    <button
+                      onClick={() => setSelectedLicenses(new Set())}
+                      className="mt-[10px] px-4 py-2 bg-[#4b575f] text-white rounded font-['Inter:Medium',sans-serif] font-medium hover:bg-[#36302a] transition-colors text-[14px]"
+                    >
+                      Réinitialiser les filtres
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Documents Table */}
             <div className="relative shrink-0 w-full">
               <div className="content-stretch flex flex-col gap-[28px] items-start px-[20px] relative size-full">
-                <div className="content-stretch flex font-['Inter:Medium',sans-serif] font-medium items-center justify-between leading-[normal] not-italic relative shrink-0 text-[#36302a] text-[24px] w-full whitespace-nowrap">
-                  <p className="relative shrink-0">étudiant</p>
-                  <p className="relative shrink-0">licence</p>
+                <div className="content-stretch flex font-['Inter:Medium',sans-serif] font-medium items-center justify-between leading-[normal] not-italic relative shrink-0 text-[#36302a] text-[18px] w-full">
+                  <button
+                    onClick={() => handleSort('name')}
+                    className="flex-[1.5_0_0] relative shrink-0 text-left hover:text-[#4b575f] transition-colors cursor-pointer flex items-center"
+                  >
+                    étudiant
+                    <SortArrow column="name" />
+                  </button>
+                  <p className="flex-[1_0_0] relative shrink-0 text-center">
+                    licence
+                  </p>
+                  <button
+                    onClick={() => handleSort('lastDeposit')}
+                    className="flex-[1_0_0] relative shrink-0 text-center hover:text-[#4b575f] transition-colors cursor-pointer flex items-center justify-center"
+                  >
+                    dernier dépôt
+                    <SortArrow column="lastDeposit" />
+                  </button>
+                  <button
+                    onClick={() => handleSort('lastComment')}
+                    className="flex-[1_0_0] relative shrink-0 text-center hover:text-[#4b575f] transition-colors cursor-pointer flex items-center justify-center"
+                  >
+                    dernier commentaire
+                    <SortArrow column="lastComment" />
+                  </button>
                 </div>
 
                 <div className="content-stretch flex flex-col gap-[15px] items-start relative shrink-0 w-full">
-                  {filteredStudents.map((student, index) => (
+                  {getSortedStudents(getFilteredStudents()).map((student, index) => (
                     <div
                       key={index}
                       onClick={() => setSelectedStudent(student)}
-                      className="content-stretch flex items-start py-[10px] relative shrink-0 w-full hover:bg-gray-50 cursor-pointer"
+                      className="content-stretch flex items-center justify-between py-[10px] px-[10px] relative shrink-0 w-full hover:bg-gray-50 border-b border-[#d9d9d9] cursor-pointer"
                     >
-                      <div
-                        aria-hidden="true"
-                        className="absolute border-[#36302a] border-b border-solid inset-0 pointer-events-none"
-                      />
-                      <div className="flex flex-[1_0_0] flex-col font-['Inter:Regular',sans-serif] font-normal justify-center leading-[0] min-w-px not-italic relative text-[#36302a] text-[16px]">
-                        <p className="leading-[normal]">{student.name}</p>
-                      </div>
-                      <div className="flex flex-[1_0_0] flex-col font-['Inter:Regular',sans-serif] font-normal justify-center leading-[0] min-w-px not-italic relative text-[#36302a] text-[16px] text-end">
-                        <p className="leading-[normal]">{student.license}</p>
-                      </div>
+                      <p className="flex-[1.5_0_0] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px]">
+                        {student.name}
+                      </p>
+                      <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px] text-center">
+                        {student.license}
+                      </p>
+                      <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px] text-center">
+                        {getLatestDepositDate(student.userId)?.toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        }) || '-'}
+                      </p>
+                      <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px] text-center">
+                        {getLatestCommentDate(student.userId)?.toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        }) || '-'}
+                      </p>
                     </div>
                   ))}
                 </div>

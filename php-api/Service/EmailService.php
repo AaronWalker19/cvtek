@@ -16,14 +16,31 @@ class EmailService
     // Code app Gmail: aiwa chtc dfio ihsi (remplacer les espaces par rien)
     private string $password = 'aiwachtcdfioihsi';
     private array $logs = [];
+    private bool $debugMode = false; // Mode debug (logs détaillés)
     
     /**
-     * Ajoute un log au tableau
+     * Constructeur
+     * @param bool $debugMode Afficher tous les logs (default: false = seulement erreurs)
      */
-    private function addLog(string $message): void
+    public function __construct(bool $debugMode = false)
     {
-        $this->logs[] = $message;
-        error_log($message);
+        $this->debugMode = $debugMode;
+    }
+    
+    /**
+     * Ajoute un log au tableau (avec filtrage du debug mode)
+     */
+    private function addLog(string $message, bool $isError = false): void
+    {
+        // Toujours ajouter les erreurs ET les logs debug si activé
+        if ($isError || $this->debugMode) {
+            $this->logs[] = $message;
+        }
+        
+        // Toujours écrire les erreurs dans error_log
+        if ($isError) {
+            error_log($message);
+        }
     }
     
     /**
@@ -37,6 +54,8 @@ class EmailService
     /**
      * Envoie un email de notification de nouveau fichier/URL
      * Retourne un array avec infos de succès/erreur
+     * Utilise la même approche que les commentaires: mail() d'abord (fonctionne!)
+     * Envoie individuellement à chaque professeur
      */
     public function sendNewDocumentNotification(
         string $studentEmail,
@@ -51,12 +70,60 @@ class EmailService
         $this->addLog("[EMAIL] Destinataires (" . count($profEmails) . "): " . implode(', ', $profEmails));
         $this->addLog("========================================");
         
+        if (empty($profEmails)) {
+            $this->addLog("[EMAIL] ❌ Aucun destinataire - email non envoyé");
+            $result = [
+                'success' => false,
+                'error' => 'Aucun destinataire fourni',
+                'logs' => $this->getLogs()
+            ];
+            return $result;
+        }
+        
         $subject = "Nouveau fichier/URL ajouté par $studentName";
         $body = $this->buildDocumentNotificationBody($studentName, $studentDocument);
         
-        $result = $this->sendToMultiple($profEmails, $subject, $body);
-        $result['logs'] = $this->getLogs();
-        return $result;
+        // Utiliser la MÊME approche que sendNewCommentNotification: mail() d'abord (ça FONCTIONNE!)
+        // Envoyer individuellement à chaque professeur
+        $this->addLog("[EMAIL] 📧 " . count($profEmails) . " destinataire(s), envoi individuel (mail() en priorité)");
+        
+        $successCount = 0;
+        $sentEmails = [];
+        $errors = [];
+        
+        foreach ($profEmails as $email) {
+            $this->addLog("[EMAIL] 📨 Envoi à professeur: $email");
+            $result = $this->sendEmail($email, $subject, $body);
+            if ($result['success']) {
+                $successCount++;
+                $sentEmails[] = $email;
+                $this->addLog("[EMAIL] ✅ Email envoyé à: $email");
+            } else {
+                $errors[] = $email . ': ' . ($result['error'] ?? 'erreur inconnue');
+                $this->addLog("[EMAIL] ❌ Échec envoi à: $email");
+            }
+        }
+        
+        if ($successCount > 0) {
+            $this->addLog("[EMAIL] ✅ DOCUMENT NOTIFICATION: " . $successCount . "/" . count($profEmails) . " emails envoyés");
+            return [
+                'success' => true,
+                'details' => $successCount . "/" . count($profEmails) . " destinataires",
+                'recipients_count' => count($profEmails),
+                'sent_count' => $successCount,
+                'sent_emails' => $sentEmails,
+                'logs' => $this->getLogs()
+            ];
+        } else {
+            $this->addLog("[EMAIL] ❌ DOCUMENT NOTIFICATION: Aucun email envoyé");
+            return [
+                'success' => false,
+                'error' => 'Impossible d\'envoyer les emails: ' . implode('; ', $errors),
+                'recipients_count' => count($profEmails),
+                'sent_count' => 0,
+                'logs' => $this->getLogs()
+            ];
+        }
     }
     
     /**
@@ -155,27 +222,360 @@ class EmailService
     }
     
     /**
+     * Envoie 1 seul email avec destinataires en BCC (plus efficace)
+     * Retourne un array avec infos de succès/erreur
+     */
+    private function sendViaBcc(array $bccRecipients, string $subject, string $body): array
+    {
+        if (empty($bccRecipients)) {
+            $this->addLog("[EMAIL] ❌ Aucun destinataire pour BCC");
+            return [
+                'success' => false,
+                'error' => 'Aucun destinataire fourni'
+            ];
+        }
+        
+        $this->addLog("[EMAIL] 📤 Envoi 1 email BCC via SMTP d'abord...");
+        $smtpResult = $this->sendViaSMTPWithBcc($bccRecipients, $subject, $body);
+        
+        if ($smtpResult['success']) {
+            return $smtpResult;
+        }
+        
+        $this->addLog("[EMAIL] ⚠️  SMTP a échoué, tentative mail() avec BCC...");
+        
+        // Fallback sur mail() avec BCC header
+        if (function_exists('mail')) {
+            return $this->sendViaPhpMailWithBcc($bccRecipients, $subject, $body);
+        }
+        
+        return $smtpResult;
+    }
+    
+    /**
+     * Envoie 1 email BCC via SMTP direct
+     */
+    private function sendViaSMTPWithBcc(array $bccRecipients, string $subject, string $body): array
+    {
+        try {
+            $this->addLog("[EMAIL] 📤 Tentative SMTP BCC pour " . count($bccRecipients) . " destinataire(s)...");
+            
+            // Vérifier la disponibilité d'OpenSSL
+            if (!extension_loaded('openssl')) {
+                $this->addLog("[EMAIL] ❌ ERREUR: Extension OpenSSL non disponible");
+                return [
+                    'success' => false,
+                    'error' => 'Extension OpenSSL requise'
+                ];
+            }
+            
+            // Créer une connexion SMTP
+            $this->addLog("[EMAIL] 🔗 Connexion à {$this->smtpHost}:{$this->smtpPort}...");
+            $sock = @fsockopen($this->smtpHost, $this->smtpPort, $errno, $errstr, 10);
+            
+            if (!$sock) {
+                $this->addLog("[EMAIL] ❌ ERREUR: Impossible de se connecter à SMTP: $errstr ($errno)");
+                return [
+                    'success' => false,
+                    'error' => "Connexion SMTP échouée: $errstr ($errno)"
+                ];
+            }
+            $this->addLog("[EMAIL] ✅ Connexion établie");
+            
+            // Lire la réponse du serveur
+            $response = fgets($sock, 512);
+            if (strpos($response, '220') === false) {
+                fclose($sock);
+                $this->addLog("[EMAIL] ❌ Réponse SMTP invalide");
+                return [
+                    'success' => false,
+                    'error' => "Réponse SMTP invalide: $response"
+                ];
+            }
+            $this->addLog("[EMAIL] ✅ Serveur prêt");
+            
+            // EHLO
+            $this->writeCommand($sock, "EHLO cvtek.local");
+            $ehloResponse = $this->readResponse($sock);
+            if (strpos($ehloResponse, '250') === false) {
+                fclose($sock);
+                $this->addLog("[EMAIL] ❌ ERREUR: EHLO rejeté");
+                return [
+                    'success' => false,
+                    'error' => "EHLO rejeté: $ehloResponse"
+                ];
+            }
+            $this->addLog("[EMAIL] ✅ EHLO accepté");
+            
+            // STARTTLS
+            $this->addLog("[EMAIL] 🔐 Activation STARTTLS...");
+            $this->writeCommand($sock, "STARTTLS");
+            $starttlsResponse = $this->readResponse($sock);
+            if (strpos($starttlsResponse, '220') === false) {
+                fclose($sock);
+                $this->addLog("[EMAIL] ❌ STARTTLS rejeté");
+                return [
+                    'success' => false,
+                    'error' => "STARTTLS rejeté: $starttlsResponse"
+                ];
+            }
+            $this->addLog("[EMAIL] ✅ STARTTLS accepté");
+            
+            // Activer TLS
+            $tlsActive = false;
+            if (defined('STREAM_CRYPTO_METHOD_TLS_CLIENT')) {
+                $tlsActive = @stream_socket_enable_crypto($sock, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+            } elseif (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT')) {
+                $tlsActive = @stream_socket_enable_crypto($sock, true, STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT);
+            } else {
+                $tlsActive = @stream_socket_enable_crypto($sock, true, 4);
+            }
+            
+            if (!$tlsActive) {
+                fclose($sock);
+                $this->addLog("[EMAIL] ❌ Impossible d'activer TLS");
+                return [
+                    'success' => false,
+                    'error' => 'Impossible d\'activer TLS'
+                ];
+            }
+            $this->addLog("[EMAIL] ✅ TLS activé");
+            
+            // EHLO après TLS
+            $this->writeCommand($sock, "EHLO cvtek.local");
+            $ehloResponse2 = $this->readResponse($sock);
+            if (strpos($ehloResponse2, '250') === false) {
+                fclose($sock);
+                return [
+                    'success' => false,
+                    'error' => "EHLO (après TLS) rejeté"
+                ];
+            }
+            $this->addLog("[EMAIL] ✅ EHLO accepté (après TLS)");
+            
+            // AUTH LOGIN
+            $this->addLog("[EMAIL] 🔐 Authentification...");
+            $this->writeCommand($sock, "AUTH LOGIN");
+            $authResponse = $this->readResponse($sock);
+            if (strpos($authResponse, '334') === false) {
+                fclose($sock);
+                $this->addLog("[EMAIL] ❌ Authentification non demandée");
+                return [
+                    'success' => false,
+                    'error' => "Authentification non demandée"
+                ];
+            }
+            
+            // Envoyer username
+            $this->writeCommand($sock, base64_encode($this->username));
+            $userResponse = $this->readResponse($sock);
+            if (strpos($userResponse, '334') === false) {
+                fclose($sock);
+                $this->addLog("[EMAIL] ❌ Password non demandé");
+                return [
+                    'success' => false,
+                    'error' => "Password non demandé"
+                ];
+            }
+            
+            // Envoyer password
+            $this->writeCommand($sock, base64_encode($this->password));
+            $response = $this->readResponse($sock);
+            
+            if (strpos($response, '235') === false) {
+                fclose($sock);
+                $this->addLog("[EMAIL] ❌ Authentification échouée");
+                return [
+                    'success' => false,
+                    'error' => 'Authentification échouée'
+                ];
+            }
+            $this->addLog("[EMAIL] ✅ Authentification réussie");
+            
+            // MAIL FROM
+            $this->writeCommand($sock, "MAIL FROM:<{$this->fromEmail}>");
+            $mailFromResponse = $this->readResponse($sock);
+            if (strpos($mailFromResponse, '250') === false) {
+                fclose($sock);
+                return [
+                    'success' => false,
+                    'error' => "MAIL FROM rejeté"
+                ];
+            }
+            $this->addLog("[EMAIL] ✅ Expéditeur accepté");
+            
+            // RCPT TO pour CHAQUE BCC (le serveur ne voit que ça, pas les headers)
+            $successCount = 0;
+            foreach ($bccRecipients as $email) {
+                $this->addLog("[EMAIL] 📨 Destinataire: $email");
+                $this->writeCommand($sock, "RCPT TO:<$email>");
+                $rcptToResponse = $this->readResponse($sock);
+                if (strpos($rcptToResponse, '250') !== false) {
+                    $successCount++;
+                    $this->addLog("[EMAIL] ✅ Destinataire accepté: $email");
+                } else {
+                    $this->addLog("[EMAIL] ⚠️  Destinataire rejeté: $email");
+                }
+            }
+            
+            if ($successCount === 0) {
+                fclose($sock);
+                $this->addLog("[EMAIL] ❌ Aucun destinataire accepté");
+                return [
+                    'success' => false,
+                    'error' => 'Aucun destinataire accepté'
+                ];
+            }
+            
+            // DATA
+            $this->writeCommand($sock, "DATA");
+            $dataResponse = $this->readResponse($sock);
+            if (strpos($dataResponse, '354') === false) {
+                fclose($sock);
+                return [
+                    'success' => false,
+                    'error' => "DATA rejeté"
+                ];
+            }
+            
+            // Construire les headers avec BCC en tant qu'en-tête
+            // Note: Le BCC header dans les headers HTML ne s'affiche PAS aux destinataires
+            // mais le serveur SMTP les reçoit via RCPT TO
+            $headers = "From: {$this->fromName} <{$this->fromEmail}>\r\n";
+            $headers .= "To: {$this->fromEmail}\r\n"; // Destinataire apparent (on peut aussi laisser vide)
+            $headers .= "Bcc: " . implode(', ', $bccRecipients) . "\r\n"; // BCC pour le log
+            $headers .= "Subject: $subject\r\n";
+            $headers .= "MIME-Version: 1.0\r\n";
+            $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+            $headers .= "\r\n";
+            
+            $message = $headers . $body . "\r\n.\r\n";
+            
+            $this->addLog("[EMAIL] 📏 Envoi du contenu à " . $successCount . " destinataire(s)...");
+            fwrite($sock, $message);
+            $submitResponse = $this->readResponse($sock);
+            
+            if (strpos($submitResponse, '250') === false) {
+                fclose($sock);
+                $this->addLog("[EMAIL] ❌ Message rejeté");
+                return [
+                    'success' => false,
+                    'error' => "Message rejeté: $submitResponse"
+                ];
+            }
+            $this->addLog("[EMAIL] ✅ Serveur a accepté le message");
+            
+            // QUIT
+            $this->writeCommand($sock, "QUIT");
+            fclose($sock);
+            
+            $this->addLog("[EMAIL] ✅ Email BCC ENVOYÉ avec succès");
+            $this->addLog("[EMAIL]    Sujet: $subject");
+            $this->addLog("[EMAIL]    Destinataires: " . count($bccRecipients));
+            
+            return [
+                'success' => true,
+                'method' => 'smtp_bcc',
+                'recipients_count' => count($bccRecipients),
+                'sent_count' => $successCount
+            ];
+            
+        } catch (Exception $e) {
+            $this->addLog("[EMAIL] ❌ EXCEPTION SMTP BCC: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Exception SMTP: ' . $e->getMessage()
+            ];
+        }
+    }
+    
+    /**
+     * Envoie via PHP mail() à chaque destinataire individuellement
+     * (Le BCC header ne fonctionne pas correctement sur Windows)
+     */
+    private function sendViaPhpMailWithBcc(array $bccRecipients, string $subject, string $body): array
+    {
+        try {
+            $this->addLog("[EMAIL] 📤 Tentative envoi mail() individuellement pour " . count($bccRecipients) . " destinataire(s)");
+            $this->addLog("[EMAIL]    ⚠️  Note: BCC header ne fonctionne pas sur Windows, envoi individuel");
+            
+            $successCount = 0;
+            $sentEmails = [];
+            $errors = [];
+            
+            // Envoyer à chaque destinataire individuellement
+            foreach ($bccRecipients as $email) {
+                $this->addLog("[EMAIL] 📨 Envoi à: $email");
+                
+                $headers = "MIME-Version: 1.0\r\n";
+                $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+                $headers .= "From: {$this->fromName} <{$this->fromEmail}>\r\n";
+                $headers .= "Reply-To: {$this->fromEmail}\r\n";
+                
+                $result = @mail($email, $subject, $body, $headers);
+                
+                if ($result) {
+                    $this->addLog("[EMAIL] ✅ Email envoyé à: $email");
+                    $successCount++;
+                    $sentEmails[] = $email;
+                } else {
+                    $this->addLog("[EMAIL] ❌ Échec envoi à: $email");
+                    $errors[] = $email;
+                }
+            }
+            
+            if ($successCount > 0) {
+                $this->addLog("[EMAIL] ✅ Email ENVOYÉ avec succès");
+                $this->addLog("[EMAIL]    Sujet: $subject");
+                $this->addLog("[EMAIL]    Résultat: " . $successCount . "/" . count($bccRecipients) . " destinataires");
+                return [
+                    'success' => true,
+                    'method' => 'php_mail_individual',
+                    'recipients_count' => count($bccRecipients),
+                    'sent_count' => $successCount,
+                    'sent_emails' => $sentEmails
+                ];
+            } else {
+                $this->addLog("[EMAIL] ❌ Tous les envois mail() ont échoué");
+                return [
+                    'success' => false,
+                    'error' => 'Tous les envois mail() ont échoué',
+                    'method' => 'php_mail_individual',
+                    'recipients_count' => count($bccRecipients),
+                    'sent_count' => 0
+                ];
+            }
+        } catch (Exception $e) {
+            $this->addLog("[EMAIL] ❌ EXCEPTION mail() individuel: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Exception mail(): ' . $e->getMessage(),
+                'method' => 'php_mail_individual'
+            ];
+        }
+    }
+    
+    /**
      * Envoie un email unique
      * Retourne un array {success: bool, error?: string}
      */
     private function sendEmail(string $to, string $subject, string $body): array
     {
-        // Sur Windows: SMTP d'abord (fiable), puis fallback mail()
-        // Sur Linux: SMTP d'abord (fiable), puis fallback mail()
-        $this->addLog("[EMAIL] 📤 Tentative SMTP d'abord...");
-        $smtpResult = $this->sendViaSMTP($to, $subject, $body);
-        if ($smtpResult['success']) {
-            return $smtpResult;
-        }
-        
-        $this->addLog("[EMAIL] ⚠️  SMTP a échoué, tentative mail()...");
-        
-        // Fallback sur mail() seulement si SMTP échoue
-        if (function_exists('mail')) {
-            return $this->sendViaPhpMail($to, $subject, $body);
-        }
-        
-        return $smtpResult;
+        // Sur Windows: mail() ne fonctionne PAS sans php.ini configuré
+        // Donc on saute directement au SMTP qui fonctionne
+        $this->addLog("[EMAIL] 📤 Utilisation SMTP Gmail directement (mail() non fiable sur Windows)...");
+        return $this->sendViaSMTP($to, $subject, $body);
+    }
+    
+    /**
+     * Envoie un email pour DOCUMENTS
+     * Même approche que les commentaires: mail() d'abord (ça fonctionne!)
+     * Fallback: SMTP seulement si mail() échoue
+     */
+    private function sendEmailForDocument(string $to, string $subject, string $body): array
+    {
+        // Utiliser la MÊME approche que sendEmail (mail() fonctionne pour les commentaires!)
+        return $this->sendEmail($to, $subject, $body);
     }
     
     /**
@@ -644,9 +1044,13 @@ class EmailService
             $this->writeCommand($sock, base64_encode($this->password));
             $response = $this->readResponse($sock);
             
+            $this->addLog("[EMAIL] 📋 Réponse serveur après password: " . trim($response));
+            
             if (strpos($response, '235') === false) {
                 fclose($sock);
                 $this->addLog("[EMAIL] ❌ ERREUR: Authentification échouée");
+                $this->addLog("[EMAIL]    Réponse serveur: " . trim($response));
+                $this->addLog("[EMAIL]    Code attendu: 235");
                 $this->addLog("[EMAIL]    Vérifiez les identifiants Gmail");
                 $this->addLog("[EMAIL]    Email: benoitccasibio@gmail.com");
                 $this->addLog("[EMAIL]    Code app: aiwachtcdfioihsi");
@@ -754,6 +1158,8 @@ class EmailService
     private function writeCommand($sock, string $command): void
     {
         fwrite($sock, $command . "\r\n");
+        fflush($sock); // Force l'envoi immédiat
+        usleep(100000); // 100ms de délai pour que le serveur traite
     }
     
     /**

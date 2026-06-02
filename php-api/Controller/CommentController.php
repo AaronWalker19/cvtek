@@ -23,7 +23,7 @@ class CommentController extends Controller
         $this->comments = new CommentRepository();
         $this->users = new UserRepository();
         $this->documents = new DocumentRepository();
-        $this->emailService = new EmailService();
+        $this->emailService = new EmailService(true); // Mode debug activé
     }
 
     protected function processGetRequest(HttpRequest $request): ?array

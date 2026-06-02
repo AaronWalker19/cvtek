@@ -396,7 +396,7 @@ class SystemController extends Controller
             error_log("[TEST-EMAIL] 🧪 TEST D'ENVOI MULTIPLES");
             error_log("========================================");
 
-            $emailService = new EmailService();
+            $emailService = new EmailService(true); // Mode debug activé
 
             // Récupérer les emails depuis les paramètres GET si fournis
             $emailsParam = $_GET['emails'] ?? null;
@@ -499,7 +499,7 @@ class SystemController extends Controller
             error_log("[TEST-EMAIL-REAL] 🧪 TEST AVEC VRAIES EMAILS");
             error_log("========================================");
 
-            $emailService = new EmailService();
+            $emailService = new EmailService(true); // Mode debug activé
 
             // Les VRAIES adresses fournies par l'utilisateur
             $realEmails = [

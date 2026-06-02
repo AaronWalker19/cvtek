@@ -38,15 +38,17 @@ export default function Sidebar({ bgColor, showAdmin = false }: SidebarProps) {
             </div>
 
             {/* Navigation Links */}
-            <Link to={user.role === 'student' ? '/' : '/professor'} className="relative shrink-0 w-full !text-[#ffffff] hover:!text-[#ffffff]">
-              <div className="flex flex-row items-center justify-center size-full">
-                <div className="content-stretch flex items-center justify-center p-[2px] relative size-full">
-                  <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] !text-[#ffffff] whitespace-nowrap">
-                    {user.role === 'student' ? 'Mes fichiers' : 'Documents'}
-                  </p>
+            {user.role !== 'admin' && (
+              <Link to={user.role === 'student' ? '/' : '/professor'} className="relative shrink-0 w-full !text-[#ffffff] hover:!text-[#ffffff]">
+                <div className="flex flex-row items-center justify-center size-full">
+                  <div className="content-stretch flex items-center justify-center p-[2px] relative size-full">
+                    <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[32px] !text-[#ffffff] whitespace-nowrap">
+                      {user.role === 'student' ? 'Mes fichiers' : 'Documents'}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+            )}
             {showAdmin && (
               <Link to="/admin" className="relative shrink-0 w-full !text-[#ffffff] hover:!text-[#ffffff]">
                 <div className="flex flex-row items-center justify-center size-full">
