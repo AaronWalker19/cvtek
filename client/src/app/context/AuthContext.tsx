@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { login as apiLogin, register as apiRegister, getCurrentUser, logout as apiLogout, User, storeToken, getToken, clearToken, getDemoToken, initializeDemoUsers, initializeAdmin } from '../../api/client';
+import { login as apiLogin, register as apiRegister, getCurrentUser, logout as apiLogout, User, storeToken, getToken, clearToken, getDemoToken, initializeDemoUsers, initializeAdmin, getUnilimAuthorizeUrl } from '../../api/client';
 
 export interface DemoUser extends User {
   userId?: number;  // Compat avec ancien code
@@ -11,6 +11,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string, role?: string) => Promise<void>;
   logout: () => Promise<void>;
+  loginWithUnilim: () => Promise<void>;
   loading: boolean;
   switchUser?: (userId: string) => void;  // Mode démo seulement
 }
@@ -182,8 +183,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginWithUnilim = async () => {
+    try {
+      console.log('🔐 Initiation de la connexion Unilim...');
+      const { authorize_url } = await getUnilimAuthorizeUrl();
+      console.log('📍 Redirection vers:', authorize_url);
+      
+      // Rediriger l'utilisateur vers Unilim
+      window.location.href = authorize_url;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('❌ Erreur initiation Unilim:', errorMsg);
+      throw new Error(`Erreur lors de l'initiation de la connexion Unilim: ${errorMsg}`);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout, loading, switchUser }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      user, 
+      login, 
+      register, 
+      logout, 
+      loginWithUnilim,
+      loading, 
+      switchUser
+    }}>
       {children}
     </AuthContext.Provider>
   );

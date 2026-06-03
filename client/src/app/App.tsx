@@ -4,9 +4,11 @@ import StudentDashboard from './pages/StudentDashboard';
 import FileView from './pages/fileview/[id]';
 import ProfessorDashboard from './pages/ProfessorDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import UnilimCallback from './pages/UnilimCallback';
+import AccessDenied from './pages/AccessDenied';
 import DemoUserSwitcher from './components/DemoUserSwitcher';
 
-function AppRoutes() {
+function ProtectedRoutes() {
   const { user, loading } = useAuth();
 
   // Attendre le chargement de l'authentification
@@ -72,13 +74,25 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router basename="/cvtek">
-        <div className="size-full">
-          <AppRoutes />
-          <DemoUserSwitcher />
-        </div>
-      </Router>
-    </AuthProvider>
+    <Router basename="/cvtek">
+      <Routes>
+        {/* Public routes (accessible without authentication) */}
+        <Route path="/auth/callback" element={<UnilimCallback />} />
+        <Route path="/access-denied" element={<AccessDenied />} />
+        
+        {/* Protected routes */}
+        <Route
+          path="/*"
+          element={
+            <AuthProvider>
+              <div className="size-full">
+                <ProtectedRoutes />
+                <DemoUserSwitcher />
+              </div>
+            </AuthProvider>
+          }
+        />
+      </Routes>
+    </Router>
   );
 }

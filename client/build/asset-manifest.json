@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/cvtek/static/css/main.1deb7c4d.css",
-    "main.js": "/cvtek/static/js/main.340ab10a.js",
+    "main.css": "/cvtek/static/css/main.3ce9dda2.css",
+    "main.js": "/cvtek/static/js/main.90a8484d.js",
     "index.html": "/cvtek/index.html",
-    "main.1deb7c4d.css.map": "/cvtek/static/css/main.1deb7c4d.css.map",
-    "main.340ab10a.js.map": "/cvtek/static/js/main.340ab10a.js.map"
+    "main.3ce9dda2.css.map": "/cvtek/static/css/main.3ce9dda2.css.map",
+    "main.90a8484d.js.map": "/cvtek/static/js/main.90a8484d.js.map"
   },
   "entrypoints": [
-    "static/css/main.1deb7c4d.css",
-    "static/js/main.340ab10a.js"
+    "static/css/main.3ce9dda2.css",
+    "static/js/main.90a8484d.js"
   ]
 }

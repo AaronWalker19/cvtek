@@ -1028,3 +1028,58 @@ export async function deleteProfessor(professorId: number): Promise<void> {
     }
 }
 
+// ===============================================
+// Authentification SSO Unilim
+// ===============================================
+
+/**
+ * Obtient l'URL de redirection vers Unilim
+ * Endpoint: GET /api/auth/unilim-authorize
+ */
+export async function getUnilimAuthorizeUrl(): Promise<{ authorize_url: string; state: string }> {
+    const response = await apiCall<{ authorize_url: string; state: string }>(
+        `/auth/unilim-authorize`,
+        { method: 'GET', throwOnError: true }
+    );
+
+    if (!response.success || !response.data?.authorize_url) {
+        throw new Error(response.error || 'Erreur obtention URL Unilim');
+    }
+
+    return response.data;
+}
+
+/**
+ * Traite le callback Unilim et connecte l'utilisateur
+ * Endpoint: POST /api/auth/unilim-callback
+ */
+export async function handleUnilimCallback(code: string, state: string): Promise<User> {
+    const response = await apiCall<{ user: User; token: string; unilim_payload: any; access_denied?: boolean; reason?: string }>(
+        `/auth/unilim-callback`,
+        {
+            method: 'POST',
+            body: JSON.stringify({ code, state }),
+            throwOnError: false  // Ne pas lancer d'erreur, on va vérifier nous-mêmes
+        }
+    );
+
+    // Vérifier si c'est une erreur d'accès refusé
+    if (response.data?.access_denied) {
+        const error: any = new Error(response.error || 'Accès refusé');
+        error.access_denied = true;
+        error.reason = response.data.reason;
+        throw error;
+    }
+
+    if (!response.success || !response.data?.user) {
+        throw new Error(response.error || 'Authentification Unilim échouée');
+    }
+
+    // Stocker le token JWT
+    if (response.data.token) {
+        storeToken(response.data.token);
+    }
+
+    return response.data.user;
+}
+

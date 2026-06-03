@@ -57,6 +57,14 @@ define('ALLOWED_EXTENSIONS', ['pdf', 'doc', 'docx', 'txt', 'mp4', 'mov', 'avi', 
 define('JWT_SECRET', getenv('JWT_SECRET') ?: 'change-me-in-production');
 define('JWT_EXPIRATION', (int)(getenv('JWT_EXPIRATION') ?: 604800));
 
+// Unilim SSO (OpenID Connect)
+define('UNILIM_CLIENT_ID', getenv('UNILIM_CLIENT_ID') ?: 'gupp');
+define('UNILIM_CLIENT_SECRET', getenv('UNILIM_CLIENT_SECRET') ?: '');
+define('UNILIM_AUTHORIZE_URL', 'https://cas.unilim.fr/authorize');
+define('UNILIM_TOKEN_URL', 'https://cas.unilim.fr/token');
+define('UNILIM_REDIRECT_URI', getenv('UNILIM_REDIRECT_URI') ?: 'http://localhost:3000/auth/callback');
+define('UNILIM_SCOPE', 'openid');
+
 // Paths
 define('PROJECT_ROOT', dirname(__DIR__));
 define('UPLOADS_PATH', PROJECT_ROOT . '/uploads');

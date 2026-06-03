@@ -44,6 +44,11 @@ class AuthController extends Controller
             return $this->handleLogout($request);
         }
 
+        // POST /api/auth/unilim-callback (callback Unilim SSO)
+        if ($resource === 'auth' && $id === 'unilim-callback') {
+            return $this->handleUnilimCallback($request);
+        }
+
         return ["error" => "Endpoint non trouvé"];
     }
 
@@ -69,6 +74,11 @@ class AuthController extends Controller
         // GET /api/auth/demo-token?user_id=X → Obtenir un token pour un utilisateur démo
         if ($request->getResource() === 'auth' && $id === 'demo-token') {
             return $this->handleDemoToken($request);
+        }
+
+        // GET /api/auth/unilim-authorize → Obtenir l'URL de redirection Unilim
+        if ($request->getResource() === 'auth' && $id === 'unilim-authorize') {
+            return $this->handleUnilimAuthorize($request);
         }
 
         // GET /api/auth/{userId} → Récupérer un utilisateur par ID
@@ -604,6 +614,354 @@ class AuthController extends Controller
                 'code' => 500
             ];
         }
+    }
+
+    /**
+     * Obtient l'URL de redirection vers Unilim
+     * GET /api/auth/unilim-authorize
+     */
+    private function handleUnilimAuthorize(HttpRequest $request): ?array
+    {
+        // Générer un state aléatoire pour la sécurité (CSRF protection)
+        $state = bin2hex(random_bytes(32));
+        
+        // Sauvegarder le state en session pour vérification ultérieure
+        $_SESSION['unilim_state'] = $state;
+        $_SESSION['unilim_state_created'] = time();
+        
+        // Construire l'URL de redirection Unilim
+        $authorizeUrl = UNILIM_AUTHORIZE_URL . '?' . http_build_query([
+            'client_id' => UNILIM_CLIENT_ID,
+            'response_type' => 'code',
+            'scope' => UNILIM_SCOPE,
+            'state' => $state,
+            'redirect_uri' => UNILIM_REDIRECT_URI,
+        ]);
+        
+        logAction("UNILIM_AUTHORIZE_URL_GENERATED", ['state' => substr($state, 0, 8) . '...']);
+        
+        return [
+            'authorize_url' => $authorizeUrl,
+            'state' => $state
+        ];
+    }
+
+    /**
+     * Traite le callback Unilim
+     * POST /api/auth/unilim-callback
+     * 
+     * Body: { code: "...", state: "..." }
+     */
+    private function handleUnilimCallback(HttpRequest $request): ?array
+    {
+        try {
+            $data = $request->getJson();
+            
+            if (empty($data['code'])) {
+                return ['error' => 'Code Unilim manquant', 'code' => 400];
+            }
+            
+            if (empty($data['state'])) {
+                return ['error' => 'State Unilim manquant', 'code' => 400];
+            }
+            
+            $code = sanitizeString($data['code']);
+            $state = sanitizeString($data['state']);
+            
+            // Vérifier le state (CSRF protection)
+            if (empty($_SESSION['unilim_state']) || $_SESSION['unilim_state'] !== $state) {
+                logAction("UNILIM_STATE_MISMATCH", ['code' => substr($code, 0, 8) . '...']);
+                return ['error' => 'State invalide ou expiré', 'code' => 401];
+            }
+            
+            // Vérifier que le state n'est pas trop ancien (5 minutes)
+            $stateAge = time() - ($_SESSION['unilim_state_created'] ?? 0);
+            if ($stateAge > 300) {
+                logAction("UNILIM_STATE_EXPIRED", ['age' => $stateAge]);
+                return ['error' => 'State expiré', 'code' => 401];
+            }
+            
+            // Nettoyer le state
+            unset($_SESSION['unilim_state']);
+            unset($_SESSION['unilim_state_created']);
+            
+            logAction("UNILIM_CALLBACK_PROCESSING", ['code' => substr($code, 0, 8) . '...']);
+            
+            // Effectuer l'appel POST au serveur token Unilim
+            $tokenResponse = $this->exchangeCodeForToken($code);
+            
+            if (!$tokenResponse) {
+                return ['error' => 'Erreur lors de l\'échange du code', 'code' => 500];
+            }
+            
+            // Vérifier que nous avons un id_token
+            if (empty($tokenResponse['id_token'])) {
+                logAction("UNILIM_NO_ID_TOKEN", []);
+                return ['error' => 'Pas de token d\'identité reçu', 'code' => 500];
+            }
+            
+            // Décoder le JWT
+            $payload = $this->decodeJWT($tokenResponse['id_token']);
+            
+            if (!$payload) {
+                logAction("UNILIM_JWT_DECODE_FAILED", []);
+                return ['error' => 'Erreur décodage JWT', 'code' => 500];
+            }
+            
+            logAction("UNILIM_JWT_DECODED", [
+                'sub' => $payload['sub'] ?? '',
+                'email' => $payload['email'] ?? '',
+                'name' => $payload['name'] ?? ''
+            ]);
+            
+            // Extraire les informations de l'utilisateur du JWT
+            $email = $payload['email'] ?? null;
+            $username = $payload['preferred_username'] ?? $payload['name'] ?? $payload['sub'] ?? null;
+            
+            if (!$email || !$username) {
+                logAction("UNILIM_MISSING_USER_INFO", ['payload' => $payload]);
+                return ['error' => 'Email ou username manquant dans le token', 'code' => 400];
+            }
+            
+            $email = sanitizeString($email);
+            $username = sanitizeString($username);
+            
+            // Déterminer le rôle (utiliser le payload Unilim si disponible)
+            $role = $payload['role'] ?? 'student';
+            if (!in_array($role, ['student', 'professor', 'admin'])) {
+                $role = 'student';
+            }
+            
+            // ============================================================
+            // VÉRIFICATION DU DOMAINE D'EMAIL - CONTRÔLE D'ACCÈS
+            // ============================================================
+            $accessDenied = $this->checkEmailAccess($email);
+            if ($accessDenied !== true) {
+                // Accès refusé - retourner un code d'erreur spécifique
+                logAction("UNILIM_ACCESS_DENIED", [
+                    'email' => $email,
+                    'reason' => $accessDenied
+                ]);
+                
+                return [
+                    'error' => 'Accès refusé. Votre adresse email n\'est pas autorisée pour accéder à cette application.',
+                    'reason' => $accessDenied,
+                    'access_denied' => true,
+                    'code' => 403
+                ];
+            }
+            
+            // Créer ou récupérer l'utilisateur
+            $user = $this->auth->findOrCreateByEmail($email, $username, $role);
+            
+            if (!$user) {
+                logAction("UNILIM_USER_CREATION_FAILED", ['email' => $email]);
+                return ['error' => 'Erreur création/récupération utilisateur', 'code' => 500];
+            }
+            
+            // Générer le token JWT de l'app
+            $token = generateToken($user['id'], $user['username'], $user['role']);
+            
+            logAction("UNILIM_LOGIN_SUCCESS", [
+                'userId' => $user['id'],
+                'email' => $email,
+                'username' => $username
+            ]);
+            
+            return [
+                'token' => $token,
+                'user' => [
+                    'id' => (int)$user['id'],
+                    'username' => $user['username'],
+                    'email' => $user['email'],
+                    'role' => $user['role'],
+                    'parcour' => $user['parcour'],
+                ],
+                'unilim_payload' => $payload
+            ];
+            
+        } catch (Exception $e) {
+            error_log("❌ Erreur Unilim callback: " . $e->getMessage());
+            logAction("UNILIM_CALLBACK_ERROR", ['error' => $e->getMessage()]);
+            return [
+                'error' => 'Erreur traitement callback Unilim: ' . $e->getMessage(),
+                'code' => 500
+            ];
+        }
+    }
+
+    /**
+     * Échange le code d'autorisation pour un token d'identité
+     * Effectue la requête POST à https://cas.unilim.fr/token
+     */
+    private function exchangeCodeForToken(string $code): ?array
+    {
+        try {
+            $postData = [
+                'grant_type' => 'authorization_code',
+                'code' => $code,
+                'client_id' => UNILIM_CLIENT_ID,
+                'client_secret' => UNILIM_CLIENT_SECRET,
+                'redirect_uri' => UNILIM_REDIRECT_URI,
+            ];
+            
+            $options = [
+                'http' => [
+                    'method' => 'POST',
+                    'header' => [
+                        'Content-Type: application/x-www-form-urlencoded',
+                        'Accept: application/json'
+                    ],
+                    'content' => http_build_query($postData),
+                    'timeout' => 10
+                ]
+            ];
+            
+            $context = stream_context_create($options);
+            $response = file_get_contents(UNILIM_TOKEN_URL, false, $context);
+            
+            if ($response === false) {
+                error_log("❌ Erreur lors de l'appel à " . UNILIM_TOKEN_URL);
+                return null;
+            }
+            
+            $data = json_decode($response, true);
+            
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                error_log("❌ Erreur décodage JSON token response: " . json_last_error_msg());
+                return null;
+            }
+            
+            if (isset($data['error'])) {
+                error_log("❌ Erreur Unilim token: " . ($data['error_description'] ?? $data['error']));
+                return null;
+            }
+            
+            logAction("UNILIM_TOKEN_EXCHANGE_SUCCESS", []);
+            
+            return $data;
+            
+        } catch (Exception $e) {
+            error_log("❌ Exception lors de l'échange de code: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Décode un JWT (ID Token de Unilim)
+     * 
+     * Note: Cette fonction ne valide PAS la signature du JWT
+     * En production, vous devriez valider la signature avec la clé publique de Unilim
+     * 
+     * Pour l'instant, on fait confiance au HTTPS pour la sécurité du transport
+     */
+    private function decodeJWT(string $token): ?array
+    {
+        try {
+            // Diviser le token en ses 3 parties: header.payload.signature
+            $parts = explode('.', $token);
+            
+            if (count($parts) !== 3) {
+                error_log("❌ Token JWT invalide: mauvais format");
+                return null;
+            }
+            
+            // Décoder le payload (partie 2, index 1)
+            $payload = $parts[1];
+            
+            // Ajouter le padding si nécessaire pour base64
+            $padding = 4 - (strlen($payload) % 4);
+            if ($padding !== 4) {
+                $payload .= str_repeat('=', $padding);
+            }
+            
+            // Décoder de base64
+            $decoded = base64_decode($payload, true);
+            
+            if ($decoded === false) {
+                error_log("❌ Erreur décodage base64 du payload JWT");
+                return null;
+            }
+            
+            // Parser le JSON
+            $payloadData = json_decode($decoded, true);
+            
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                error_log("❌ Erreur parsing JSON du payload JWT: " . json_last_error_msg());
+                return null;
+            }
+            
+            // TODO: Valider la signature du JWT avec la clé publique de Unilim
+            // Pour l'instant, on fait simplement confiance au HTTPS
+            
+            return $payloadData;
+            
+        } catch (Exception $e) {
+            error_log("❌ Exception décodage JWT: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Vérifie l'accès d'un utilisateur basé sur le domaine d'email
+     * 
+     * Règles:
+     * - @etu.unilim.fr: Accès autorisé (création automatique)
+     * - @unilim.fr: Accès seulement si l'utilisateur existe déjà en base
+     * - Autres domaines: Accès refusé
+     * 
+     * @param string $email L'email de l'utilisateur
+     * @return bool|string True si accès autorisé, sinon un message d'erreur
+     */
+    private function checkEmailAccess(string $email): bool|string
+    {
+        // Extraire le domaine de l'email
+        $emailParts = explode('@', $email);
+        if (count($emailParts) !== 2) {
+            return 'Format d\'email invalide';
+        }
+        
+        $domain = strtolower($emailParts[1]);
+        $username = $emailParts[0];
+        
+        // RÈGLE 1: Les emails @etu.unilim.fr sont toujours autorisés
+        if ($domain === 'etu.unilim.fr') {
+            logAction("UNILIM_EMAIL_CHECK", [
+                'email' => $email,
+                'domain' => $domain,
+                'result' => 'ALLOWED_ETU'
+            ]);
+            return true;
+        }
+        
+        // RÈGLE 2: Les emails @unilim.fr doivent exister en base
+        if ($domain === 'unilim.fr') {
+            $user = $this->auth->findByEmail($email);
+            
+            if ($user) {
+                logAction("UNILIM_EMAIL_CHECK", [
+                    'email' => $email,
+                    'domain' => $domain,
+                    'result' => 'ALLOWED_UNILIM_EXISTS'
+                ]);
+                return true;
+            } else {
+                logAction("UNILIM_EMAIL_CHECK", [
+                    'email' => $email,
+                    'domain' => $domain,
+                    'result' => 'DENIED_UNILIM_NOT_EXISTS'
+                ]);
+                return 'Professeur non enregistré. Veuillez contacter l\'administrateur.';
+            }
+        }
+        
+        // RÈGLE 3: Tous les autres domaines sont refusés
+        logAction("UNILIM_EMAIL_CHECK", [
+            'email' => $email,
+            'domain' => $domain,
+            'result' => 'DENIED_INVALID_DOMAIN'
+        ]);
+        return 'Domaine d\'email non autorisé. Seuls les emails @etu.unilim.fr et @unilim.fr sont acceptés.';
     }
 }
 
