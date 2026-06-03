@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getProfessors, createProfessor, deleteProfessor, getProfessor, getCommentsByUserId, Professor, Comment } from '../../api/client';
 import ProfessorProfileModal from '../../components/ProfessorProfileModal';
+import DeleteConfirmationModal from '../../components/DeleteConfirmationModal';
 
 interface PageAdminProps {
   onLogout: () => void;
@@ -17,6 +18,8 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
   const [profWrittenComments, setProfWrittenComments] = useState<Comment[]>([]);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [selectedProfessorToDelete, setSelectedProfessorToDelete] = useState<Professor | null>(null);
 
   // Charger la liste des professeurs au montage
   useEffect(() => {
@@ -39,32 +42,59 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
 
   const handleAddProfessor = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEmail.trim()) return;
+    
+    if (!newEmail.trim()) {
+      return;
+    }
 
     try {
       setIsAdding(true);
-      const newProf = await createProfessor(newEmail);
-      setProfessors([...professors, newProf]);
+      await createProfessor(newEmail);
+      
+      // Recharger la liste des profs
+      const updatedProfs = await getProfessors();
+      setProfessors(updatedProfs);
       setNewEmail('');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur lors de l\'ajout');
-      console.error('Erreur:', err);
+      console.error('[ERROR] Failed to add professor:', err);
+      
+      // Recharger la liste des profs même en cas d'erreur
+      try {
+        const updatedProfs = await getProfessors();
+        setProfessors(updatedProfs);
+        setNewEmail('');
+      } catch (reloadErr) {
+        console.error('[ERROR] Failed to reload professors:', reloadErr);
+      }
     } finally {
       setIsAdding(false);
     }
   };
 
-  const handleDeleteProfessor = async (profId: number) => {
-    // eslint-disable-next-line no-restricted-globals
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce professeur?')) return;
+  const handleDeleteProfessor = (prof: Professor) => {
+    setSelectedProfessorToDelete(prof);
+    setShowDeleteConfirmation(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedProfessorToDelete) return;
 
     try {
-      setDeleting(profId);
-      await deleteProfessor(profId);
-      setProfessors(professors.filter(p => p.id !== profId));
+      console.log('[DEBUG] handleConfirmDelete called with profId:', selectedProfessorToDelete.id, 'type:', typeof selectedProfessorToDelete.id);
+      setDeleting(selectedProfessorToDelete.id);
+      await deleteProfessor(selectedProfessorToDelete.id);
+      console.log('[DEBUG] Professor deleted successfully');
+      
+      // Recharger la liste des profs
+      const updatedProfs = await getProfessors();
+      setProfessors(updatedProfs);
+      
+      // Fermer la modal
+      setShowDeleteConfirmation(false);
+      setSelectedProfessorToDelete(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur lors de la suppression');
-      console.error('Erreur:', err);
+      console.error('[ERROR] Failed to delete professor:', err);
+      console.error('[ERROR] Details - profId:', selectedProfessorToDelete.id, 'type:', typeof selectedProfessorToDelete.id);
     } finally {
       setDeleting(null);
     }
@@ -227,7 +257,7 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteProfessor(prof.id);
+                        handleDeleteProfessor(prof);
                       }}
                       disabled={deleting === prof.id}
                       className="bg-[#b51621] content-stretch flex items-center justify-center p-[3px] relative rounded-[4px] shrink-0 w-[120px] hover:bg-[#8e1119] transition-colors disabled:opacity-50 z-10"
@@ -259,6 +289,20 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
           }}
         />
       )}
+
+      {/* Modal de confirmation de suppression */}
+      <DeleteConfirmationModal
+        show={showDeleteConfirmation}
+        title="Supprimer un professeur"
+        message="Êtes-vous sûr de vouloir supprimer ce professeur ?"
+        itemName={selectedProfessorToDelete ? `${selectedProfessorToDelete.username} (${selectedProfessorToDelete.email})` : undefined}
+        isDeleting={deleting === selectedProfessorToDelete?.id}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setShowDeleteConfirmation(false);
+          setSelectedProfessorToDelete(null);
+        }}
+      />
     </div>
   );
 }

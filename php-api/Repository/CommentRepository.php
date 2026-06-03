@@ -137,12 +137,10 @@ class CommentRepository extends Repository
      */
     public function deleteByUserId(int $userId): bool
     {
-        $success = $this->execute(
+        return $this->executeUpdate(
             "DELETE FROM commentaire WHERE id_user = ?",
             [$userId]
         );
-
-        return $success !== false;
     }
 
     /**

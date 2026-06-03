@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../app/context/AuthContext';
 import { Professor, Comment, deleteComment } from '../api/client';
+import svgPaths from '../imports/PageDeBaseCoteProf/svg-9gqyfpru0n';
 
 interface ProfessorProfileModalProps {
   show: boolean;
@@ -49,115 +50,140 @@ export default function ProfessorProfileModal({
 
   return (
     <div
-      className="fixed inset-0 bg-[#00000050] flex items-center justify-center z-50"
+      className="fixed inset-0 bg-[#000000] bg-opacity-50 flex items-center justify-center z-50"
       onClick={onClose}
     >
       <div
-        className="bg-[#f7f7f7] rounded-lg p-8 shadow-2xl max-w-6xl border-2 border-[#36302a] w-full mx-4 max-h-[90vh] overflow-y-auto"
+        className="bg-[#ffffff] rounded-lg shadow-lg max-w-4xl w-[90%] max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="mb-6 pb-4 border-b-2 border-[#36302a]">
-          <h2 className="text-3xl font-bold text-[#36302a]">{professor.username}</h2>
-          <p className="text-[#666] mt-2">{professor.email}</p>
-        </div>
-
-        {/* Comments Section */}
-        {comments.length > 0 && (
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-[#36302a] mb-3">
-              Commentaires ({comments.length})
-            </h3>
-
-            <div className="grid grid-cols-3 gap-2">
-              {comments.map((comment) => (
-                <div
-                  key={comment.id}
-                  onClick={() => handleCommentClick(comment.id_docversion)}
-                  className="bg-gradient-to-br from-[#ffffff] to-[#f9f9f9] p-3 rounded-lg border-l-4 border-[#4b575f] shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+        {/* Modal Header */}
+        <div className="flex items-center justify-between p-[30px] border-b-2 border-[#4b575f]">
+          <div className="flex flex-row items-center">
+            <div className="overflow-clip relative shrink-0 size-[140px]">
+              <div className="absolute inset-[8.33%]">
+                <svg
+                  className="absolute block inset-0 size-full"
+                  fill="none"
+                  preserveAspectRatio="none"
+                  viewBox="0 0 33.3334 33.3334"
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <p className="font-bold text-[#36302a] text-sm">{comment.username}</p>
-                      <p className="text-xs text-[#999] mt-0.5">
-                        {new Date(comment.date).toLocaleDateString('fr-FR', { 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-[#36302a] text-xs leading-relaxed bg-[#fafafa] p-2 rounded border border-[#e0e0e0]">
-                    {comment.text}
-                  </p>
-                </div>
-              ))}
+                  <path
+                    clipRule="evenodd"
+                    d={svgPaths.pc3f900}
+                    fill="var(--fill-0, #4b575f)"
+                    fillRule="evenodd"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div className="flex flex-col gap-[5px]">
+              <h2 className="font-['Inter:Bold',sans-serif] font-bold text-[24px] text-[#4b575f]">
+                {professor.username}
+              </h2>
+              <p className="font-['Inter:Regular',sans-serif] text-[16px] text-[#36302a]">
+                {professor.email}
+              </p>
             </div>
           </div>
-        )}
 
-        {/* Written Comments Section */}
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold text-[#36302a] mb-3">
-            Commentaires écrits ({writtenComments.length})
-          </h3>
-
-          {writtenComments.length === 0 ? (
-            <div className="text-center py-12 bg-[#f5f5f5] rounded-lg border-2 border-dashed border-[#d0d0d0]">
-              <p className="text-[#999] text-lg">Aucun commentaire écrit</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {writtenComments.map((comment) => (
-                <div
-                  key={comment.id}
-                  onClick={() => handleCommentClick(comment.id_docversion)}
-                  className="bg-gradient-to-br from-[#ffffff] to-[#f9f9f9] p-3 rounded-lg border-l-4 border-[#999] shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <p className="font-bold text-[#36302a] text-sm">Réponse à l'étudiant</p>
-                      <p className="text-xs text-[#999] mt-0.5">
-                        {new Date(comment.date).toLocaleDateString('fr-FR', { 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteComment(comment.id);
-                      }}
-                      disabled={deleting === comment.id}
-                      className="ml-3 bg-[#b51621] text-white px-2 py-0.5 rounded text-xs hover:bg-[#8e1119] transition-colors disabled:opacity-50"
-                    >
-                      {deleting === comment.id ? '...' : 'Supprimer'}
-                    </button>
-                  </div>
-                  <p className="text-[#36302a] text-xs leading-relaxed bg-[#fafafa] p-2 rounded border border-[#e0e0e0] mb-2">
-                    {comment.text}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Close Button */}
-        <div className="flex gap-4 justify-end pt-4 border-t-2 border-[#36302a]">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-[#4b575f] text-[#ffffff] rounded font-medium hover:bg-[#3a444b] transition-colors"
+            className="text-[#4b575f] text-[32px] font-bold hover:text-[#36302a] transition-colors"
           >
-            Fermer
+            ×
           </button>
+        </div>
+
+        {/* Modal Content */}
+        <div className="p-[30px]">
+          {/* Comments Section */}
+          {comments.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-[#36302a] mb-4 font-['Inter:Medium',sans-serif]">
+                Commentaires reçus ({comments.length})
+              </h3>
+
+              <div className="grid grid-cols-3 gap-4">
+                {comments.map((comment) => (
+                  <div
+                    key={comment.id}
+                    onClick={() => handleCommentClick(comment.id_docversion)}
+                    className="bg-gradient-to-br from-[#ffffff] to-[#f9f9f9] p-4 rounded-lg border-l-4 border-[#4b575f] shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <p className="font-bold text-[#36302a] text-sm">{comment.username}</p>
+                        <p className="text-xs text-[#999] mt-1">
+                          {new Date(comment.date).toLocaleDateString('fr-FR', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-[#36302a] text-xs leading-relaxed bg-[#fafafa] p-2 rounded border border-[#e0e0e0]">
+                      {comment.text}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Written Comments Section */}
+          <div>
+            <h3 className="text-lg font-semibold text-[#36302a] mb-4 font-['Inter:Medium',sans-serif]">
+              Commentaires écrits ({writtenComments.length})
+            </h3>
+
+            {writtenComments.length === 0 ? (
+              <div className="text-center py-12 bg-[#f5f5f5] rounded-lg border border-[#e0e0e0]">
+                <p className="text-[#999]">Aucun commentaire écrit</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-4">
+                {writtenComments.map((comment) => (
+                  <div
+                    key={comment.id}
+                    onClick={() => handleCommentClick(comment.id_docversion)}
+                    className="bg-gradient-to-br from-[#ffffff] to-[#f9f9f9] p-4 rounded-lg border-l-4 border-[#4b575f] shadow-sm hover:shadow-md transition-shadow cursor-pointer relative group"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <p className="font-bold text-[#36302a] text-sm">Réponse à l'étudiant</p>
+                        <p className="text-xs text-[#999] mt-1">
+                          {new Date(comment.date).toLocaleDateString('fr-FR', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteComment(comment.id);
+                        }}
+                        disabled={deleting === comment.id}
+                        className="ml-2 bg-[#b51621] text-white px-2 py-1 rounded text-xs hover:bg-[#8e1119] transition-colors disabled:opacity-50"
+                      >
+                        {deleting === comment.id ? '...' : 'Supprimer'}
+                      </button>
+                    </div>
+                    <p className="text-[#36302a] text-xs leading-relaxed bg-[#fafafa] p-2 rounded border border-[#e0e0e0]">
+                      {comment.text}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

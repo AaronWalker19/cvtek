@@ -572,5 +572,38 @@ class AuthController extends Controller
             ]
         ];
     }
+
+    /**
+     * Déconnecte l'utilisateur
+     * POST /api/auth/logout
+     */
+    private function handleLogout(HttpRequest $request): ?array
+    {
+        try {
+            $user = getSessionUser();
+            
+            if ($user) {
+                logAction("LOGOUT_ATTEMPT", ['userId' => $user['id'], 'username' => $user['username']]);
+            }
+
+            // Détruire la session PHP
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_destroy();
+            }
+
+            logAction("LOGOUT_SUCCESS", ['userId' => $user['id'] ?? null]);
+
+            return [
+                'success' => true,
+                'message' => 'Déconnecté avec succès'
+            ];
+        } catch (Exception $e) {
+            error_log("❌ Erreur logout: " . $e->getMessage());
+            return [
+                'error' => 'Erreur lors de la déconnexion: ' . $e->getMessage(),
+                'code' => 500
+            ];
+        }
+    }
 }
 

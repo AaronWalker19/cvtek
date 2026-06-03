@@ -279,24 +279,25 @@ export default function ProfessorDashboard() {
   useEffect(() => {
     const loadDocumentVersions = async () => {
       if (!selectedStudent) {
-        setDocumentVersions({});
-        return;
+        return; // Ne pas vider, garder les versions en cache
       }
 
       const studentDocs = getStudentDocuments(selectedStudent.userId);
-      const versions: { [docId: number]: any[] } = {};
+      const newVersions: { [docId: number]: any[] } = { ...documentVersions }; // Garder les versions existantes
 
       for (const doc of studentDocs) {
-        try {
-          const fullDoc = await getDocument(doc.id);
-          versions[doc.id] = (fullDoc as any).availableVersions || [{ version: doc.version }];
-        } catch (error) {
-          console.error(`❌ Erreur chargement versions doc ${doc.id}:`, error);
-          versions[doc.id] = [{ version: doc.version }];
+        if (!newVersions[doc.id]) { // Ne charger que si pas encore en cache
+          try {
+            const fullDoc = await getDocument(doc.id);
+            newVersions[doc.id] = (fullDoc as any).availableVersions || [{ version: doc.version }];
+          } catch (error) {
+            console.error(`❌ Erreur chargement versions doc ${doc.id}:`, error);
+            newVersions[doc.id] = [{ version: doc.version }];
+          }
         }
       }
 
-      setDocumentVersions(versions);
+      setDocumentVersions(newVersions);
     };
 
     loadDocumentVersions();

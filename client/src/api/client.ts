@@ -143,6 +143,11 @@ export async function apiCall<T = any>(
     const throwOnError = options.throwOnError ?? true;
     
     try {
+        // Log pour les requêtes DELETE
+        if (options.method === 'DELETE') {
+            console.log('[DEBUG] apiCall - DELETE request to:', url);
+        }
+
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
             ...options.headers,
@@ -157,7 +162,7 @@ export async function apiCall<T = any>(
         const response = await fetch(url, {
             ...options,
             headers,
-            credentials: 'include', // Important pour les cookies de session
+            credentials: 'include',
         });
 
         // Parser la réponse
@@ -167,29 +172,26 @@ export async function apiCall<T = any>(
         if (contentType?.includes('application/json')) {
             data = await response.json();
         } else {
-            // Si ce n'est pas du JSON, créer une réponse d'erreur
             const text = await response.text();
-            console.error('❌ Réponse non-JSON reçue:', text.substring(0, 500));
+            console.error('❌ Non-JSON response:', text.substring(0, 200));
             data = {
                 success: false,
-                error: 'Réponse serveur invalide (pas du JSON)',
+                error: 'Invalid server response (not JSON)',
             };
+        }
+
+        // Log pour les réponses DELETE
+        if (options.method === 'DELETE') {
+            console.log('[DEBUG] apiCall - DELETE response status:', response.status);
+            console.log('[DEBUG] apiCall - DELETE response data:', data);
         }
 
         // Afficher les logs s'ils existent dans la réponse
         displayLogsFromResponse(data);
-        
-        // Log de débogage pour les réponses de création/modification
-        if (endpoint.includes('/documents') || endpoint.includes('/comments')) {
-            if (data.logs || (data.data && typeof data.data === 'object' && data.data.logs)) {
-                console.log('📦 Structure de réponse:', JSON.stringify(data, null, 2));
-            }
-        }
 
         // Vérifier le statut HTTP
         if (!response.ok) {
             console.error(`❌ API Error (${response.status}):`, data.error);
-            console.error(`   📋 Réponse complète:`, data);
             if (throwOnError) {
                 throw new Error(data.error || `HTTP ${response.status}`);
             }
@@ -993,11 +995,7 @@ export async function createProfessor(email: string): Promise<Professor> {
 
     if (!response.success) {
         const errorMsg = response.error || 'Erreur lors de la création du professeur';
-        console.error('❌ createProfessor failed:', { 
-            error: response.error, 
-            details: response.details,
-            fullResponse: response 
-        });
+        console.error('❌ createProfessor failed:', errorMsg);
         throw new Error(errorMsg);
     }
 
@@ -1009,13 +1007,24 @@ export async function createProfessor(email: string): Promise<Professor> {
  * Endpoint: DELETE /api/admin/professors/{professorId}
  */
 export async function deleteProfessor(professorId: number): Promise<void> {
+    console.log('[DEBUG] deleteProfessor called with ID:', professorId, 'type:', typeof professorId);
+    
+    const url = `/admin/professors/${professorId}`;
+    console.log('[DEBUG] Sending DELETE request to:', url);
+    
     const response = await apiCall(
-        `/admin/professors/${professorId}`,
+        url,
         { method: 'DELETE' }
     );
 
+    console.log('[DEBUG] Response from server:', response);
+    console.log('[DEBUG] Response.success:', response.success, 'Response.error:', response.error);
+
     if (!response.success) {
-        throw new Error(response.error || 'Erreur lors de la suppression du professeur');
+        const errorMsg = response.error || 'Erreur lors de la suppression du professeur';
+        console.error('[ERROR] deleteProfessor failed with error:', errorMsg);
+        console.error('[ERROR] Full response:', response);
+        throw new Error(errorMsg);
     }
 }
 

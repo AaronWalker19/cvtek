@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NewVersionModal from '../../../components/NewVersionModal';
+import DeleteConfirmationModal from '../../../components/DeleteConfirmationModal';
 import { 
   uploadFile, 
   getDocument,
@@ -96,6 +97,9 @@ export default function FileView() {
   const [addingComment, setAddingComment] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editCommentText, setEditCommentText] = useState<string>('');
+  const [showDeleteCommentConfirmation, setShowDeleteCommentConfirmation] = useState(false);
+  const [selectedCommentToDelete, setSelectedCommentToDelete] = useState<Comment | null>(null);
+  const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchDocument = async () => {
@@ -446,18 +450,29 @@ export default function FileView() {
     }
   };
 
-  const handleDeleteComment = async (commentId: number) => {
-    // eslint-disable-next-line no-restricted-globals
-    if (confirm('Voulez-vous vraiment supprimer ce commentaire?')) {
-      try {
-        await deleteComment(commentId);
-        
-        // Supprimer le commentaire de la liste
-        setComments(comments.filter(c => c.id !== commentId));
-      } catch (err) {
-        console.error('Erreur lors de la suppression du commentaire:', err);
-        alert('Erreur lors de la suppression du commentaire');
-      }
+  const handleDeleteComment = (comment: Comment) => {
+    setSelectedCommentToDelete(comment);
+    setShowDeleteCommentConfirmation(true);
+  };
+
+  const handleConfirmDeleteComment = async () => {
+    if (!selectedCommentToDelete) return;
+
+    try {
+      setDeletingCommentId(selectedCommentToDelete.id);
+      await deleteComment(selectedCommentToDelete.id);
+      
+      // Supprimer le commentaire de la liste
+      setComments(comments.filter(c => c.id !== selectedCommentToDelete.id));
+      
+      // Fermer la modal
+      setShowDeleteCommentConfirmation(false);
+      setSelectedCommentToDelete(null);
+    } catch (err) {
+      console.error('Erreur lors de la suppression du commentaire:', err);
+      alert('Erreur lors de la suppression du commentaire');
+    } finally {
+      setDeletingCommentId(null);
     }
   };
 
@@ -686,7 +701,7 @@ export default function FileView() {
                                           </div>
                                         </button>
                                         <button
-                                          onClick={() => handleDeleteComment(comment.id)}
+                                          onClick={() => handleDeleteComment(comment)}
                                           className="relative shrink-0 size-[16px]"
                                         >
                                           <div className="absolute inset-[12.5%_20.83%]">
@@ -858,6 +873,20 @@ export default function FileView() {
             </div>
           </div>
         )}
+
+        {/* Modal de confirmation de suppression de commentaire */}
+        <DeleteConfirmationModal
+          show={showDeleteCommentConfirmation}
+          title="Supprimer un commentaire"
+          message="Êtes-vous sûr de vouloir supprimer ce commentaire ?"
+          itemName={selectedCommentToDelete ? `${selectedCommentToDelete.username}` : undefined}
+          isDeleting={deletingCommentId === selectedCommentToDelete?.id}
+          onConfirm={handleConfirmDeleteComment}
+          onCancel={() => {
+            setShowDeleteCommentConfirmation(false);
+            setSelectedCommentToDelete(null);
+          }}
+        />
       </div>
     </div>
   );

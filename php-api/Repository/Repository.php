@@ -21,13 +21,20 @@ abstract class Repository
     protected function execute(string $sql, array $params = []): ?array
     {
         try {
+            error_log("[DEBUG] SQL EXECUTE: " . $sql);
+            error_log("[DEBUG] SQL PARAMS: " . json_encode($params));
+            
             $stmt = $this->cnx->prepare($sql);
             if ($stmt->execute($params)) {
-                return $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                error_log("[DEBUG] SQL RESULT: " . json_encode($result));
+                return $result;
             }
+            $errorInfo = $stmt->errorInfo();
+            error_log("[ERROR] SQL Execute failed: " . json_encode($errorInfo));
             return null;
         } catch (Exception $e) {
-            error_log("Database error: " . $e->getMessage());
+            error_log("[ERROR] Database error: " . $e->getMessage());
             return null;
         }
     }
@@ -37,8 +44,21 @@ abstract class Repository
      */
     protected function executeOne(string $sql, array $params = []): ?array
     {
+        error_log("[DEBUG] executeOne called - SQL: " . $sql);
+        error_log("[DEBUG] executeOne params: " . json_encode($params));
+        
         $results = $this->execute($sql, $params);
-        return $results[0] ?? null;
+        
+        if ($results === null) {
+            error_log("[DEBUG] executeOne: results is NULL");
+            return null;
+        }
+        
+        error_log("[DEBUG] executeOne: results array has " . count($results) . " items");
+        $returnValue = $results[0] ?? null;
+        error_log("[DEBUG] executeOne: returning " . ($returnValue === null ? "NULL" : json_encode($returnValue)));
+        
+        return $returnValue;
     }
 
     /**
@@ -47,10 +67,15 @@ abstract class Repository
     protected function executeUpdate(string $sql, array $params = []): bool
     {
         try {
+            error_log("[DEBUG] SQL: " . $sql);
             $stmt = $this->cnx->prepare($sql);
-            return $stmt->execute($params);
+            $result = $stmt->execute($params);
+            if (!$result) {
+                error_log("[ERROR] SQL Error: " . json_encode($stmt->errorInfo()));
+            }
+            return $result;
         } catch (Exception $e) {
-            error_log("Database error: " . $e->getMessage());
+            error_log("[ERROR] Database error: " . $e->getMessage());
             return false;
         }
     }
