@@ -439,6 +439,20 @@ class AuthController extends Controller
                     'email' => 'admin@cvtek.fr',
                     'role' => 'admin',
                     'password' => 'admin123'
+                ],
+                [
+                    'id' => 52,
+                    'username' => 'eleve2',
+                    'email' => 'eleve2@gmail.com',
+                    'role' => 'student',
+                    'password' => 'eleve2123'
+                ],
+                [
+                    'id' => 53,
+                    'username' => 'prof2',
+                    'email' => 'prof2@gmail.com',
+                    'role' => 'professor',
+                    'password' => 'prof2123'
                 ]
             ];
 
@@ -536,6 +550,7 @@ class AuthController extends Controller
     /**
      * Génère un token démo pour un utilisateur spécifié
      * GET /api/auth/demo-token?user_id=X
+     * Auto-crée l'utilisateur démo s'il n'existe pas
      */
     private function handleDemoToken(HttpRequest $request): ?array
     {
@@ -552,14 +567,74 @@ class AuthController extends Controller
         // Récupérer l'utilisateur
         $userData = $this->auth->findById($userId);
 
+        // Si l'utilisateur n'existe pas, le créer automatiquement (mode démo)
         if (!$userData) {
-            return ['error' => 'Utilisateur non trouvé', 'code' => 404];
+            error_log("⚠️  Utilisateur démo $userId non trouvé, tentative de création...");
+            
+            // Définir les utilisateurs démo connus
+            $demoUsersMap = [
+                16 => ['username' => 'mael', 'email' => 'mael@mael.fr', 'role' => 'student', 'password' => 'mael123'],
+                17 => ['username' => 'professor', 'email' => 'professor@cvtek.fr', 'role' => 'professor', 'password' => 'professor123'],
+                18 => ['username' => 'admin', 'email' => 'admin@cvtek.fr', 'role' => 'admin', 'password' => 'admin123'],
+                52 => ['username' => 'eleve2', 'email' => 'eleve2@gmail.com', 'role' => 'student', 'password' => 'eleve2123'],
+                53 => ['username' => 'prof2', 'email' => 'prof2@gmail.com', 'role' => 'professor', 'password' => 'prof2123']
+            ];
+
+            if (!isset($demoUsersMap[$userId])) {
+                return ['error' => "Utilisateur démo $userId non connu", 'code' => 404];
+            }
+
+            $userInfo = $demoUsersMap[$userId];
+            
+            try {
+                $conn = Database::getConnection();
+                $passwordHash = password_hash($userInfo['password'], PASSWORD_BCRYPT);
+                
+                // Créer l'utilisateur avec l'ID spécifique
+                $stmt = $conn->prepare(
+                    "INSERT INTO users (id, username, email, password_hash, role, created_at) 
+                     VALUES (?, ?, ?, ?, ?, NOW())"
+                );
+                $stmt->execute([
+                    $userId,
+                    $userInfo['username'],
+                    $userInfo['email'],
+                    $passwordHash,
+                    $userInfo['role']
+                ]);
+                
+                error_log("✅ Utilisateur démo $userId créé automatiquement");
+                $userData = $this->auth->findById($userId);
+            } catch (PDOException $e) {
+                if (strpos($e->getMessage(), 'Duplicate entry') !== false && strpos($e->getMessage(), 'id') !== false) {
+                    // L'ID existe mais le username différent, créer avec auto-increment
+                    $stmt = $conn->prepare(
+                        "INSERT INTO users (username, email, password_hash, role, created_at) 
+                         VALUES (?, ?, ?, ?, NOW())"
+                    );
+                    $stmt->execute([
+                        $userInfo['username'],
+                        $userInfo['email'],
+                        $passwordHash,
+                        $userInfo['role']
+                    ]);
+                    $newId = (int)$conn->lastInsertId();
+                    error_log("⚠️  Utilisateur démo créé avec auto-ID $newId (ID $userId occupé)");
+                    $userData = $this->auth->findById($newId);
+                } else {
+                    return ['error' => "Erreur création utilisateur: " . $e->getMessage(), 'code' => 500];
+                }
+            }
+        }
+
+        if (!$userData) {
+            return ['error' => 'Utilisateur introuvable après création', 'code' => 500];
         }
 
         // Générer le token JWT
         $token = generateToken($userData['id'], $userData['username'], $userData['role']);
 
-        logAction("DEMO_TOKEN_GENERATED", ['userId' => $userId]);
+        logAction("DEMO_TOKEN_GENERATED", ['userId' => $userData['id'], 'username' => $userData['username']]);
 
         return [
             'token' => $token,

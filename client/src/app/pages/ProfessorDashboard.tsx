@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import Sidebar from "../components/Sidebar";
 import AdminLoginModal from "../../components/AdminLoginModal";
 import svgPaths from "../../imports/PageDeBaseCoteProf/svg-9gqyfpru0n";
-import { getDocuments, getUserById, getDocument, checkSubscription, createSubscription, deleteSubscription, getCommentsByDocVersion, Comment } from '../../api/client';
+import { getDocuments, getUserById, getDocument, checkSubscription, createSubscription, deleteSubscription, getCommentsByDocVersion, Comment, getStudents } from '../../api/client';
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
@@ -167,12 +167,32 @@ export default function ProfessorDashboard() {
     }
   }, [allDocuments]);
 
-  // Extraire les étudiants uniques et créer la liste
+  // Charger les étudiants: tous les étudiants + ceux des documents
   useEffect(() => {
     const loadStudents = async () => {
       const studentsMap = new Map<number, { name: string; license?: string; userId: number; email?: string }>();
 
-      // D'abord, créer la liste basique avec les données des documents
+      try {
+        // D'abord, charger TOUS les étudiants de la base de données
+        const allStudentsFromDB = await getStudents();
+        
+        allStudentsFromDB.forEach((student) => {
+          if (!studentsMap.has(student.id)) {
+            studentsMap.set(student.id, {
+              name: student.username,
+              license: student.parcour || 'N/A',
+              userId: student.id,
+              email: student.email,
+            });
+          }
+        });
+
+        console.log(`✅ ${allStudentsFromDB.length} étudiants chargés de la base`);
+      } catch (error) {
+        console.error('❌ Erreur lors du chargement des étudiants depuis la BDD:', error);
+      }
+
+      // Ensuite, ajouter aussi les étudiants basés sur les documents (au cas où)
       allDocuments.forEach((doc) => {
         if (!studentsMap.has(doc.user_id)) {
           studentsMap.set(doc.user_id, {
@@ -206,11 +226,7 @@ export default function ProfessorDashboard() {
       setAllStudents(updatedStudents);
     };
 
-    if (allDocuments.length > 0) {
-      loadStudents();
-    } else {
-      setAllStudents([]);
-    }
+    loadStudents();
   }, [allDocuments]);
 
   // Charger les détails de l'utilisateur quand on sélectionne un étudiant

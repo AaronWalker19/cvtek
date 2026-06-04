@@ -169,33 +169,35 @@ class CommentController extends Controller
 
     protected function processPutRequest(HttpRequest $request): ?array
     {
-        // En MODE DÉMO: essayer d'abord de récupérer l'ID utilisateur depuis le token
-        $userId = $this->checkAuth();
-        
-        // Fallback: utiliser l'ID du professeur en démo
-        if (!$userId) {
-            $userId = 17; // ID du professeur en démo
-        }
-        
-        $id = $request->getId();
-        if (!$id) {
-            return ['error' => 'ID du commentaire requis'];
-        }
+    // Récupérer l'ID utilisateur depuis le token
+    $userId = $this->checkAuth();
+    
+    if (!$userId) {
+        return ['error' => 'Non authentifié', 'code' => 401];
+    }
+    
+    $id = $request->getId();
+    if (!$id) {
+        return ['error' => 'ID du commentaire requis'];
+    }
 
-        $id = (int)$id;
-        $comment = $this->comments->findById($id);
+    $id = (int)$id;
+    $comment = $this->comments->findById($id);
 
-        if (!$comment) {
-            return ['error' => 'Commentaire non trouvé'];
-        }
+    if (!$comment) {
+        return ['error' => 'Commentaire non trouvé', 'code' => 404];
+    }
 
-        // En mode démo, ne pas vérifier la propriété du commentaire
-        // if ($comment['id_user'] != $userId) {
-        //     return ['error' => 'Vous n\'êtes pas autorisé à modifier ce commentaire'];
-        // }
+    // ✅ Vérifier que seul le propriétaire du commentaire peut le modifier
+    if ($comment['id_user'] != $userId) {
+        return [
+            'error' => 'Vous n\'êtes pas autorisé à modifier ce commentaire',
+            'code' => 403
+        ];
+    }
 
-        $data = $request->getJson();
-        $text = $data['text'] ?? null;
+    $data = $request->getJson();
+    $text = $data['text'] ?? null;
 
         if (!$text) {
             return ['error' => 'Paramètre requis: text'];
@@ -226,41 +228,40 @@ class CommentController extends Controller
 
     protected function processDeleteRequest(HttpRequest $request): ?array
     {
-        // En MODE DÉMO: utiliser l'ID 17 (professeur) par défaut
-        $userId = 17;
-        
-        // Optionnel: vérifier l'authentification pour les systèmes réels
-        // $userId = $this->checkAuth();
-        // if (!$userId) {
-        //     return ['error' => 'Non authentifié'];
-        // }
+    // Récupérer l'ID utilisateur depuis le token
+    $userId = $this->checkAuth();
+    
+    if (!$userId) {
+        return ['error' => 'Non authentifié', 'code' => 401];
+    }
 
-        $id = $request->getId();
-        if (!$id) {
-            return ['error' => 'ID du commentaire requis'];
-        }
+    $id = $request->getId();
+    if (!$id) {
+        return ['error' => 'ID du commentaire requis'];
+    }
 
-        $id = (int)$id;
-        $comment = $this->comments->findById($id);
+    $id = (int)$id;
+    $comment = $this->comments->findById($id);
 
-        if (!$comment) {
-            return ['error' => 'Commentaire non trouvé'];
-        }
+    if (!$comment) {
+        return ['error' => 'Commentaire non trouvé', 'code' => 404];
+    }
 
-        // En mode démo, ne pas vérifier la propriété du commentaire
-        // if ($comment['id_user'] != $userId) {
-        //     $userRole = $this->getUserRole();
-        //     if ($userRole !== 'admin' && $userRole !== 'professor') {
-        //         return ['error' => 'Vous n\'êtes pas autorisé à supprimer ce commentaire'];
-        //     }
-        // }
+    // ✅ Vérifier que seul le propriétaire du commentaire peut le supprimer
+    if ($comment['id_user'] != $userId) {
+        return [
+            'error' => 'Vous n\'êtes pas autorisé à supprimer ce commentaire',
+            'code' => 403
+        ];
+    }
 
-        logAction("DELETE_COMMENT", [
-            'id' => $id,
-            'userId' => $userId
-        ]);
+    logAction("DELETE_COMMENT", [
+        'id' => $id,
+        'userId' => $userId,
+        'commentAuthor' => $comment['id_user']
+    ]);
 
-        $success = $this->comments->delete($id);
+    $success = $this->comments->delete($id);
 
         if ($success) {
             return ['message' => 'Commentaire supprimé'];

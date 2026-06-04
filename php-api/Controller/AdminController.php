@@ -37,6 +37,11 @@ class AdminController extends Controller
             return $this->handleListProfessors($request);
         }
         
+        // GET /api/admin/students -> liste de tous les étudiants
+        if ($resource === 'admin' && $action === 'students') {
+            return $this->handleListStudents($request);
+        }
+        
         // GET /api/admin/professors/123 -> détails d'un professeur avec ses commentaires
         if ($resource === 'admin' && is_numeric($action)) {
             return $this->handleGetProfessor($request, (int)$action);
@@ -191,6 +196,29 @@ class AdminController extends Controller
             'professor' => $professor,
             'comments' => $comments,
             'comment_count' => count($comments),
+        ];
+    }
+
+    /**
+     * Liste tous les étudiants
+     */
+    private function handleListStudents(HttpRequest $request): ?array
+    {
+        // Vérifier que c'est un prof ou admin (les profs doivent pouvoir voir la liste)
+        $user = getSessionUser();
+        
+        if (!$user) {
+            return ['error' => 'Non authentifié', 'code' => 401];
+        }
+
+        logAction("LIST_STUDENTS", ['requester' => $user['id'], 'requester_role' => $user['role']]);
+        
+        $students = $this->users->findByRole('student');
+        
+        return [
+            'success' => true,
+            'count' => count($students),
+            'students' => $students,
         ];
     }
 

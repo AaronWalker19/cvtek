@@ -113,7 +113,7 @@ class UserRepository extends Repository
         }
 
         // Créer un username à partir de l'email
-        // Format: prenom nom domain (ex: jean.dupont@unilim.fr -> "jean dupont unilim")
+        // Format: prenom nom domain (ex: jean.dupont@unilim.fr -> "Jean Dupont")
         list($localPart, $domain) = explode('@', $email);
         error_log("[DEBUG] Email parts: localPart=" . $localPart . ", domain=" . $domain);
         
@@ -121,9 +121,9 @@ class UserRepository extends Repository
         $localPart = str_replace('.', ' ', $localPart);
         error_log("[DEBUG] After dot replacement: " . $localPart);
         
-        // Générer le username final (sans le domaine)
-        $username = trim($localPart);
-        error_log("[DEBUG] Initial generated username: " . $username);
+        // Générer le username final avec majuscules à chaque mot
+        $username = ucwords(trim($localPart));
+        error_log("[DEBUG] Initial generated username with capitalization: " . $username);
         
         // Si le username existe déjà, ajouter un suffixe unique
         $baseUsername = $username;

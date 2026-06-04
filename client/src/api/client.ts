@@ -981,6 +981,24 @@ export async function getProfessor(professorId: number): Promise<{
 }
 
 /**
+ * Récupère la liste de tous les étudiants
+ * Endpoint: GET /api/admin/students
+ */
+export async function getStudents(): Promise<User[]> {
+    const response = await apiCall<{ students: User[] }>(
+        '/admin/students',
+        { method: 'GET' }
+    );
+
+    if (!response.success) {
+        console.error('❌ Erreur lors de la récupération des étudiants:', response.error);
+        return [];
+    }
+
+    return response.data?.students ?? [];
+}
+
+/**
  * Crée un nouveau professeur avec email uniquement
  * Endpoint: POST /api/admin/professors
  */

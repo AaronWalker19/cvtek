@@ -685,7 +685,7 @@ export default function FileView() {
                                     <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal leading-[normal] min-w-px not-italic relative text-[16px] text-[#ffffff]">
                                       {comment.text}
                                     </p>
-                                    {!isStudent && (
+                                    {!isStudent && user?.id === comment.id_user && (
                                       <div className="content-stretch flex flex-row gap-[5px] items-center relative shrink-0">
                                         <button
                                           onClick={() => {

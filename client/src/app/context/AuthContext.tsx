@@ -53,6 +53,20 @@ const demoUsers: DemoUser[] = [
     email: 'professor@cvtek.fr',
     role: 'professor',
   },
+  {
+    id: 52,
+    userId: 52,
+    username: 'eleve2',
+    email: 'eleve2@gmail.com',
+    role: 'student',
+  },
+  {
+    id: 53,
+    userId: 53,
+    username: 'prof2',
+    email: 'prof2@gmail.com',
+    role: 'professor',
+  },
 ];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

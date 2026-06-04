@@ -123,8 +123,15 @@ class DocumentController extends Controller
             }
         }
 
-        // En développement, on accepte user_id optionnel
-        $userId = (int)($data['user_id'] ?? 0);
+        // ✅ CORRECTION: Récupérer l'ID utilisateur depuis le token JWT, pas du client
+        $userId = $this->checkAuth();
+        
+        // Si pas d'authentification, fallback vers user_id du JSON (mode démo)
+        if (!$userId) {
+            $userId = (int)($data['user_id'] ?? 0);
+            error_log("[DOC] ⚠️  Pas de token, utilisant user_id du JSON: $userId");
+        }
+
         $nomFichier = sanitizeString($data['nom_fichier']);
         $titre = sanitizeString($data['titre'] ?? '');
         $typeFichier = sanitizeString($data['type_fichier']);
@@ -139,16 +146,61 @@ class DocumentController extends Controller
         error_log("[DOC] 📖 Description: " . ($description ?: '(aucune)'));
         error_log("=========================================");
 
+        // Vérifier que l'utilisateur existe en base de données
+        if ($userId > 0) {
+            $userExists = $this->users->findById($userId);
+            if (!$userExists) {
+                error_log("[DOC] ❌ ERREUR: Utilisateur $userId n'existe pas en base de données!");
+                error_log("[DOC] Tentative de vérification en base...");
+                
+                // Vérifier en SQL brut au cas où
+                $db = Database::getConnection();
+                $stmt = $db->prepare("SELECT id, username, email, role FROM users WHERE id = ?");
+                $stmt->execute([$userId]);
+                $directUser = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$directUser) {
+                    error_log("[DOC] ✅ Confirmé: Utilisateur $userId n'existe absolument pas en BDD");
+                    return [
+                        'error' => "Utilisateur $userId n'existe pas en base de données",
+                        'code' => 400,
+                        'details' => "L'utilisateur avec l'ID $userId n'a pas pu être trouvé. Vérifiez l'authentification."
+                    ];
+                } else {
+                    error_log("[DOC] ⚠️  ATTENTION: Utilisateur $userId trouvé en BDD directe: {$directUser['username']}");
+                }
+            } else {
+                error_log("[DOC] ✅ Utilisateur $userId vérifié en base: {$userExists['username']}");
+            }
+        }
+
         logAction("CREATE_DOCUMENT", ['user_id' => $userId, 'nom_fichier' => $nomFichier]);
 
         // Créer le document
-        $docId = $this->documents->create(
-            $userId,
-            $nomFichier,
-            $titre,
-            $typeFichier,
-            $description
-        );
+        try {
+            $docId = $this->documents->create(
+                $userId,
+                $nomFichier,
+                $titre,
+                $typeFichier,
+                $description
+            );
+        } catch (PDOException $e) {
+            error_log("[DOC] ❌ Erreur création document: " . $e->getMessage());
+            return [
+                'error' => 'Erreur lors de la création du document',
+                'code' => 500
+            ];
+        }
+
+        if ($docId <= 0) {
+            error_log("[DOC] ❌ ERREUR: Impossible de créer le document (ID retourné: $docId)");
+            return [
+                'error' => 'Impossible de créer le document en base de données',
+                'code' => 500,
+                'details' => 'L\'insertion du document a échoué. Vérifiez que l\'utilisateur existe.'
+            ];
+        }
 
         error_log("[DOC] ✅ Document créé avec ID: $docId");
 
@@ -381,5 +433,55 @@ class DocumentController extends Controller
         $this->documents->delete($id);
 
         return ['message' => 'Document supprimé avec succès'];
+    }
+
+    /**
+     * Vérifie l'authentification via JWT et retourne l'ID utilisateur
+     */
+    private function checkAuth(): ?int
+    {
+        $token = $this->getAuthToken();
+        if (!$token) {
+            error_log("[DOC] ❌ Pas de token trouvé dans Authorization header");
+            return null;
+        }
+
+        try {
+            // Décoder le payload du JWT
+            $parts = explode('.', $token);
+            if (count($parts) !== 3) {
+                error_log("[DOC] ❌ Token JWT invalide (ne contient pas 3 parties)");
+                return null;
+            }
+
+            // Récupérer et décoder le payload (partie 2)
+            $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+            
+            if (!$payload || !isset($payload['sub'])) {
+                error_log("[DOC] ❌ Payload du token invalide ou sans 'sub'");
+                return null;
+            }
+
+            $userId = (int)$payload['sub'];
+            error_log("[DOC] ✅ Token décodé avec succès. User ID: $userId");
+            return $userId;
+        } catch (Exception $e) {
+            error_log("[DOC] ❌ Erreur décodage token: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Récupère le token JWT depuis l'en-tête Authorization
+     */
+    private function getAuthToken(): ?string
+    {
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        
+        if (!$authHeader || strpos($authHeader, 'Bearer ') !== 0) {
+            return null;
+        }
+
+        return substr($authHeader, 7); // Enlever "Bearer "
     }
 }
