@@ -123,6 +123,9 @@ class UserRepository extends Repository
         
         // Générer le username final (sans le domaine)
         $username = trim($localPart);
+        
+        // Capitaliser chaque mot (première lettre en majuscule)
+        $username = ucwords(strtolower($username));
         error_log("[DEBUG] Initial generated username: " . $username);
         
         // Si le username existe déjà, ajouter un suffixe unique
