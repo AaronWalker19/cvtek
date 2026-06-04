@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import StudentDashboard from './pages/StudentDashboard';
@@ -6,18 +7,38 @@ import ProfessorDashboard from './pages/ProfessorDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import UnilimCallback from './pages/UnilimCallback';
 import AccessDenied from './pages/AccessDenied';
-import DemoUserSwitcher from './components/DemoUserSwitcher';
 
 function ProtectedRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, loginWithUnilim } = useAuth();
+  const [redirecting, setRedirecting] = useState(false);
+
+  // Si pas connecté, rediriger vers Unilim (une seule fois)
+  useEffect(() => {
+    if (!loading && !user && !redirecting) {
+      setRedirecting(true);
+      loginWithUnilim();
+    }
+  }, [loading, user, redirecting, loginWithUnilim]);
 
   // Attendre le chargement de l'authentification
-  if (loading || !user) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si pas connecté, afficher message de redirection
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirection vers Unilim...</p>
         </div>
       </div>
     );
@@ -85,10 +106,7 @@ export default function App() {
           path="/*"
           element={
             <AuthProvider>
-              <div className="size-full">
-                <ProtectedRoutes />
-                <DemoUserSwitcher />
-              </div>
+              <ProtectedRoutes />
             </AuthProvider>
           }
         />
