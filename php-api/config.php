@@ -60,10 +60,10 @@ define('JWT_EXPIRATION', (int)(getenv('JWT_EXPIRATION') ?: 604800));
 // Unilim SSO (OpenID Connect)
 define('UNILIM_CLIENT_ID', getenv('UNILIM_CLIENT_ID') ?: 'gupp');
 define('UNILIM_CLIENT_SECRET', getenv('UNILIM_CLIENT_SECRET') ?: '');
-define('UNILIM_AUTHORIZE_URL', 'https://cas.unilim.fr/authorize');
-define('UNILIM_TOKEN_URL', 'https://cas.unilim.fr/token');
+define('UNILIM_AUTHORIZE_URL', getenv('UNILIM_AUTHORIZE_URL') ?: 'https://cas.unilim.fr/authorize');
+define('UNILIM_TOKEN_URL', getenv('UNILIM_TOKEN_URL') ?: 'https://cas.unilim.fr/token');
 define('UNILIM_REDIRECT_URI', getenv('UNILIM_REDIRECT_URI') ?: 'http://localhost:3000/cvtek/auth/callback');
-define('UNILIM_SCOPE', 'openid');
+define('UNILIM_SCOPE', getenv('UNILIM_SCOPE') ?: 'openid');
 
 // Paths
 define('PROJECT_ROOT', dirname(__DIR__));

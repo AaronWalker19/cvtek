@@ -26,10 +26,10 @@ echo ""
 
 echo "## Endpoint 2: Traiter le callback Unilim"
 echo "Méthode: POST"
-echo "URL: http://localhost:8000/api/auth/unilim-callback"
+echo "URL: http://localhost:8000/api/auth/callback"
 echo ""
 echo "Commande curl (exemple):"
-echo 'curl -X POST "http://localhost:8000/api/auth/unilim-callback" \\'
+echo 'curl -X POST "http://localhost:8000/api/auth/callback" \\'
 echo '  -H "Content-Type: application/json" \\'
 echo '  -d "{\"code\": \"AUTH_CODE_FROM_UNILIM\", \"state\": \"STATE_FROM_UNILIM\"}"'
 echo ""
@@ -78,7 +78,7 @@ echo "2. L'app appelle: GET /api/auth/unilim-authorize"
 echo "3. L'app redirige vers: https://cas.unilim.fr/authorize?..."
 echo "4. Utilisateur se connecte à Unilim"
 echo "5. Unilim redirige vers: http://localhost:3000/cvtek/auth/callback?code=X&state=Y"
-echo "6. UnilimCallback appelle: POST /api/auth/unilim-callback"
+echo "6. Callback appelle: POST /api/auth/callback"
 echo "7. Token CVTEK est retourné et sauvegardé"
 echo "8. Redirection vers: http://localhost:3000/cvtek/"
 echo "9. Utilisateur est connecté ✅"

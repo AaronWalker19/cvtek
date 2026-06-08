@@ -44,11 +44,28 @@ require_once __DIR__ . '/Repository/UploadRepository.php';
 require_once __DIR__ . '/Repository/CommentRepository.php';
 require_once __DIR__ . '/Repository/AbonnementRepository.php';
 
+// ===== CONFIGURATION DE SESSION =====
+// Doit être fait AVANT tout session_start()
+
+// Configuration pour OIDC cross-domain callback
+session_set_cookie_params([
+    'lifetime' => 0,           // Session cookie (expire au fermeture du navigateur)
+    'path' => '/cvtek',        // Restreint au chemin /cvtek
+    'domain' => '.unilim.fr',  // Accepte les sous-domaines de unilim.fr
+    'secure' => true,          // HTTPS uniquement
+    'httponly' => true,        // JavaScript ne peut pas accéder au cookie
+    'samesite' => 'None'       // Permettre les requêtes cross-site (nécessaire pour OIDC)
+]);
+
 // ===== HEADERS =====
 
 header('Content-Type: application/json; charset=utf-8');
 setCorsHeaders();
 handleCorsPreFlight();
+
+// ===== DÉMARRAGE DE SESSION =====
+// Démarrer la session PHP UNE SEULE FOIS, avant tout traitement
+ensureSessionStarted();
 
 // ===== ERROR HANDLERS - Capture TOUTES les erreurs PHP =====
 

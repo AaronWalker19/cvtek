@@ -137,7 +137,7 @@ Email autre domaine (@gmail.com, etc)
 ### Frontend (4)
 - `client/src/app/App.tsx` - Routes publiques
 - `client/src/api/client.ts` - Appels API
-- `client/src/app/pages/UnilimCallback.tsx` - Traitement callback
+- `client/src/app/pages/Callback.tsx` - Traitement callback
 - `client/src/app/pages/AccessDenied.tsx` - Page accès refusé
 
 ### Documentation (6)
@@ -198,7 +198,7 @@ Tests:  ⏳ À faire
 | OpenID Connect | https://openid.net/connect |
 | Support Unilim | cas-support@unilim.fr |
 | Code Backend | `php-api/Controller/AuthController.php` |
-| Code Frontend | `client/src/app/pages/UnilimCallback.tsx` |
+| Code Frontend | `client/src/app/pages/Callback.tsx` |
 
 ---
 

@@ -5,7 +5,7 @@ import StudentDashboard from './pages/StudentDashboard';
 import FileView from './pages/fileview/[id]';
 import ProfessorDashboard from './pages/ProfessorDashboard';
 import AdminDashboard from './pages/AdminDashboard';
-import UnilimCallback from './pages/UnilimCallback';
+import Callback from './pages/Callback';
 import AccessDenied from './pages/AccessDenied';
 
 function ProtectedRoutes() {
@@ -98,7 +98,7 @@ export default function App() {
     <Router basename="/cvtek">
       <Routes>
         {/* Public routes (accessible without authentication) */}
-        <Route path="/auth/callback" element={<UnilimCallback />} />
+        <Route path="/auth/callback" element={<Callback />} />
         <Route path="/access-denied" element={<AccessDenied />} />
         
         {/* Protected routes */}

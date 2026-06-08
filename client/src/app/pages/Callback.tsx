@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { handleUnilimCallback } from '../../api/client';
+import { handleCallback } from '../../api/client';
 
 /**
- * UnilimCallback - Page de redirection Unilim
+ * Callback - Page de redirection Unilim
  * 
  * Cette page traite le callback de Unilim avec les query params:
  * - code: code d'autorisation d'Unilim
  * - state: state pour vérifier la sécurité CSRF
  */
-export default function UnilimCallback() {
+export default function Callback() {
   const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -47,7 +47,7 @@ export default function UnilimCallback() {
 
         // Appeler l'endpoint de callback du backend
         console.log('📤 Envoi du callback au backend...');
-        await handleUnilimCallback(code, state);
+        await handleCallback(code, state);
 
         console.log('✅ Authentification Unilim réussie');
 

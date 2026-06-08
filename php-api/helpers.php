@@ -147,22 +147,32 @@ function getBearerToken(): ?string {
     return null;
 }
 
+// ===============================================
+// Gestion de session (robuste)
+// ===============================================
+
+/**
+ * Démarre la session de manière robuste (évite les erreurs si déjà démarrée)
+ */
+function ensureSessionStarted(): void {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+}
+
 /**
  * Récupère l'utilisateur depuis la session
  */
 function getSessionUser(): ?array {
-    if (!isset($_SESSION['user'])) {
-        return null;
-    }
-    
-    return $_SESSION['user'];
+    ensureSessionStarted();
+    return $_SESSION['user'] ?? null;
 }
 
 /**
  * Définit l'utilisateur en session
  */
 function setSessionUser(array $user): void {
-    session_start();
+    ensureSessionStarted();
     $_SESSION['user'] = $user;
 }
 
@@ -170,7 +180,7 @@ function setSessionUser(array $user): void {
  * Déconnecte l'utilisateur
  */
 function logoutUser(): void {
-    session_start();
+    ensureSessionStarted();
     unset($_SESSION['user']);
     session_destroy();
 }

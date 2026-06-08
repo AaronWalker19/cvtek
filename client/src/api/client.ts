@@ -1051,11 +1051,11 @@ export async function getUnilimAuthorizeUrl(): Promise<{ authorize_url: string; 
 
 /**
  * Traite le callback Unilim et connecte l'utilisateur
- * Endpoint: POST /api/auth/unilim-callback
+ * Endpoint: POST /api/auth/callback
  */
-export async function handleUnilimCallback(code: string, state: string): Promise<User> {
+export async function handleCallback(code: string, state: string): Promise<User> {
     const response = await apiCall<{ user: User; token: string; unilim_payload: any; access_denied?: boolean; reason?: string }>(
-        `/auth/unilim-callback`,
+        `/auth/callback`,
         {
             method: 'POST',
             body: JSON.stringify({ code, state }),

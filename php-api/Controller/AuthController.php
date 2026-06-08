@@ -44,9 +44,9 @@ class AuthController extends Controller
             return $this->handleLogout($request);
         }
 
-        // POST /api/auth/unilim-callback (callback Unilim SSO)
-        if ($resource === 'auth' && $id === 'unilim-callback') {
-            return $this->handleUnilimCallback($request);
+        // POST /api/auth/callback (callback Unilim SSO)
+        if ($resource === 'auth' && $id === 'callback') {
+            return $this->handleCallback($request);
         }
 
         return ["error" => "Endpoint non trouvé"];
@@ -648,11 +648,11 @@ class AuthController extends Controller
 
     /**
      * Traite le callback Unilim
-     * POST /api/auth/unilim-callback
+     * POST /api/auth/callback
      * 
      * Body: { code: "...", state: "..." }
      */
-    private function handleUnilimCallback(HttpRequest $request): ?array
+    private function handleCallback(HttpRequest $request): ?array
     {
         try {
             $data = $request->getJson();

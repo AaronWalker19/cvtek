@@ -14,7 +14,7 @@ else
 fi
 
 # Vérifier que AuthController a été modifié
-if grep -q "handleUnilimCallback" php-api/Controller/AuthController.php; then
+if grep -q "handleCallback" php-api/Controller/AuthController.php; then
     echo "✅ Endpoints Unilim trouvés dans AuthController.php"
 else
     echo "❌ Endpoints Unilim manquants dans AuthController.php"
@@ -35,14 +35,14 @@ else
 fi
 
 # Vérifier que la page callback existe
-if [ -f "client/src/app/pages/UnilimCallback.tsx" ]; then
-    echo "✅ Page UnilimCallback créée"
+if [ -f "client/src/app/pages/Callback.tsx" ]; then
+    echo "✅ Page Callback créée"
 else
-    echo "❌ Page UnilimCallback manquante"
+    echo "❌ Page Callback manquante"
 fi
 
 # Vérifier que la route callback est dans App.tsx
-if grep -q "UnilimCallback" client/src/app/App.tsx; then
+if grep -q "Callback" client/src/app/App.tsx; then
     echo "✅ Route callback Unilim trouvée dans App.tsx"
 else
     echo "❌ Route callback Unilim manquante dans App.tsx"
