@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { MobileBlocker } from './components/MobileBlocker';
 import StudentDashboard from './pages/StudentDashboard';
 import FileView from './pages/fileview/[id]';
 import ProfessorDashboard from './pages/ProfessorDashboard';
@@ -95,22 +96,24 @@ function ProtectedRoutes() {
 
 export default function App() {
   return (
-    <Router basename="/cvtek">
-      <Routes>
-        {/* Public routes (accessible without authentication) */}
-        <Route path="/auth/callback" element={<Callback />} />
-        <Route path="/access-denied" element={<AccessDenied />} />
-        
-        {/* Protected routes */}
-        <Route
-          path="/*"
-          element={
-            <AuthProvider>
-              <ProtectedRoutes />
-            </AuthProvider>
-          }
-        />
-      </Routes>
-    </Router>
+    <MobileBlocker>
+      <Router basename="/cvtek">
+        <Routes>
+          {/* Public routes (accessible without authentication) */}
+          <Route path="/auth/callback" element={<Callback />} />
+          <Route path="/access-denied" element={<AccessDenied />} />
+          
+          {/* Protected routes */}
+          <Route
+            path="/*"
+            element={
+              <AuthProvider>
+                <ProtectedRoutes />
+              </AuthProvider>
+            }
+          />
+        </Routes>
+      </Router>
+    </MobileBlocker>
   );
 }
