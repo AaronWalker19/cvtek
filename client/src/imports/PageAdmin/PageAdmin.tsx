@@ -197,11 +197,11 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
         <button
           onClick={() => setShowAdvanceYearModal(true)}
           disabled={advancingYear}
-          className="bg-[#2563eb] content-stretch flex items-center justify-center p-[10px] relative rounded-[4px] shrink-0 w-full hover:bg-[#1d4ed8] transition-colors disabled:opacity-50 mb-4"
+          className="bg-[#e5e7eb] content-stretch flex items-center justify-center p-[10px] relative rounded-[4px] shrink-0 w-full hover:bg-[#d1d5db] transition-colors disabled:opacity-50 mb-4"
           title="Avancer l'année universitaire (+1 pour tous les étudiants, suppression pour année 4)"
         >
-          <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic text-[#ffffff] text-[16px] whitespace-nowrap">
-            {advancingYear ? '⏳ Traitement...' : '📅 Montée d\'année'}
+          <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic text-[#374151] text-[16px] whitespace-nowrap">
+            {advancingYear ? 'Traitement...' : 'Montée d\'année'}
           </p>
         </button>
 
