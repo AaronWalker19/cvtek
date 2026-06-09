@@ -1,24 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { handleCallback } from '../../api/client';
 
 /**
- * Callback - Page de redirection Unilim
+ * Callback - Page de redirection d'Unilim
  * 
- * Cette page traite le callback de Unilim avec les query params:
+ * Reçoit directement les paramètres de Unilim:
  * - code: code d'autorisation d'Unilim
- * - state: state pour vérifier la sécurité CSRF
+ * - state: state pour CSRF protection (validé en PHP)
+ * - error: erreur éventuelle
  */
 export default function Callback() {
   const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
-  const [accessDenied, setAccessDenied] = useState(false);
-  const [denialReason, setDenialReason] = useState<string>('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const processCallback = async () => {
       try {
-        // Récupérer les params de la query string
+        // Récupérer les params
         const code = searchParams.get('code');
         const state = searchParams.get('state');
         const errorParam = searchParams.get('error');
@@ -31,53 +30,35 @@ export default function Callback() {
           const msg = `Erreur Unilim: ${errorParam} - ${errorDescription || ''}`;
           console.error('❌', msg);
           setError(msg);
+          setLoading(false);
           return;
         }
 
         // Vérifier les params obligatoires
-        if (!code) {
-          setError('Code d\'autorisation manquant');
+        if (!code || !state) {
+          setError('Code ou state manquant');
+          setLoading(false);
           return;
         }
 
-        if (!state) {
-          setError('État de sécurité manquant');
-          return;
-        }
+        // TODO: Traiter le callback ici
+        // Pour l'instant, afficher le chargement
+        console.log('✅ Code et state reçus:', { code, state });
+        
+        // À faire: appel à l'API backend
+        
+        setLoading(false);
 
-        // Appeler l'endpoint de callback du backend
-        console.log('📤 Envoi du callback au backend...');
-        await handleCallback(code, state);
-
-        console.log('✅ Authentification Unilim réussie');
-
-        // Attendre un moment pour que le token soit bien stocké, puis rediriger
-        setTimeout(() => {
-          window.location.href = '/cvtek/';
-        }, 100);
       } catch (err: any) {
-        // Vérifier si c'est une erreur d'accès refusé
-        if (err.access_denied) {
-          console.log('🚫 Accès refusé:', err.reason);
-          setAccessDenied(true);
-          setDenialReason(err.reason || err.message);
-        } else {
-          const errorMsg = err instanceof Error ? err.message : String(err);
-          console.error('❌ Erreur traitement callback:', errorMsg);
-          setError(errorMsg || 'Erreur lors de l\'authentification Unilim');
-        }
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        console.error('❌ Erreur traitement callback:', errorMsg);
+        setError(errorMsg || 'Erreur lors de l\'authentification Unilim');
+        setLoading(false);
       }
     };
 
     processCallback();
   }, [searchParams]);
-
-  // Si accès refusé, rediriger vers la page d'accès refusé
-  if (accessDenied) {
-    // Rediriger vers la page AccessDenied
-    window.location.href = `/cvtek/access-denied?reason=${encodeURIComponent(denialReason)}`;
-    return null;
-  }
 
   // Afficher l'écran de chargement ou d'erreur
   if (error) {
@@ -115,13 +96,17 @@ export default function Callback() {
   }
 
   // Écran de chargement
-  return (
-    <div className="flex items-center justify-center h-screen bg-gray-50">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-        <p className="text-gray-600">Authentification Unilim en cours...</p>
-        <p className="text-sm text-gray-500 mt-2">Veuillez patienter</p>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Authentification Unilim en cours...</p>
+          <p className="text-sm text-gray-500 mt-2">Veuillez patienter</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 }

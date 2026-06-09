@@ -625,9 +625,13 @@ class AuthController extends Controller
         // Générer un state aléatoire pour la sécurité (CSRF protection)
         $state = bin2hex(random_bytes(32));
         
-        // Sauvegarder le state en session pour vérification ultérieure
+        // Générer un nonce pour l'intégrité du token
+        $nonce = bin2hex(random_bytes(32));
+        
+        // Sauvegarder le state et nonce en session pour vérification ultérieure
         $_SESSION['unilim_state'] = $state;
         $_SESSION['unilim_state_created'] = time();
+        $_SESSION['unilim_nonce'] = $nonce;
         
         // Construire l'URL de redirection Unilim
         $authorizeUrl = UNILIM_AUTHORIZE_URL . '?' . http_build_query([
@@ -635,14 +639,16 @@ class AuthController extends Controller
             'response_type' => 'code',
             'scope' => UNILIM_SCOPE,
             'state' => $state,
+            'nonce' => $nonce,
             'redirect_uri' => UNILIM_REDIRECT_URI,
         ]);
         
-        logAction("UNILIM_AUTHORIZE_URL_GENERATED", ['state' => substr($state, 0, 8) . '...']);
+        logAction("UNILIM_AUTHORIZE_URL_GENERATED", ['state' => substr($state, 0, 8) . '...', 'nonce' => substr($nonce, 0, 8) . '...']);
         
         return [
             'authorize_url' => $authorizeUrl,
-            'state' => $state
+            'state' => $state,
+            'nonce' => $nonce
         ];
     }
 
@@ -805,6 +811,15 @@ class AuthController extends Controller
                 'redirect_uri' => UNILIM_REDIRECT_URI,
             ];
             
+            // ========== LOG DEBUG ==========
+            error_log("========== UNILIM TOKEN EXCHANGE DEBUG ==========");
+            error_log("TOKEN_URL: " . UNILIM_TOKEN_URL);
+            error_log("CLIENT_ID: " . UNILIM_CLIENT_ID);
+            error_log("REDIRECT_URI: " . UNILIM_REDIRECT_URI);
+            error_log("CODE (premiers 20 chars): " . substr($code, 0, 20) . "...");
+            error_log("POST DATA: " . json_encode($postData));
+            error_log("================================================");
+            
             $options = [
                 'http' => [
                     'method' => 'POST',
@@ -822,8 +837,12 @@ class AuthController extends Controller
             
             if ($response === false) {
                 error_log("❌ Erreur lors de l'appel à " . UNILIM_TOKEN_URL);
+                error_log("Headers HTTP reçus: " . json_encode($http_response_header ?? []));
                 return null;
             }
+            
+            error_log("✓ Réponse reçue de Unilim (" . strlen($response) . " bytes)");
+            error_log("Réponse brute: " . $response);
             
             $data = json_decode($response, true);
             
@@ -834,15 +853,18 @@ class AuthController extends Controller
             
             if (isset($data['error'])) {
                 error_log("❌ Erreur Unilim token: " . ($data['error_description'] ?? $data['error']));
+                error_log("Erreur JSON: " . json_encode($data));
                 return null;
             }
             
             logAction("UNILIM_TOKEN_EXCHANGE_SUCCESS", []);
+            error_log("✅ Token exchange réussi!");
             
             return $data;
             
         } catch (Exception $e) {
             error_log("❌ Exception lors de l'échange de code: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
             return null;
         }
     }
