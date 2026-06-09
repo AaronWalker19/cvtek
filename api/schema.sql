@@ -18,13 +18,15 @@ CREATE TABLE IF NOT EXISTS users (
   role VARCHAR(50) DEFAULT 'student' COMMENT 'student, professor, admin'
     CHECK(role IN ('admin', 'professor', 'student')),
   parcour VARCHAR(255) NULLABLE COMMENT 'Parcours/cursus de l\'étudiant',
+  année INT DEFAULT 1 COMMENT 'Année scolaire (1 à 4)',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   
   -- Indexes
   INDEX idx_username (username),
   INDEX idx_email (email),
-  INDEX idx_role (role)
+  INDEX idx_role (role),
+  INDEX idx_année (année)
   
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
   COMMENT='Utilisateurs de CVTEK';

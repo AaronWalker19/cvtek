@@ -4,6 +4,8 @@ require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Repository/UserRepository.php';
 require_once __DIR__ . '/../Repository/CommentRepository.php';
 require_once __DIR__ . '/../Repository/AuthRepository.php';
+require_once __DIR__ . '/../Repository/DocumentRepository.php';
+require_once __DIR__ . '/../Service/EmailService.php';
 
 /**
  * AdminController
@@ -14,12 +16,16 @@ class AdminController extends Controller
     private UserRepository $users;
     private CommentRepository $comments;
     private AuthRepository $auth;
+    private DocumentRepository $documents;
+    private EmailService $emailService;
 
     public function __construct()
     {
         $this->users = new UserRepository();
         $this->comments = new CommentRepository();
         $this->auth = new AuthRepository();
+        $this->documents = new DocumentRepository();
+        $this->emailService = new EmailService();
     }
 
     protected function processGetRequest(HttpRequest $request): ?array
@@ -58,6 +64,11 @@ class AdminController extends Controller
         // POST /api/admin/professors -> créer un professeur (email uniquement)
         if ($resource === 'admin' && $action === 'professors') {
             return $this->handleCreateProfessor($request);
+        }
+
+        // POST /api/admin/advance-academic-year -> avancer l'année universitaire
+        if ($resource === 'admin' && $action === 'advance-academic-year') {
+            return $this->handleAdvanceAcademicYear($request);
         }
 
         return ["error" => "Endpoint non trouvé"];
@@ -312,5 +323,223 @@ class AdminController extends Controller
                 'note' => 'If total_users=0 but professors exist, check SQL WHERE clause or database permissions'
             ]
         ];
+    }
+
+    /**
+     * Avance l'année scolaire des étudiants
+     * POST /api/admin/advance-academic-year
+     * 
+     * Comportement:
+     * - Année 1 -> 2, Année 2 -> 3, Année 3 -> 4
+     * - Année 4 -> Suppression complète (utilisateur + documents + uploads)
+     */
+    private function handleAdvanceAcademicYear(HttpRequest $request): ?array
+    {
+        // Vérifier que c'est un admin
+        $user = requireAdmin();
+
+        logAction("ADMIN_ADVANCE_ACADEMIC_YEAR_START", ['requester' => $user['id']]);
+
+        try {
+            global $connexion;
+
+            // Récupérer tous les étudiants
+            $students = $connexion->query("SELECT id, email, année FROM users WHERE role = 'student' ORDER BY année DESC");
+            
+            if (!$students) {
+                throw new Exception("Erreur lors de la récupération des étudiants: " . $connexion->error);
+            }
+
+            $results = [
+                'promoted' => [],
+                'deleted' => [],
+                'total_processed' => 0,
+                'errors' => []
+            ];
+
+            // Traiter chaque étudiant
+            while ($student = $students->fetch_assoc()) {
+                $studentId = (int)$student['id'];
+                $currentYear = (int)$student['année'];
+                $email = $student['email'];
+
+                $results['total_processed']++;
+
+                try {
+                    if ($currentYear >= 4) {
+                        // Supprimer complètement l'étudiant et ses données
+                        $this->deleteStudentAndData($studentId, $email, $results);
+                    } else {
+                        // Avancer l'année
+                        $newYear = $currentYear + 1;
+                        $updateStmt = $connexion->prepare("UPDATE users SET année = ? WHERE id = ?");
+                        $updateStmt->bind_param("ii", $newYear, $studentId);
+                        $updateStmt->execute();
+                        $updateStmt->close();
+
+                        $results['promoted'][] = [
+                            'student_id' => $studentId,
+                            'email' => $email,
+                            'from_year' => $currentYear,
+                            'to_year' => $newYear
+                        ];
+
+                        logAction("STUDENT_YEAR_ADVANCED", [
+                            'studentId' => $studentId,
+                            'email' => $email,
+                            'from' => $currentYear,
+                            'to' => $newYear
+                        ]);
+                    }
+                } catch (Exception $e) {
+                    $results['errors'][] = [
+                        'student_id' => $studentId,
+                        'email' => $email,
+                        'error' => $e->getMessage()
+                    ];
+                    logAction("STUDENT_PROCESSING_ERROR", [
+                        'studentId' => $studentId,
+                        'email' => $email,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            logAction("ADMIN_ADVANCE_ACADEMIC_YEAR_END", [
+                'requester' => $user['id'],
+                'promoted' => count($results['promoted']),
+                'deleted' => count($results['deleted']),
+                'errors' => count($results['errors'])
+            ]);
+
+            // Envoyer un email de résumé si des étudiants ont été supprimés
+            if (count($results['deleted']) > 0) {
+                try {
+                    // Filtrer les suppressions réussies
+                    $deletedSuccessfully = array_filter($results['deleted'], function($d) {
+                        return ($d['status'] ?? '') === 'success';
+                    });
+
+                    if (count($deletedSuccessfully) > 0) {
+                        // Calculer le nombre total de fichiers supprimés
+                        $totalFilesDeleted = 0;
+                        foreach ($deletedSuccessfully as $deleted) {
+                            $totalFilesDeleted += $deleted['files_deleted'] ?? 0;
+                        }
+
+                        $this->emailService->sendStudentDeletionSummary(
+                            $user['email'],
+                            $user['username'],
+                            $deletedSuccessfully,
+                            $totalFilesDeleted
+                        );
+                    }
+                } catch (Exception $emailErr) {
+                    error_log("[ERROR] Erreur lors de l'envoi du mail de suppression: " . $emailErr->getMessage());
+                }
+            }
+
+            return [
+                'success' => true,
+                'message' => 'Année scolaire avancée avec succès',
+                'data' => $results
+            ];
+
+        } catch (Exception $e) {
+            logAction("ADMIN_ADVANCE_ACADEMIC_YEAR_ERROR", [
+                'error' => $e->getMessage()
+            ]);
+            return [
+                'error' => 'Erreur lors de l\'avancement de l\'année: ' . $e->getMessage(),
+                'code' => 500
+            ];
+        }
+    }
+
+    /**
+     * Supprime complètement un étudiant et toutes ses données
+     * - Utilisateur
+     * - Documents et versions
+     * - Commentaires
+     * - Fichiers uploads
+     * - Abonnements
+     */
+    private function deleteStudentAndData(int $studentId, string $email, array &$results): void
+    {
+        global $connexion;
+
+        try {
+            // 1. Récupérer tous les documents de l'étudiant pour supprimer les fichiers
+            $docsResult = $connexion->query(
+                "SELECT dv.url_fichier FROM doc_version dv 
+                 INNER JOIN documents d ON dv.id_doc = d.id 
+                 WHERE d.user_id = " . $studentId
+            );
+
+            $filesToDelete = [];
+            if ($docsResult) {
+                while ($row = $docsResult->fetch_assoc()) {
+                    $filesToDelete[] = $row['url_fichier'];
+                }
+            }
+
+            // 2. Supprimer les commentaires de l'étudiant
+            $connexion->query("DELETE FROM commentaire WHERE id_user = " . $studentId);
+
+            // 3. Supprimer les documents et versions (cascade)
+            $connexion->query("DELETE FROM documents WHERE user_id = " . $studentId);
+
+            // 4. Supprimer les abonnements
+            $connexion->query("DELETE FROM abonnement WHERE id_user = " . $studentId . " OR id_prof = " . $studentId);
+
+            // 5. Supprimer l'utilisateur
+            $connexion->query("DELETE FROM users WHERE id = " . $studentId);
+
+            // 6. Supprimer les fichiers physiques
+            $this->deleteUploadedFiles($filesToDelete);
+
+            $results['deleted'][] = [
+                'student_id' => $studentId,
+                'email' => $email,
+                'files_deleted' => count($filesToDelete),
+                'status' => 'success'
+            ];
+
+            logAction("STUDENT_DELETED", [
+                'studentId' => $studentId,
+                'email' => $email,
+                'filesDeleted' => count($filesToDelete)
+            ]);
+
+        } catch (Exception $e) {
+            throw new Exception("Erreur lors de la suppression de l'étudiant $email: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Supprime les fichiers uploads spécifiés
+     */
+    private function deleteUploadedFiles(array $filePaths): void
+    {
+        $uploadDir = getenv('UPLOAD_DIR') ?: '../uploads';
+        $basePath = dirname(__DIR__) . '/' . $uploadDir;
+
+        foreach ($filePaths as $filePath) {
+            // Extraire le nom de fichier du chemin complet
+            $fileName = basename($filePath);
+            $fullPath = $basePath . '/' . $fileName;
+
+            // Vérifier que le fichier existe et qu'il est dans le bon répertoire (sécurité)
+            if (file_exists($fullPath) && realpath($fullPath) === realpath($fullPath)) {
+                try {
+                    if (is_file($fullPath)) {
+                        unlink($fullPath);
+                        logAction("FILE_DELETED", ['path' => $fullPath]);
+                    }
+                } catch (Exception $e) {
+                    error_log("[WARNING] Impossible de supprimer le fichier: $fullPath - " . $e->getMessage());
+                }
+            }
+        }
     }
 }

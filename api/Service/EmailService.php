@@ -1267,6 +1267,147 @@ HTML;
     }
     
     /**
+     * Envoie un email de résumé des suppressions d'étudiants
+     * Endpoint: Après la montée d'année pour les étudiants supprimés
+     */
+    public function sendStudentDeletionSummary(
+        string $adminEmail,
+        string $adminName,
+        array $deletedStudents,
+        int $totalFilesDeleted
+    ): array {
+        try {
+            $studentCount = count($deletedStudents);
+            $subject = "📊 Résumé: $studentCount étudiant(s) supprimé(s) - Montée d'année";
+
+            // Construire la liste des étudiants supprimés
+            $studentsHtml = "<ul>";
+            $studentsText = "";
+            
+            foreach ($deletedStudents as $student) {
+                $email = $student['email'] ?? 'N/A';
+                $filesDeleted = $student['files_deleted'] ?? 0;
+                $studentsHtml .= "<li><strong>$email</strong> - $filesDeleted fichier(s) supprimé(s)</li>";
+                $studentsText .= "  - $email ($filesDeleted fichier(s))\n";
+            }
+            $studentsHtml .= "</ul>";
+
+            // Email en texte brut
+            $textBody = <<<EOT
+Bonjour $adminName,
+
+Résumé de la montée d'année universitaire:
+
+ÉTUDIANTS SUPPRIMÉS ($studentCount):
+$studentsText
+
+STATISTIQUES:
+- Nombre d'étudiants supprimés: $studentCount
+- Nombre de fichiers supprimés: $totalFilesDeleted
+
+DONNÉES SUPPRIMÉES:
+✓ Comptes utilisateurs
+✓ Documents et versions
+✓ Commentaires
+✓ Fichiers uploads
+✓ Abonnements
+
+La suppression a été effectuée avec succès.
+
+Cordialement,
+Système CVTEK
+EOT;
+
+            // Email en HTML
+            $htmlBody = <<<EOH
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #4b575f; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+        .section { margin: 20px 0; }
+        .stats-box { background: #f0f4f8; border-left: 4px solid #2563eb; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .stats-item { margin: 8px 0; font-size: 14px; }
+        .stats-value { font-weight: bold; color: #2563eb; }
+        .student-list { background: #fff9f0; border-left: 4px solid #ea580c; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .button { display: inline-block; padding: 10px 20px; background: #4b575f; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px; }
+        .footer { font-size: 12px; color: #999; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Résumé de la Montée d'Année</h1>
+            <p>Suppressions d'étudiants effectuées</p>
+        </div>
+
+        <div class="section">
+            <p>Bonjour <strong>$adminName</strong>,</p>
+            <p>Voici un résumé des étudiants supprimés lors de la montée d'année universitaire.</p>
+        </div>
+
+        <div class="stats-box">
+            <h3>📈 Statistiques Globales:</h3>
+            <div class="stats-item">
+                Étudiants supprimés: <span class="stats-value">$studentCount</span>
+            </div>
+            <div class="stats-item">
+                Fichiers supprimés: <span class="stats-value">$totalFilesDeleted</span>
+            </div>
+        </div>
+
+        <div class="student-list">
+            <h3>👥 Liste des Étudiants Supprimés:</h3>
+            $studentsHtml
+        </div>
+
+        <div class="section">
+            <h3>✓ Données Supprimées:</h3>
+            <ul>
+                <li>Comptes utilisateurs</li>
+                <li>Documents et versions</li>
+                <li>Commentaires</li>
+                <li>Fichiers uploads</li>
+                <li>Abonnements</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>Système CVTEK - Plateforme de gestion des documents pédagogiques</p>
+            <p>Université de Limoges</p>
+        </div>
+    </div>
+</body>
+</html>
+EOH;
+
+            // Envoyer l'email
+            $result = $this->sendEmail(
+                $adminEmail,
+                $subject,
+                $htmlBody,
+                $textBody
+            );
+
+            if ($result['success']) {
+                error_log("[EMAIL] ✅ Email de suppression envoyé à: $adminEmail");
+            } else {
+                error_log("[EMAIL] ❌ Erreur envoi email suppression: " . ($result['error'] ?? 'Inconnue'));
+            }
+
+            return $result;
+
+        } catch (Exception $e) {
+            error_log("[EMAIL ERROR] " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Test de configuration email
      */
     public function testConnection(): bool

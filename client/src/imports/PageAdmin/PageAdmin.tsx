@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { getProfessors, createProfessor, deleteProfessor, getProfessor, getCommentsByUserId, Professor, Comment } from '../../api/client';
+import { getProfessors, createProfessor, deleteProfessor, getProfessor, getCommentsByUserId, advanceAcademicYear, Professor, Comment } from '../../api/client';
 import ProfessorProfileModal from '../../components/ProfessorProfileModal';
 import DeleteConfirmationModal from '../../components/DeleteConfirmationModal';
+import AdvanceAcademicYearModal from '../../components/AdvanceAcademicYearModal';
 
 interface PageAdminProps {
   onLogout: () => void;
@@ -20,6 +21,9 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
   const [deleting, setDeleting] = useState<number | null>(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [selectedProfessorToDelete, setSelectedProfessorToDelete] = useState<Professor | null>(null);
+  const [showAdvanceYearModal, setShowAdvanceYearModal] = useState(false);
+  const [advancingYear, setAdvancingYear] = useState(false);
+  const [advanceYearResult, setAdvanceYearResult] = useState<any>(null);
 
   // Charger la liste des professeurs au montage
   useEffect(() => {
@@ -141,6 +145,37 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
     }
   };
 
+  const handleAdvanceAcademicYear = async () => {
+    try {
+      setAdvancingYear(true);
+      const result = await advanceAcademicYear();
+      setAdvanceYearResult(result);
+      
+      // Afficher un résumé
+      console.group('📚 Résumé de la montée d\'année');
+      console.log('✅ Promus:', result.promoted.length);
+      console.log('🗑️ Supprimés:', result.deleted.length);
+      console.log('❌ Erreurs:', result.errors.length);
+      console.log('Détails:', result);
+      console.groupEnd();
+
+      // Afficher un message de succès
+      alert(
+        `✅ Montée d'année effectuée!\n\n` +
+        `Promus: ${result.promoted.length}\n` +
+        `Supprimés: ${result.deleted.length}\n` +
+        `Erreurs: ${result.errors.length}`
+      );
+
+      setShowAdvanceYearModal(false);
+    } catch (err) {
+      console.error('Erreur lors de l\'avancement:', err);
+      alert('❌ Erreur: ' + (err instanceof Error ? err.message : 'Erreur inconnue'));
+    } finally {
+      setAdvancingYear(false);
+    }
+  };
+
 
 
   if (loading) {
@@ -157,7 +192,20 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
   return (
     <div className="bg-[#ffffff] content-stretch flex items-stretch relative h-screen w-full">
       {/* Sidebar */}
-      <div className="bg-[#4b575f] h-full relative shrink-0 flex flex-col items-center justify-end py-[20px] px-[30px] w-[220px]">
+      <div className="bg-[#4b575f] h-full relative shrink-0 flex flex-col items-center justify-between py-[20px] px-[30px] w-[220px]">
+        {/* Bouton de montée d'année */}
+        <button
+          onClick={() => setShowAdvanceYearModal(true)}
+          disabled={advancingYear}
+          className="bg-[#2563eb] content-stretch flex items-center justify-center p-[10px] relative rounded-[4px] shrink-0 w-full hover:bg-[#1d4ed8] transition-colors disabled:opacity-50 mb-4"
+          title="Avancer l'année universitaire (+1 pour tous les étudiants, suppression pour année 4)"
+        >
+          <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic text-[#ffffff] text-[16px] whitespace-nowrap">
+            {advancingYear ? '⏳ Traitement...' : '📅 Montée d\'année'}
+          </p>
+        </button>
+
+        {/* Bouton Déconnexion */}
         <button
           onClick={onLogout}
           className="bg-[#b51621] content-stretch flex items-center justify-center p-[10px] relative rounded-[4px] shrink-0 w-full hover:bg-[#8e1119] transition-colors"
@@ -301,6 +349,17 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
         onCancel={() => {
           setShowDeleteConfirmation(false);
           setSelectedProfessorToDelete(null);
+        }}
+      />
+
+      {/* Modal de montée d'année */}
+      <AdvanceAcademicYearModal
+        isOpen={showAdvanceYearModal}
+        isLoading={advancingYear}
+        onConfirm={handleAdvanceAcademicYear}
+        onCancel={() => {
+          setShowAdvanceYearModal(false);
+          setAdvanceYearResult(null);
         }}
       />
     </div>
