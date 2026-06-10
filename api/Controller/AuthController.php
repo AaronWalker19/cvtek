@@ -823,7 +823,7 @@ class AuthController extends Controller
             $options = [
                 'http' => [
                     'method' => 'POST',
-                    'header' => [
+                    'headers' => [
                         'Content-Type: application/x-www-form-urlencoded',
                         'Accept: application/json'
                     ],

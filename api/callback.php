@@ -14,6 +14,9 @@ file_put_contents('/tmp/cvtek-callback.log', "[" . date('Y-m-d H:i:s') . "] Call
 // Charger la configuration
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/Repository/Repository.php';
+require_once __DIR__ . '/Repository/AuthRepository.php';
 
 // Récupérer les paramètres
 $code = $_GET['code'] ?? null;
@@ -45,6 +48,37 @@ error_log("DEBUG: Reçu state = " . substr($state, 0, 8) . '...');
 //     header("Location: /cvtek/auth/callback?error=invalid_state");
 //     exit;
 // }
+
+// ⚠️ PROTECTION: Empêcher la réutilisation du code (problème de double requête)
+// OAuth2 ne permet d'utiliser un code qu'une seule fois
+// Si on reçoit le même code deux fois, c'est une attaque ou un bug navigateur
+$codeHash = hash('sha256', $code);
+$usedCodesFile = __DIR__ . '/logs/used-codes.log';
+@mkdir(__DIR__ . '/logs', 0777, true);
+
+// Vérifier si le code a déjà été utilisé dans les 5 dernières minutes
+$usedCodes = [];
+if (file_exists($usedCodesFile)) {
+    $lines = file($usedCodesFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    $currentTime = time();
+    foreach ($lines as $line) {
+        [$hash, $timestamp] = explode('|', $line);
+        // Garder les codes utilisés dans les 5 dernières minutes
+        if ($currentTime - $timestamp < 300) {
+            $usedCodes[$hash] = $timestamp;
+        }
+    }
+}
+
+// Vérifier si CE code a déjà été utilisé
+if (isset($usedCodes[$codeHash])) {
+    error_log("❌ SÉCURITÉ: Code déjà utilisé! Hash: $codeHash");
+    logAction("UNILIM_CODE_REUSE_DETECTED", ['code' => substr($code, 0, 8) . '...']);
+    die("<h1>❌ Erreur Sécurité</h1><p>Ce code d'autorisation a déjà été utilisé.</p><p>Veuillez recommencer la connexion Unilim.</p>");
+}
+
+// Enregistrer ce code comme utilisé
+file_put_contents($usedCodesFile, "$codeHash|" . time() . "\n", FILE_APPEND);
 
 // Nettoyer la session de toute façon
 unset($_SESSION['unilim_state']);
@@ -221,12 +255,115 @@ try {
         'sub' => $payloadData['sub'] ?? 'unknown'
     ]);
 
-    // ✅ ÉTAPE 7: Stocker les infos en session et rediriger
-    $_SESSION['unilim_payload'] = $payloadData;
-    $_SESSION['unilim_token_response'] = $data;
+    // 🔍 DEBUG: Afficher le payload complet pour diagnostic
+    error_log("🔍 JWT PAYLOAD COMPLET: " . json_encode($payloadData, JSON_PRETTY_PRINT));
+    error_log("🔍 Clés du payload: " . json_encode(array_keys($payloadData)));
+
+    // ✅ ÉTAPE 7: Récupérer les infos utilisateur via /userinfo (pas dans le JWT)
+    // Le JWT ne contient que sub, pas email. On doit appeler l'endpoint /userinfo
+    $accessToken = $data['access_token'] ?? null;
+    $username = $payloadData['sub'] ?? null; // valin6
     
-    // Rediriger vers le frontend React avec le code et state
-    header("Location: /cvtek/auth/callback?code=" . urlencode($code) . "&state=" . urlencode($state));
+    if (!$accessToken || !$username) {
+        error_log("❌ Token d'accès ou username manquant");
+        logAction("UNILIM_MISSING_TOKEN_INFO", ['access_token_found' => !empty($accessToken), 'sub_found' => !empty($username)]);
+        die("<h1>❌ Erreur</h1><p>Token d'accès ou identifiant manquant</p>");
+    }
+
+    // Appeler /userinfo pour récupérer l'email
+    error_log("📡 Appel de /userinfo avec token: " . substr($accessToken, 0, 20) . "...");
+    
+    $userInfoUrl = 'https://cas.unilim.fr/oauth2/userinfo';
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $userInfoUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . $accessToken,
+        'Accept: application/json'
+    ]);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    
+    $userInfoResponse = curl_exec($ch);
+    $userInfoStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($userInfoResponse === false || $userInfoStatus !== 200) {
+        error_log("❌ Erreur /userinfo: HTTP " . $userInfoStatus . " - " . substr($userInfoResponse, 0, 200));
+        logAction("UNILIM_USERINFO_FAILED", ['status' => $userInfoStatus]);
+        die("<h1>❌ Erreur /userinfo</h1><p>Impossible de récupérer les infos utilisateur</p><pre>" . htmlspecialchars($userInfoResponse) . "</pre>");
+    }
+    
+    $userInfo = json_decode($userInfoResponse, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("❌ Erreur parsing /userinfo response: " . json_last_error_msg());
+        logAction("UNILIM_USERINFO_PARSE_ERROR", []);
+        die("<h1>❌ Erreur parsing /userinfo</h1><p>" . json_last_error_msg() . "</p>");
+    }
+    
+    error_log("🔍 /userinfo RESPONSE: " . json_encode($userInfo, JSON_PRETTY_PRINT));
+    
+    // Extraire email et autres infos
+    $email = $userInfo['email'] ?? null;
+    if (!$email) {
+        error_log("❌ Email manquant de /userinfo. Response: " . json_encode($userInfo));
+        logAction("UNILIM_NO_EMAIL_IN_USERINFO", ['userinfo' => $userInfo]);
+        die("<h1>❌ Erreur</h1><p>Email manquant de /userinfo</p><pre>" . json_encode($userInfo, JSON_PRETTY_PRINT) . "</pre>");
+    }
+    
+    $role = $payloadData['role'] ?? 'student';
+    
+    // ✅ ÉTAPE 8: Vérifier qu'on a bien récupéré les infos
+    $auth = new AuthRepository();
+    
+    // Déterminer le rôle en fonction du domaine d'email
+    if (strpos($email, '@etu.unilim.fr') !== false) {
+        $role = 'student';
+    } elseif (strpos($email, '@unilim.fr') !== false) {
+        $role = 'professor';
+    }
+    
+    error_log("✅ Infos complètes récupérées: username=" . $username . ", email=" . $email . ", role=" . $role);
+
+    // ✅ ÉTAPE 9: Créer ou récupérer l'utilisateur
+    $user = $auth->findOrCreateByEmail($email, $username, $role);
+    
+    if (!$user) {
+        error_log("❌ Erreur création/récupération utilisateur: " . $email);
+        logAction("UNILIM_USER_CREATION_FAILED", ['email' => $email]);
+        die("<h1>❌ Erreur</h1><p>Impossible de créer ou récupérer l'utilisateur</p>");
+    }
+
+    logAction("UNILIM_USER_SUCCESS", [
+        'userId' => $user['id'],
+        'email' => $email,
+        'username' => $username,
+        'role' => $role
+    ]);
+
+    // ✅ ÉTAPE 10: Générer le token JWT de l'app
+    $appToken = generateToken($user['id'], $user['username'], $user['role']);
+    
+    // ✅ ÉTAPE 11: Stocker en session
+    $_SESSION['app_token'] = $appToken;
+    $_SESSION['user'] = [
+        'id' => (int)$user['id'],
+        'username' => $user['username'],
+        'email' => $user['email'],
+        'role' => $user['role'],
+        'parcour' => $user['parcour'] ?? null
+    ];
+    $_SESSION['unilim_payload'] = $payloadData;
+    
+    // ✅ ÉTAPE 12: Rediriger vers le dashboard (sans paramètres!)
+    // Ceci évitera la boucle car le frontend verra que l'utilisateur est connecté
+    logAction("UNILIM_CALLBACK_COMPLETE", [
+        'userId' => $user['id'],
+        'email' => $email
+    ]);
+    
+    header("Location: /cvtek/");
     exit;
 
 } catch (Exception $e) {
