@@ -800,6 +800,17 @@ export async function addComment(docVersionId: number, text: string): Promise<Co
     } else if (response.data?.email_sent === false) {
         console.warn(`⚠️ Email de notification non envoyé`);
         console.log(`   📮 Destinataire prévu: ${response.data.email_recipient_name} <${response.data.email_recipient}>`);
+        if (response.data.email_error) {
+            console.warn(`   ❌ Erreur: ${response.data.email_error}`);
+        }
+        if (response.data.email_logs && Array.isArray(response.data.email_logs)) {
+            console.log(`   📋 Logs détaillés du serveur:`);
+            response.data.email_logs.forEach((log: string) => {
+                console.log(`       ${log}`);
+            });
+        }
+        // Afficher la réponse complète pour le debug ultime
+        console.debug(`   🔧 Réponse complète du serveur:`, response.data);
     }
 
     return response.data.comment;

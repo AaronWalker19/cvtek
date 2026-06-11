@@ -157,6 +157,11 @@ class CommentController extends Controller
             } else if ($emailInfo['success']) {
                 error_log("[COM] ✅ Email envoyé avec succès");
             }
+            
+            // Inclure les logs détaillés du service d'email pour le debug
+            if (isset($emailInfo['logs']) && !empty($emailInfo['logs'])) {
+                $response['email_logs'] = $emailInfo['logs'];
+            }
             error_log("=========================================");
             
             return $response;

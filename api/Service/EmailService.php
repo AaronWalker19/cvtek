@@ -561,10 +561,34 @@ class EmailService
      */
     private function sendEmail(string $to, string $subject, string $body): array
     {
-        // Sur Windows: mail() ne fonctionne PAS sans php.ini configuré
-        // Donc on saute directement au SMTP qui fonctionne
-        $this->addLog("[EMAIL] 📤 Utilisation SMTP Gmail directement (mail() non fiable sur Windows)...");
-        return $this->sendViaSMTP($to, $subject, $body);
+        // Stratégie intelligente sur Windows: essayer mail() en priorité
+        // car SMTP nécessite OpenSSL qui n'est pas toujours disponible
+        $this->addLog("[EMAIL] 🔍 Stratégie: Essayer mail() en priorité → Fallback SMTP");
+        
+        // Essayer mail() d'abord (fonctionne bien sur Windows avec SMTP relai)
+        $this->addLog("[EMAIL] 📤 Tentative 1: Envoi via mail()...");
+        $mailResult = $this->sendViaPhpMail($to, $subject, $body);
+        
+        if ($mailResult['success']) {
+            $this->addLog("[EMAIL] ✅ Email envoyé avec succès via mail()");
+            return $mailResult;
+        }
+        
+        // Si mail() échoue, fallback à SMTP
+        $this->addLog("[EMAIL] ⚠️  mail() a échoué, tentative 2: SMTP directe...");
+        $smtpResult = $this->sendViaSMTP($to, $subject, $body);
+        
+        if ($smtpResult['success']) {
+            $this->addLog("[EMAIL] ✅ Email envoyé avec succès via SMTP");
+            return $smtpResult;
+        }
+        
+        // Aucune méthode n'a fonctionné
+        $this->addLog("[EMAIL] ❌ Les deux méthodes ont échoué (mail() et SMTP)");
+        return [
+            'success' => false,
+            'error' => 'Impossible d\'envoyer l\'email via mail() ou SMTP'
+        ];
     }
     
     /**
