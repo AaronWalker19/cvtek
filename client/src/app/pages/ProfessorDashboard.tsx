@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Sidebar from "../components/Sidebar";
 import AdminLoginModal from "../../components/AdminLoginModal";
+import ExportModal from "../components/ExportModal";
 import svgPaths from "../../imports/PageDeBaseCoteProf/svg-9gqyfpru0n";
-import { getDocuments, getUserById, getDocument, checkSubscription, createSubscription, deleteSubscription, getCommentsByDocVersion, Comment } from '../../api/client';
+import { getDocuments, getUserById, getDocument, checkSubscription, createSubscription, deleteSubscription, getCommentsByDocVersion, Comment, exportDocuments } from '../../api/client';
 
 export default function ProfessorDashboard() {
   const navigate = useNavigate();
@@ -12,6 +13,8 @@ export default function ProfessorDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<{
     name: string;
     license?: string;
@@ -39,6 +42,37 @@ export default function ProfessorDashboard() {
   const [sortColumn, setSortColumn] = useState<'name' | 'lastDeposit' | 'lastComment'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [selectedLicenses, setSelectedLicenses] = useState<Set<string>>(new Set());
+  const [selectedFollowStatus, setSelectedFollowStatus] = useState<Set<'followed' | 'unfollowed'>>(new Set());
+  const [allSubscriptions, setAllSubscriptions] = useState<Set<number>>(new Set());
+
+  // Charger les abonnements de TOUS les étudiants pour le filtrage
+  useEffect(() => {
+    const loadAllSubscriptions = async () => {
+      if (!user || allStudents.length === 0) {
+        setAllSubscriptions(new Set());
+        return;
+      }
+
+      try {
+        const followedStudentIds = new Set<number>();
+        for (const student of allStudents) {
+          try {
+            const isSubscribed = await checkSubscription(user.id, student.userId);
+            if (isSubscribed) {
+              followedStudentIds.add(student.userId);
+            }
+          } catch (error) {
+            console.error(`❌ Erreur vérification abonnement étudiant ${student.userId}:`, error);
+          }
+        }
+        setAllSubscriptions(followedStudentIds);
+      } catch (error) {
+        console.error('❌ [loadAllSubscriptions] Erreur:', error);
+      }
+    };
+
+    loadAllSubscriptions();
+  }, [user, allStudents]);
 
   // Charger l'état d'abonnement quand un étudiant est sélectionné
   useEffect(() => {
@@ -74,10 +108,18 @@ export default function ProfessorDashboard() {
         // Désabonner
         await deleteSubscription(user.id, selectedStudent.userId);
         setSubscriptions(new Set());
+        // Mettre à jour allSubscriptions
+        const newAllSubs = new Set(allSubscriptions);
+        newAllSubs.delete(selectedStudent.userId);
+        setAllSubscriptions(newAllSubs);
       } else {
         // S'abonner
         await createSubscription(user.id, selectedStudent.userId);
         setSubscriptions(new Set([selectedStudent.userId]));
+        // Mettre à jour allSubscriptions
+        const newAllSubs = new Set(allSubscriptions);
+        newAllSubs.add(selectedStudent.userId);
+        setAllSubscriptions(newAllSubs);
       }
     } catch (error) {
       console.error(`❌ [toggleSubscription] Erreur:`, error);
@@ -434,7 +476,18 @@ export default function ProfessorDashboard() {
     setSelectedLicenses(newSelected);
   };
 
-  // Filtrer les étudiants selon la recherche ET les licences
+  // Basculer la sélection du statut de suivi
+  const toggleFollowStatusFilter = (status: 'followed' | 'unfollowed') => {
+    const newSelected = new Set(selectedFollowStatus);
+    if (newSelected.has(status)) {
+      newSelected.delete(status);
+    } else {
+      newSelected.add(status);
+    }
+    setSelectedFollowStatus(newSelected);
+  };
+
+  // Filtrer les étudiants selon la recherche, les licences ET le statut de suivi
   const getFilteredStudents = () => {
     let result = allStudents.filter(
       (student) =>
@@ -445,6 +498,16 @@ export default function ProfessorDashboard() {
     // Si des licences sont sélectionnées, filtrer par licence
     if (selectedLicenses.size > 0) {
       result = result.filter((student) => selectedLicenses.has(student.license || ''));
+    }
+
+    // Si des statuts de suivi sont sélectionnés, filtrer par statut
+    if (selectedFollowStatus.size > 0) {
+      result = result.filter((student) => {
+        const isFollowed = allSubscriptions.has(student.userId);
+        if (selectedFollowStatus.has('followed') && isFollowed) return true;
+        if (selectedFollowStatus.has('unfollowed') && !isFollowed) return true;
+        return false;
+      });
     }
 
     return result;
@@ -481,6 +544,32 @@ export default function ProfessorDashboard() {
     return sorted;
   };
 
+  // Gérer l'export des fichiers
+  const handleExport = async (studentIds: number[]) => {
+    setExportLoading(true);
+    try {
+      const blob = await exportDocuments(studentIds);
+      
+      // Créer un lien de téléchargement
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `export_documents_${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      alert('✅ Export réussi ! Votre fichier ZIP a été téléchargé.');
+      setShowExportModal(false);
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'export:', error);
+      alert('❌ Erreur lors de l\'export des fichiers');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   // Composant pour afficher la flèche de tri
   const SortArrow = ({ column }: { column: 'name' | 'lastDeposit' | 'lastComment' }) => {
     if (sortColumn === column) {
@@ -505,6 +594,13 @@ export default function ProfessorDashboard() {
               <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[#4b575f] text-[32px] whitespace-nowrap">
                 Documents postée
               </p>
+              <div className="flex items-center gap-[15px]">
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="relative shrink-0 px-4 py-2 bg-[#4b575f] text-white rounded font-['Inter:Medium',sans-serif] font-medium hover:bg-[#36302a] transition-colors flex items-center gap-[8px]"
+              >
+                📥 Exporter
+              </button>
               {user?.role !== 'admin' && (
                 <button
                   onClick={() => setShowAdminModal(true)}
@@ -513,6 +609,7 @@ export default function ProfessorDashboard() {
                   Passer en Admin
                 </button>
               )}
+              </div>
             </div>
 
             {/* Search and Filter */}
@@ -596,9 +693,42 @@ export default function ProfessorDashboard() {
                       </label>
                     ))}
                   </div>
-                  {selectedLicenses.size > 0 && (
+                  
+                  {/* Filtre Suivi */}
+                  <p className="font-['Inter:Medium',sans-serif] font-medium text-[#36302a] text-[16px] mt-[15px]">
+                    Statut de suivi :
+                  </p>
+                  <div className="flex flex-col gap-[10px]">
+                    <label className="flex items-center gap-[10px] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedFollowStatus.has('followed')}
+                        onChange={() => toggleFollowStatusFilter('followed')}
+                        className="w-[18px] h-[18px] cursor-pointer"
+                      />
+                      <span className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px]">
+                        Suivi
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-[10px] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedFollowStatus.has('unfollowed')}
+                        onChange={() => toggleFollowStatusFilter('unfollowed')}
+                        className="w-[18px] h-[18px] cursor-pointer"
+                      />
+                      <span className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px]">
+                        Non suivi
+                      </span>
+                    </label>
+                  </div>
+                  
+                  {(selectedLicenses.size > 0 || selectedFollowStatus.size > 0) && (
                     <button
-                      onClick={() => setSelectedLicenses(new Set())}
+                      onClick={() => {
+                        setSelectedLicenses(new Set());
+                        setSelectedFollowStatus(new Set());
+                      }}
                       className="mt-[10px] px-4 py-2 bg-[#4b575f] text-white rounded font-['Inter:Medium',sans-serif] font-medium hover:bg-[#36302a] transition-colors text-[14px]"
                     >
                       Réinitialiser les filtres
@@ -813,6 +943,16 @@ export default function ProfessorDashboard() {
           setShowAdminModal(false);
           navigate('/admin');
         }}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        students={allStudents}
+        onExport={handleExport}
+        isLoading={exportLoading}
+        subscriptions={allSubscriptions}
       />
     </div>
   );

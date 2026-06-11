@@ -33,9 +33,10 @@ class DocumentRepository extends Repository
     {
         $results = $this->execute(
             "SELECT d.id, d.user_id, d.nom_fichier, d.titre, d.type_fichier, 
-                    d.description, d.created_at,
+                    d.description, d.created_at, u.username, u.email, u.parcour,
                     COUNT(c.id) as comment_count
              FROM documents d
+             LEFT JOIN users u ON d.user_id = u.id
              LEFT JOIN doc_version dv ON dv.id_doc = d.id
              LEFT JOIN commentaire c ON c.id_docversion = dv.id
              WHERE d.user_id = ?
@@ -112,6 +113,49 @@ class DocumentRepository extends Repository
         error_log("[DEBUG] findByIdWithVersions: Document final = " . json_encode(array_keys($doc)));
 
         return $doc;
+    }
+
+    /**
+     * Récupère TOUS les documents d'un utilisateur avec leurs dernières versions
+     * Utilisé pour l'export ZIP
+     */
+    public function findAllByUserIdWithVersions(int $userId): array
+    {
+        error_log("[DEBUG] findAllByUserIdWithVersions: Récupération des documents pour userId = $userId");
+        
+        // Récupérer les IDs de tous les documents de cet utilisateur
+        $results = $this->execute(
+            "SELECT d.id, d.user_id, d.nom_fichier, d.titre, d.type_fichier, 
+                    d.description, d.created_at, u.username, u.email, u.parcour,
+                    COUNT(c.id) as comment_count
+             FROM documents d
+             LEFT JOIN users u ON d.user_id = u.id
+             LEFT JOIN doc_version dv ON dv.id_doc = d.id
+             LEFT JOIN commentaire c ON c.id_docversion = dv.id
+             WHERE d.user_id = ?
+             GROUP BY d.id
+             ORDER BY d.created_at DESC",
+            [$userId]
+        );
+
+        if (empty($results)) {
+            error_log("[DEBUG] findAllByUserIdWithVersions: Aucun document trouvé");
+            return [];
+        }
+
+        error_log("[DEBUG] findAllByUserIdWithVersions: Trouvé " . count($results) . " documents");
+
+        // Pour chaque document, récupérer sa dernière version
+        $documents = [];
+        foreach ($results as $doc) {
+            $docWithVersions = $this->findByIdWithVersions($doc['id']);
+            if ($docWithVersions) {
+                $documents[] = $docWithVersions;
+            }
+        }
+
+        error_log("[DEBUG] findAllByUserIdWithVersions: Retourné " . count($documents) . " documents avec versions");
+        return $documents;
     }
 
     /**

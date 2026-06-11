@@ -38,11 +38,13 @@ require_once __DIR__ . '/Controller/SystemController.php';
 require_once __DIR__ . '/Controller/CommentController.php';
 require_once __DIR__ . '/Controller/AbonnementController.php';
 require_once __DIR__ . '/Controller/AdminController.php';
+require_once __DIR__ . '/Controller/ExportController.php';
 require_once __DIR__ . '/Repository/AuthRepository.php';
 require_once __DIR__ . '/Repository/DocumentRepository.php';
 require_once __DIR__ . '/Repository/UploadRepository.php';
 require_once __DIR__ . '/Repository/CommentRepository.php';
 require_once __DIR__ . '/Repository/AbonnementRepository.php';
+require_once __DIR__ . '/Repository/UserRepository.php';
 
 // ===== CONFIGURATION DE SESSION =====
 // Doit être fait AVANT tout session_start()
@@ -133,6 +135,7 @@ try {
         'comments' => new CommentController(),
         'abonnement' => new AbonnementController(),
         'admin' => new AdminController(),
+        'export' => new ExportController(),
     ];
 
     // Vérifier si le contrôleur existe

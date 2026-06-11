@@ -593,13 +593,37 @@ class EmailService
     
     /**
      * Envoie un email pour DOCUMENTS
-     * Même approche que les commentaires: mail() d'abord (ça fonctionne!)
-     * Fallback: SMTP seulement si mail() échoue
+     * IMPORTANT: Utiliser SMTP directement (pas mail() qui fonctionne pas vraiment sur Windows)
+     * mail() retourne true mais ne livre rien si SMTP n'est pas configuré
      */
     private function sendEmailForDocument(string $to, string $subject, string $body): array
     {
-        // Utiliser la MÊME approche que sendEmail (mail() fonctionne pour les commentaires!)
-        return $this->sendEmail($to, $subject, $body);
+        $this->addLog("[EMAIL] 🔍 DOCUMENT: Stratégie: SMTP en priorité (mail() ne fonctionne pas sur Windows)");
+        
+        // Essayer SMTP d'abord (qui a les bonnes credentials Gmail)
+        $this->addLog("[EMAIL] 📤 Tentative 1: Envoi via SMTP (Gmail)...");
+        $smtpResult = $this->sendViaSMTP($to, $subject, $body);
+        
+        if ($smtpResult['success']) {
+            $this->addLog("[EMAIL] ✅ Email envoyé avec succès via SMTP");
+            return $smtpResult;
+        }
+        
+        // Si SMTP échoue, fallback à mail()
+        $this->addLog("[EMAIL] ⚠️  SMTP a échoué, tentative 2: mail()...");
+        $mailResult = $this->sendViaPhpMail($to, $subject, $body);
+        
+        if ($mailResult['success']) {
+            $this->addLog("[EMAIL] ✅ Email envoyé avec succès via mail()");
+            return $mailResult;
+        }
+        
+        // Aucune méthode n'a fonctionné
+        $this->addLog("[EMAIL] ❌ Les deux méthodes ont échoué (SMTP et mail())");
+        return [
+            'success' => false,
+            'error' => 'Impossible d\'envoyer l\'email via SMTP ou mail()'
+        ];
     }
     
     /**

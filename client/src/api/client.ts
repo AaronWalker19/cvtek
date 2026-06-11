@@ -1098,3 +1098,49 @@ export async function getUnilimAuthorizeUrl(): Promise<{ authorize_url: string; 
 // Fonction à implémenter plus tard
 // export async function handleCallback(code: string, state: string): Promise<User> {
 
+// ===============================================
+// Export des fichiers
+// ===============================================
+
+/**
+ * Exporte les fichiers des étudiants sélectionnés dans un ZIP
+ * Endpoint: POST /api/export
+ */
+export async function exportDocuments(studentIds: number[], licenses?: string[]): Promise<Blob> {
+    const url = API_BASE_URL + '/export';
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                student_ids: studentIds,
+                licenses: licenses,
+            }),
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            console.error('❌ Export failed:', text.substring(0, 200));
+            throw new Error(`Export failed with status ${response.status}`);
+        }
+
+        // Récupérer le ZIP en tant que Blob
+        const blob = await response.blob();
+        
+        if (blob.type !== 'application/zip' && blob.type !== 'application/octet-stream') {
+            console.warn(`⚠️ Unexpected content type: ${blob.type}`);
+        }
+
+        return blob;
+
+    } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error(`❌ Export exception:`, errorMsg);
+        throw error;
+    }
+}
+
