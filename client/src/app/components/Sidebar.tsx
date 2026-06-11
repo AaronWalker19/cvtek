@@ -49,7 +49,7 @@ export default function Sidebar({ bgColor, showAdmin = false }: SidebarProps) {
                 </div>
               </Link>
             )}
-            {showAdmin && (
+            {user.role === 'admin' && (
               <Link to="/admin" className="relative shrink-0 w-full !text-[#ffffff] hover:!text-[#ffffff]">
                 <div className="flex flex-row items-center justify-center size-full">
                   <div className="content-stretch flex items-center justify-center p-[2px] relative size-full">

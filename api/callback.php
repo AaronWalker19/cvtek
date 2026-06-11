@@ -262,12 +262,11 @@ try {
     // ✅ ÉTAPE 7: Récupérer les infos utilisateur via /userinfo (pas dans le JWT)
     // Le JWT ne contient que sub, pas email. On doit appeler l'endpoint /userinfo
     $accessToken = $data['access_token'] ?? null;
-    $username = $payloadData['sub'] ?? null; // valin6
     
-    if (!$accessToken || !$username) {
-        error_log("❌ Token d'accès ou username manquant");
-        logAction("UNILIM_MISSING_TOKEN_INFO", ['access_token_found' => !empty($accessToken), 'sub_found' => !empty($username)]);
-        die("<h1>❌ Erreur</h1><p>Token d'accès ou identifiant manquant</p>");
+    if (!$accessToken) {
+        error_log("❌ Token d'accès manquant");
+        logAction("UNILIM_MISSING_ACCESS_TOKEN", []);
+        die("<h1>❌ Erreur</h1><p>Token d'accès manquant</p>");
     }
 
     // Appeler /userinfo pour récupérer l'email
@@ -312,6 +311,17 @@ try {
         die("<h1>❌ Erreur</h1><p>Email manquant de /userinfo</p><pre>" . json_encode($userInfo, JSON_PRETTY_PRINT) . "</pre>");
     }
     
+    // 🎯 Récupérer le nom complet (nom + prénom) de /userinfo
+    // Au lieu du "sub" qui est juste l'identifiant court (valin6)
+    $username = $userInfo['name'] ?? $payloadData['sub'] ?? null;
+    if (!$username) {
+        error_log("❌ Nom manquant de /userinfo. Response: " . json_encode($userInfo));
+        logAction("UNILIM_NO_NAME_IN_USERINFO", ['userinfo' => $userInfo]);
+        die("<h1>❌ Erreur</h1><p>Nom manquant de /userinfo</p><pre>" . json_encode($userInfo, JSON_PRETTY_PRINT) . "</pre>");
+    }
+    
+    error_log("✅ Username récupéré: " . $username);
+    
     $role = $payloadData['role'] ?? 'student';
     
     // ✅ ÉTAPE 8: Vérifier qu'on a bien récupéré les infos
@@ -326,8 +336,56 @@ try {
     
     error_log("✅ Infos complètes récupérées: username=" . $username . ", email=" . $email . ", role=" . $role);
 
-    // ✅ ÉTAPE 9: Créer ou récupérer l'utilisateur
-    $user = $auth->findOrCreateByEmail($email, $username, $role);
+    // ✅ ÉTAPE 9: Traiter les professeurs et étudiants différemment
+    $user = null;
+    
+    if ($role === 'professor') {
+        // 🔒 PROFESSEUR: Doit DÉJÀ exister en BD (pas d'auto-création)
+        $user = $auth->findByEmail($email);
+        
+        if (!$user) {
+            // ❌ Professeur non autorisé
+            error_log("❌ Accès refusé: professeur non enregistré: " . $email);
+            logAction("UNILIM_PROFESSOR_NOT_AUTHORIZED", ['email' => $email]);
+            
+            // Détruire la session et les cookies
+            session_destroy();
+            if (isset($_COOKIE[session_name()])) {
+                setcookie(session_name(), '', time() - 3600, '/');
+            }
+            setcookie('PHPSESSID', '', time() - 3600, '/');
+            
+            // Afficher page d'erreur
+            http_response_code(403);
+            die("
+                <html>
+                <head>
+                    <meta charset='UTF-8'>
+                    <title>Accès refusé</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; background: #f5f5f5; }
+                        .container { max-width: 500px; margin: 100px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+                        h1 { color: #d32f2f; }
+                        p { color: #666; line-height: 1.6; }
+                        a { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #1976d2; color: white; text-decoration: none; border-radius: 4px; }
+                    </style>
+                </head>
+                <body>
+                    <div class='container'>
+                        <h1>🔒 Accès refusé</h1>
+                        <p>Votre compte professeur n'est pas autorisé à accéder à cette application.</p>
+                        <p>Veuillez contacter l'administrateur pour obtenir l'accès.</p>
+                        <p><strong>Email:</strong> " . htmlspecialchars($email) . "</p>
+                        <a href='/cvtek/'>← Retour</a>
+                    </div>
+                </body>
+                </html>
+            ");
+        }
+    } else {
+        // 👨‍🎓 ÉTUDIANT: Auto-création si n'existe pas
+        $user = $auth->findOrCreateByEmail($email, $username, $role);
+    }
     
     if (!$user) {
         error_log("❌ Erreur création/récupération utilisateur: " . $email);

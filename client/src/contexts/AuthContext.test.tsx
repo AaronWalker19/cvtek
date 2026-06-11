@@ -5,7 +5,7 @@ import '@testing-library/jest-dom';
 describe('AuthContext (Unit Tests)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('doit être exporté correctement', () => {
@@ -17,23 +17,23 @@ describe('AuthContext (Unit Tests)', () => {
 
   it('doit stocker et récupérer le token d\'authentification', () => {
     const token = 'test-token-123';
-    localStorage.setItem('auth_token', token);
+    sessionStorage.setItem('auth_token', token);
     
-    expect(localStorage.getItem('auth_token')).toBe(token);
+    expect(sessionStorage.getItem('auth_token')).toBe(token);
   });
 
   it('doit effacer le token d\'authentification', () => {
-    localStorage.setItem('auth_token', 'test-token');
-    localStorage.removeItem('auth_token');
+    sessionStorage.setItem('auth_token', 'test-token');
+    sessionStorage.removeItem('auth_token');
     
-    expect(localStorage.getItem('auth_token')).toBeNull();
+    expect(sessionStorage.getItem('auth_token')).toBeNull();
   });
 
-  it('doit gérer les données utilisateur dans localStorage', () => {
+  it('doit gérer les données utilisateur dans sessionStorage', () => {
     const userData = { id: '1', email: 'test@example.com', role: 'student' };
-    localStorage.setItem('user', JSON.stringify(userData));
+    sessionStorage.setItem('user', JSON.stringify(userData));
     
-    const retrieved = JSON.parse(localStorage.getItem('user') || '{}');
+    const retrieved = JSON.parse(sessionStorage.getItem('user') || '{}');
     expect(retrieved.email).toBe('test@example.com');
   });
 

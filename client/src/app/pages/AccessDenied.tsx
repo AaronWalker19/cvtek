@@ -1,4 +1,5 @@
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * AccessDenied - Page d'accès refusé
@@ -7,7 +8,19 @@ import { useSearchParams } from 'react-router-dom';
  */
 export default function AccessDenied() {
   const [searchParams] = useSearchParams();
+  const { logout } = useAuth();
   const reason = searchParams.get('reason') || 'Vous n\'avez pas accès à cette application.';
+
+  const handleLogout = async () => {
+    try {
+      // Déconnecter l'utilisateur localement
+      await logout();
+    } catch (err) {
+      console.error('Erreur lors de la déconnexion:', err);
+    }
+    // Rediriger vers Unilim logout
+    window.location.href = 'https://cas.unilim.fr/logout?service=' + encodeURIComponent(window.location.origin + '/cvtek');
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-red-50 to-red-100 p-4">
@@ -64,7 +77,7 @@ export default function AccessDenied() {
 
         {/* Bouton de retour */}
         <button
-          onClick={() => (window.location.href = 'https://cas.unilim.fr/logout?service=' + encodeURIComponent(window.location.origin + '/cvtek'))}
+          onClick={handleLogout}
           className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition-colors duration-200"
         >
           Déconnexion Unilim

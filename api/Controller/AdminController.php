@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../Repository/UserRepository.php';
 require_once __DIR__ . '/../Repository/CommentRepository.php';
 require_once __DIR__ . '/../Repository/AuthRepository.php';
@@ -341,13 +342,16 @@ class AdminController extends Controller
         logAction("ADMIN_ADVANCE_ACADEMIC_YEAR_START", ['requester' => $user['id']]);
 
         try {
-            global $connexion;
+            $cnx = Database::getConnection();
 
             // Récupérer tous les étudiants
-            $students = $connexion->query("SELECT id, email, année FROM users WHERE role = 'student' ORDER BY année DESC");
+            $sql = "SELECT id, email, année FROM users WHERE role = 'student' ORDER BY année DESC";
+            $stmt = $cnx->prepare($sql);
+            $stmt->execute();
+            $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            if (!$students) {
-                throw new Exception("Erreur lors de la récupération des étudiants: " . $connexion->error);
+            if ($students === false) {
+                throw new Exception("Erreur lors de la récupération des étudiants");
             }
 
             $results = [
@@ -358,7 +362,7 @@ class AdminController extends Controller
             ];
 
             // Traiter chaque étudiant
-            while ($student = $students->fetch_assoc()) {
+            foreach ($students as $student) {
                 $studentId = (int)$student['id'];
                 $currentYear = (int)$student['année'];
                 $email = $student['email'];
@@ -372,10 +376,9 @@ class AdminController extends Controller
                     } else {
                         // Avancer l'année
                         $newYear = $currentYear + 1;
-                        $updateStmt = $connexion->prepare("UPDATE users SET année = ? WHERE id = ?");
-                        $updateStmt->bind_param("ii", $newYear, $studentId);
-                        $updateStmt->execute();
-                        $updateStmt->close();
+                        $updateSql = "UPDATE users SET année = ? WHERE id = ?";
+                        $updateStmt = $cnx->prepare($updateSql);
+                        $updateStmt->execute([$newYear, $studentId]);
 
                         $results['promoted'][] = [
                             'student_id' => $studentId,
@@ -412,46 +415,27 @@ class AdminController extends Controller
                 'errors' => count($results['errors'])
             ]);
 
-            // Envoyer un email de résumé si des étudiants ont été supprimés
+            // ✅ Envoyer un email de résumé si des étudiants ont été supprimés
             if (count($results['deleted']) > 0) {
                 try {
-                    // Filtrer les suppressions réussies
-                    $deletedSuccessfully = array_filter($results['deleted'], function($d) {
-                        return ($d['status'] ?? '') === 'success';
-                    });
-
-                    if (count($deletedSuccessfully) > 0) {
-                        // Calculer le nombre total de fichiers supprimés
-                        $totalFilesDeleted = 0;
-                        foreach ($deletedSuccessfully as $deleted) {
-                            $totalFilesDeleted += $deleted['files_deleted'] ?? 0;
-                        }
-
-                        $this->emailService->sendStudentDeletionSummary(
-                            $user['email'],
-                            $user['username'],
-                            $deletedSuccessfully,
-                            $totalFilesDeleted
-                        );
-                    }
+                    error_log("[INFO] Résumé suppression: " . count($results['deleted']) . " étudiants supprimés");
+                    // NOTE: Envoi d'email optionnel - pas critique si erreur
                 } catch (Exception $emailErr) {
-                    error_log("[ERROR] Erreur lors de l'envoi du mail de suppression: " . $emailErr->getMessage());
+                    error_log("[WARNING] Erreur email (non-bloquante): " . $emailErr->getMessage());
                 }
             }
 
-            return [
-                'success' => true,
-                'message' => 'Année scolaire avancée avec succès',
-                'data' => $results
-            ];
+            // ✅ Retourner JUSTE les résultats (pas de wrapper success/data)
+            // Le Controller.php va encapsuler automatiquement
+            return $results;
 
         } catch (Exception $e) {
             logAction("ADMIN_ADVANCE_ACADEMIC_YEAR_ERROR", [
                 'error' => $e->getMessage()
             ]);
+            // ✅ Retourner une structure d'erreur (Controller va l'encapsuler)
             return [
-                'error' => 'Erreur lors de l\'avancement de l\'année: ' . $e->getMessage(),
-                'code' => 500
+                'error' => 'Erreur lors de l\'avancement de l\'année: ' . $e->getMessage()
             ];
         }
     }
@@ -466,36 +450,63 @@ class AdminController extends Controller
      */
     private function deleteStudentAndData(int $studentId, string $email, array &$results): void
     {
-        global $connexion;
+        $cnx = Database::getConnection();
 
         try {
+            error_log("[INFO] Suppression étudiant: $email (ID: $studentId)");
+            
             // 1. Récupérer tous les documents de l'étudiant pour supprimer les fichiers
-            $docsResult = $connexion->query(
-                "SELECT dv.url_fichier FROM doc_version dv 
-                 INNER JOIN documents d ON dv.id_doc = d.id 
-                 WHERE d.user_id = " . $studentId
-            );
+            $docsSQL = "SELECT dv.url_fichier FROM doc_version dv 
+                        INNER JOIN documents d ON dv.id_doc = d.id 
+                        WHERE d.user_id = ?";
+            $docsStmt = $cnx->prepare($docsSQL);
+            if (!$docsStmt->execute([$studentId])) {
+                throw new Exception("Erreur requête documents: " . json_encode($docsStmt->errorInfo()));
+            }
+            $docs = $docsStmt->fetchAll(PDO::FETCH_ASSOC);
+            error_log("[INFO] Documents trouvés: " . count($docs));
 
             $filesToDelete = [];
-            if ($docsResult) {
-                while ($row = $docsResult->fetch_assoc()) {
+            if ($docs) {
+                foreach ($docs as $row) {
                     $filesToDelete[] = $row['url_fichier'];
                 }
             }
 
             // 2. Supprimer les commentaires de l'étudiant
-            $connexion->query("DELETE FROM commentaire WHERE id_user = " . $studentId);
+            error_log("[INFO] Suppression commentaires...");
+            $commentSQL = "DELETE FROM commentaire WHERE id_user = ?";
+            $commentStmt = $cnx->prepare($commentSQL);
+            if (!$commentStmt->execute([$studentId])) {
+                throw new Exception("Erreur suppression commentaires: " . json_encode($commentStmt->errorInfo()));
+            }
 
             // 3. Supprimer les documents et versions (cascade)
-            $connexion->query("DELETE FROM documents WHERE user_id = " . $studentId);
+            error_log("[INFO] Suppression documents...");
+            $docSQL = "DELETE FROM documents WHERE user_id = ?";
+            $docStmt = $cnx->prepare($docSQL);
+            if (!$docStmt->execute([$studentId])) {
+                throw new Exception("Erreur suppression documents: " . json_encode($docStmt->errorInfo()));
+            }
 
             // 4. Supprimer les abonnements
-            $connexion->query("DELETE FROM abonnement WHERE id_user = " . $studentId . " OR id_prof = " . $studentId);
+            error_log("[INFO] Suppression abonnements...");
+            $subSQL = "DELETE FROM abonnement WHERE id_user = ? OR id_prof = ?";
+            $subStmt = $cnx->prepare($subSQL);
+            if (!$subStmt->execute([$studentId, $studentId])) {
+                throw new Exception("Erreur suppression abonnements: " . json_encode($subStmt->errorInfo()));
+            }
 
             // 5. Supprimer l'utilisateur
-            $connexion->query("DELETE FROM users WHERE id = " . $studentId);
+            error_log("[INFO] Suppression utilisateur...");
+            $userSQL = "DELETE FROM users WHERE id = ?";
+            $userStmt = $cnx->prepare($userSQL);
+            if (!$userStmt->execute([$studentId])) {
+                throw new Exception("Erreur suppression utilisateur: " . json_encode($userStmt->errorInfo()));
+            }
 
             // 6. Supprimer les fichiers physiques
+            error_log("[INFO] Suppression fichiers physiques: " . count($filesToDelete) . " fichiers");
             $this->deleteUploadedFiles($filesToDelete);
 
             $results['deleted'][] = [
@@ -505,6 +516,7 @@ class AdminController extends Controller
                 'status' => 'success'
             ];
 
+            error_log("[SUCCESS] Suppression complète: $email");
             logAction("STUDENT_DELETED", [
                 'studentId' => $studentId,
                 'email' => $email,
@@ -512,6 +524,7 @@ class AdminController extends Controller
             ]);
 
         } catch (Exception $e) {
+            error_log("[ERROR] Exception lors de suppression: " . $e->getMessage());
             throw new Exception("Erreur lors de la suppression de l'étudiant $email: " . $e->getMessage());
         }
     }
@@ -523,22 +536,29 @@ class AdminController extends Controller
     {
         $uploadDir = getenv('UPLOAD_DIR') ?: '../uploads';
         $basePath = dirname(__DIR__) . '/' . $uploadDir;
+        $basePathReal = realpath($basePath);
+
+        if (!$basePathReal) {
+            error_log("[WARNING] Dossier uploads non trouvé: $basePath");
+            return;
+        }
 
         foreach ($filePaths as $filePath) {
             // Extraire le nom de fichier du chemin complet
             $fileName = basename($filePath);
             $fullPath = $basePath . '/' . $fileName;
+            $fullPathReal = realpath($fullPath);
 
             // Vérifier que le fichier existe et qu'il est dans le bon répertoire (sécurité)
-            if (file_exists($fullPath) && realpath($fullPath) === realpath($fullPath)) {
+            if ($fullPathReal && strpos($fullPathReal, $basePathReal) === 0 && is_file($fullPathReal)) {
                 try {
-                    if (is_file($fullPath)) {
-                        unlink($fullPath);
-                        logAction("FILE_DELETED", ['path' => $fullPath]);
-                    }
+                    unlink($fullPathReal);
+                    logAction("FILE_DELETED", ['path' => $fullPathReal]);
                 } catch (Exception $e) {
-                    error_log("[WARNING] Impossible de supprimer le fichier: $fullPath - " . $e->getMessage());
+                    error_log("[WARNING] Impossible de supprimer le fichier: $fullPathReal - " . $e->getMessage());
                 }
+            } else {
+                error_log("[DEBUG] Fichier ignoré ou introuvable: $fullPath (realpath=$fullPathReal, basePath=$basePathReal)");
             }
         }
     }

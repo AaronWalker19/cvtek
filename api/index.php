@@ -47,15 +47,25 @@ require_once __DIR__ . '/Repository/AbonnementRepository.php';
 // ===== CONFIGURATION DE SESSION =====
 // Doit être fait AVANT tout session_start()
 
-// Configuration pour OIDC cross-domain callback
-session_set_cookie_params([
-    'lifetime' => 0,           // Session cookie (expire au fermeture du navigateur)
-    'path' => '/cvtek',        // Restreint au chemin /cvtek
-    'domain' => '.unilim.fr',  // Accepte les sous-domaines de unilim.fr
-    'secure' => true,          // HTTPS uniquement
+// Déterminer si on est en développement ou production
+$isLocalhost = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1', 'localhost:8000', 'localhost:3000', '127.0.0.1:8000', '127.0.0.1:3000']);
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+// Configuration adaptative pour dev/prod
+$cookieConfig = [
+    'lifetime' => 0,           // Session cookie (expire à la fermeture du navigateur)
+    'path' => $isLocalhost ? '/' : '/cvtek',  // En dev: /, en prod: /cvtek
+    'domain' => $isLocalhost ? '' : '.unilim.fr',  // En dev: vide (cookies domaine simple), en prod: .unilim.fr
+    'secure' => !$isLocalhost,  // En dev: HTTP OK, en prod: HTTPS
     'httponly' => true,        // JavaScript ne peut pas accéder au cookie
-    'samesite' => 'None'       // Permettre les requêtes cross-site (nécessaire pour OIDC)
-]);
+    'samesite' => $isLocalhost ? 'Lax' : 'None'  // En dev: Lax OK, en prod: None (OIDC cross-site)
+];
+
+error_log("🔧 Configuration SESSION pour: " . $host);
+error_log("🔧 Mode: " . ($isLocalhost ? 'DÉVELOPPEMENT' : 'PRODUCTION'));
+error_log("🔧 Cookie params: " . json_encode($cookieConfig));
+
+session_set_cookie_params($cookieConfig);
 
 // ===== HEADERS =====
 

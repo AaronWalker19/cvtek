@@ -55,17 +55,17 @@ const API_BASE_URL = getApiBaseUrl();
 // ===============================================
 
 /**
- * Stocke le token JWT dans localStorage
+ * Stocke le token JWT dans sessionStorage (supprimé à la fermeture du navigateur)
  */
 export function storeToken(token: string): void {
-    localStorage.setItem('auth_token', token);
+    sessionStorage.setItem('auth_token', token);
 }
 
 /**
- * Récupère le token JWT depuis localStorage
+ * Récupère le token JWT depuis sessionStorage
  */
 export function getToken(): string | null {
-    const token = localStorage.getItem('auth_token');
+    const token = sessionStorage.getItem('auth_token');
     return token;
 }
 
@@ -73,7 +73,7 @@ export function getToken(): string | null {
  * Supprime le token JWT
  */
 export function clearToken(): void {
-    localStorage.removeItem('auth_token');
+    sessionStorage.removeItem('auth_token');
 }
 
 // ===============================================

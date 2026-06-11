@@ -505,12 +505,14 @@ export default function ProfessorDashboard() {
               <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[#4b575f] text-[32px] whitespace-nowrap">
                 Documents postée
               </p>
-              <button
-                onClick={() => setShowAdminModal(true)}
-                className="relative shrink-0 px-4 py-2 bg-[#b51621] text-white rounded font-['Inter:Medium',sans-serif] font-medium hover:bg-[#932117] transition-colors"
-              >
-                Passer en Admin
-              </button>
+              {user?.role !== 'admin' && (
+                <button
+                  onClick={() => setShowAdminModal(true)}
+                  className="relative shrink-0 px-4 py-2 bg-[#b51621] text-white rounded font-['Inter:Medium',sans-serif] font-medium hover:bg-[#932117] transition-colors"
+                >
+                  Passer en Admin
+                </button>
+              )}
             </div>
 
             {/* Search and Filter */}

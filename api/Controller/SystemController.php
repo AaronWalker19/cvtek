@@ -47,6 +47,11 @@ class SystemController extends Controller
             logAction("SYSTEM_TEST_EMAIL_REAL", ['action' => 'test-email-real']);
             return $this->testRealEmailAddresses();
         }
+
+        // GET /api/system/session-debug → Diagnostiquer l'état de la session
+        if ($id === 'session-debug') {
+            return $this->debugSessionState();
+        }
         
         return ["error" => "Action système non reconnue", "id" => $id];
     }
@@ -572,5 +577,53 @@ class SystemController extends Controller
                 'code' => 500
             ];
         }
+    }
+
+    /**
+     * Diagnostic de l'état de la session
+     * GET /api/system/session-debug
+     */
+    private function debugSessionState(): array
+    {
+        ensureSessionStarted();
+        
+        $sessionId = session_id();
+        $sessionName = session_name();
+        $user = getSessionUser();
+        
+        error_log("🔍 SESSION DEBUG:");
+        error_log("  Session ID: " . $sessionId);
+        error_log("  Session Name: " . $sessionName);
+        error_log("  User: " . ($user ? $user['username'] : 'AUCUN'));
+        error_log("  Cookies: " . json_encode(array_keys($_COOKIE)));
+        
+        return [
+            'success' => true,
+            'session' => [
+                'id' => $sessionId,
+                'name' => $sessionName,
+                'status' => session_status() === PHP_SESSION_ACTIVE ? 'ACTIVE' : 'INACTIVE',
+                'user' => $user ? [
+                    'id' => $user['id'],
+                    'username' => $user['username'],
+                    'email' => $user['email'],
+                    'role' => $user['role']
+                ] : null,
+                'data' => $_SESSION,
+            ],
+            'cookies' => [
+                'all' => $_COOKIE,
+                'names' => array_keys($_COOKIE),
+                'count' => count($_COOKIE),
+                'session_cookie_exists' => isset($_COOKIE[$sessionName]),
+                'phpsessid_exists' => isset($_COOKIE['PHPSESSID']),
+            ],
+            'headers_sent' => headers_sent(),
+            'output_buffering' => ob_get_level(),
+            'php_version' => phpversion(),
+            'server_time' => date('Y-m-d H:i:s'),
+            'request_method' => $_SERVER['REQUEST_METHOD'],
+            'request_uri' => $_SERVER['REQUEST_URI'],
+        ];
     }
 }

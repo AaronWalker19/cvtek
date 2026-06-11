@@ -6,7 +6,7 @@ global.fetch = jest.fn();
 describe('API Client', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    localStorage.clear();
+    sessionStorage.clear();
     (global.fetch as jest.Mock).mockClear();
   });
 

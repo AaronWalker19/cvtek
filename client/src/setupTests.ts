@@ -28,6 +28,15 @@ const localStorageMock = {
 };
 global.localStorage = localStorageMock as any;
 
+// Mock pour sessionStorage (supprimé à la fermeture du navigateur)
+const sessionStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+};
+global.sessionStorage = sessionStorageMock as any;
+
 // Supprime les avertissements React 19
 const originalError = console.error;
 beforeAll(() => {

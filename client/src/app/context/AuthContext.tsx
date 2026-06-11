@@ -17,13 +17,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ===== Gestion localStorage pour persister la session utilisateur =====
+// ===== Gestion sessionStorage pour la session utilisateur (supprimée à la fermeture du navigateur) =====
 function saveUserToStorage(user: User): void {
-  localStorage.setItem('auth_user', JSON.stringify(user));
+  sessionStorage.setItem('auth_user', JSON.stringify(user));
 }
 
 function getUserFromStorage(): User | null {
-  const stored = localStorage.getItem('auth_user');
+  const stored = sessionStorage.getItem('auth_user');
   if (!stored) return null;
   try {
     return JSON.parse(stored);
@@ -33,7 +33,7 @@ function getUserFromStorage(): User | null {
 }
 
 function clearUserFromStorage(): void {
-  localStorage.removeItem('auth_user');
+  sessionStorage.removeItem('auth_user');
 }
 
 // Convertir les utilisateurs démo en format User pour l'API
@@ -70,12 +70,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(currentUser);
           saveUserToStorage(currentUser);
         } else {
-          // Essayer de récupérer l'utilisateur sauvegardé en local
+          // Essayer de récupérer l'utilisateur sauvegardé en session
           const storedUser = getUserFromStorage();
           if (storedUser) {
             setIsAuthenticated(true);
             setUser(storedUser);
-            console.log('✅ Utilisateur restauré depuis localStorage:', storedUser.username);
+            console.log('✅ Utilisateur restauré depuis sessionStorage:', storedUser.username);
           } else {
             // Pas connecté - attendre que l'utilisateur se connecte via Unilim
             setIsAuthenticated(false);
@@ -84,12 +84,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         console.error('Erreur vérification auth:', err);
-        // Essayer de récupérer l'utilisateur sauvegardé en local
+        // Essayer de récupérer l'utilisateur sauvegardé en session
         const storedUser = getUserFromStorage();
         if (storedUser) {
           setIsAuthenticated(true);
           setUser(storedUser);
-          console.log('✅ Utilisateur restauré depuis localStorage (fallback):', storedUser.username);
+          console.log('✅ Utilisateur restauré depuis sessionStorage (fallback):', storedUser.username);
         } else {
           // Pas connecté
           setIsAuthenticated(false);

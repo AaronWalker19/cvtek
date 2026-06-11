@@ -59,6 +59,7 @@ export default function StudentDashboard() {
   const [openVersionDropdown, setOpenVersionDropdown] = useState<number | null>(null);
   const [editModal, setEditModal] = useState<{ show: boolean; doc: Document | null }>({ show: false, doc: null });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [validationError, setValidationError] = useState('');
   // ⚠️ Utiliser user.id depuis AuthContext plutôt que demoUserId
 
   const loadVersionsForDocument = useCallback(async (docId: number) => {
@@ -202,15 +203,21 @@ export default function StudentDashboard() {
   );
 
   const handleAddFile = async () => {
+    // Réinitialiser les erreurs
+    setValidationError('');
+
     if (!newFileType) {
+      setValidationError('Veuillez sélectionner un type de fichier');
       return;
     }
 
     if (sourceType === 'fichier' && !selectedFile) {
+      setValidationError('Veuillez sélectionner un fichier');
       return;
     }
 
     if (sourceType === 'url' && !newFileUrl) {
+      setValidationError('Veuillez entrer une URL valide');
       return;
     }
 
@@ -520,18 +527,26 @@ export default function StudentDashboard() {
                             <option value="url">url</option>
                           </select>
                         </div>
-                        <div className="content-stretch flex gap-[5px] items-center p-[10px] relative rounded-[4px] shrink-0">
-                          <div aria-hidden="true" className="absolute border border-[#36302a] border-solid inset-0 pointer-events-none rounded-[4px]" />
-                          <select
-                            value={newFileType}
-                            onChange={(e) => setNewFileType(e.target.value)}
-                            className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic bg-transparent outline-none text-[#36302a] text-[16px] w-[120px]"
-                          >
-                            <option value="">Sélectionner</option>
-                            {getAvailableFileTypes().map(type => (
-                              <option key={type} value={type}>{type}</option>
-                            ))}
-                          </select>
+                        <div className="content-stretch flex flex-col gap-[2px] relative shrink-0">
+                          <div className="content-stretch flex gap-[5px] items-center p-[10px] relative rounded-[4px]">
+                            <div aria-hidden="true" className={`absolute border ${ validationError ? 'border-[#b51621]' : 'border-[#36302a]'} border-solid inset-0 pointer-events-none rounded-[4px]`} />
+                            <select
+                              value={newFileType}
+                              onChange={(e) => {
+                                setNewFileType(e.target.value);
+                                setValidationError('');
+                              }}
+                              className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic bg-transparent outline-none text-[#36302a] text-[16px] w-[120px]"
+                            >
+                              <option value=""><span style={{color: '#b51621'}}>*</span> Sélectionner</option>
+                              {getAvailableFileTypes().map(type => (
+                                <option key={type} value={type}>{type}</option>
+                              ))}
+                            </select>
+                          </div>
+                          {validationError && (
+                            <p className="text-[#b51621] text-[12px] font-['Inter:Regular',sans-serif] px-[10px]">{validationError}</p>
+                          )}
                         </div>
                         <div className="content-stretch flex gap-[5px] items-center p-[10px] relative rounded-[4px] shrink-0 flex-1">
                           <div aria-hidden="true" className="absolute border border-[#36302a] border-solid inset-0 pointer-events-none rounded-[4px]" />
