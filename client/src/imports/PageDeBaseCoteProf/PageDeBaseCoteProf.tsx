@@ -41,7 +41,7 @@ function Frame1() {
   return (
     <div className="content-stretch flex items-center py-[10px] relative shrink-0 w-full">
       <div aria-hidden="true" className="absolute border-[#4b575f] border-b-3 border-solid inset-0 pointer-events-none" />
-      <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[#4b575f] text-[32px] whitespace-nowrap">Documents postée</p>
+      <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[#4b575f] text-[32px] whitespace-nowrap">Documents postées</p>
     </div>
   );
 }

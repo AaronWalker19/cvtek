@@ -93,4 +93,66 @@ class AuthRepository extends Repository
             [$token, $userId]
         );
     }
+
+    /**
+     * Met à jour le parcours (groupes/licences) d'un utilisateur
+     */
+    public function updateParcour(int $userId, ?string $parcour): bool
+    {
+        return $this->executeUpdate(
+            "UPDATE users SET parcour = ? WHERE id = ?",
+            [$parcour, $userId]
+        );
+    }
+
+    /**
+     * Cherche le(s) libellé(s) d'un parcours par son identification (groupe)
+     * 
+     * @param string $identification L'identifiant du groupe (ex: TLMM13-231)
+     * @return array Tableau des libellés trouvés ou tableau vide
+     */
+    public function findLibellesByIdentification(string $identification): array
+    {
+        $results = $this->execute(
+            "SELECT DISTINCT libellé FROM parcours WHERE identification = ? ORDER BY libellé",
+            [$identification]
+        );
+        
+        $libelles = [];
+        if (is_array($results)) {
+            foreach ($results as $row) {
+                $libelles[] = $row['libellé'];
+            }
+        }
+        return $libelles;
+    }
+
+    /**
+     * Cherche le premier libellé correspondant parmi une liste de groupes
+     * Parcourt les groupes dans l'ordre et retourne le premier libellé trouvé
+     * 
+     * @param array $groups Liste des identifiants de groupes
+     * @return string|null Le premier libellé trouvé ou null si aucun match
+     */
+    public function findFirstMatchingLibelle(array $groups): ?string
+    {
+        if (empty($groups)) {
+            return null;
+        }
+
+        // Chercher le premier groupe qui correspond dans la table parcours
+        foreach ($groups as $group) {
+            $libelles = $this->findLibellesByIdentification($group);
+            if (!empty($libelles)) {
+                // Retourner le premier libellé (s'il y en a plusieurs, prendre le premier alphabétiquement)
+                $firstLibelle = reset($libelles);
+                error_log("✅ Correspondance trouvée: groupe='$group' -> libellé='$firstLibelle'");
+                return $firstLibelle;
+            }
+        }
+
+        error_log("⚠️  Aucune correspondance trouvée pour les groupes: " . json_encode($groups));
+        return null;
+    }
 }
+

@@ -303,6 +303,18 @@ try {
     
     error_log("🔍 /userinfo RESPONSE: " . json_encode($userInfo, JSON_PRETTY_PRINT));
     
+    // 🎯 DEBUG: Afficher les groupes reçus (licences)
+    if (isset($userInfo['groups'])) {
+        error_log("✅ GROUPS REÇUS: " . json_encode($userInfo['groups'], JSON_PRETTY_PRINT));
+        error_log("✅ Nombre de groupes: " . count($userInfo['groups']));
+        foreach ($userInfo['groups'] as $index => $group) {
+            error_log("  Groupe " . ($index + 1) . ": " . (is_array($group) ? json_encode($group) : $group));
+        }
+    } else {
+        error_log("⚠️  AUCUN ATTRIBUT 'groups' REÇU de /userinfo");
+        error_log("⚠️  Clés disponibles dans /userinfo: " . json_encode(array_keys($userInfo)));
+    }
+    
     // Extraire email et autres infos
     $email = $userInfo['email'] ?? null;
     if (!$email) {
@@ -322,10 +334,44 @@ try {
     
     error_log("✅ Username récupéré: " . $username);
     
+    // 🎯 ÉTAPE 8A: Extraire et traiter les groupes (licences)
+    $parcour = null;
+    if (isset($userInfo['groups']) && !empty($userInfo['groups'])) {
+        $groups = $userInfo['groups'];
+        error_log("📋 Groupes reçus: " . json_encode($groups));
+        
+        // Chercher la correspondance dans la table parcours
+        if (is_array($groups)) {
+            $auth = new AuthRepository();
+            $parcour = $auth->findFirstMatchingLibelle($groups);
+            
+            if ($parcour === null) {
+                error_log("⚠️  Aucun parcours correspondant trouvé dans la base de données");
+                error_log("   Groupes reçus: " . json_encode($groups));
+            } else {
+                error_log("✅ PARCOURS TROUVÉ: " . $parcour);
+            }
+        } else {
+            // Si c'est une string, chercher directement
+            $auth = new AuthRepository();
+            $libelles = $auth->findLibellesByIdentification($groups);
+            if (!empty($libelles)) {
+                $parcour = $libelles[0]; // Prendre le premier libellé
+                error_log("✅ Groupe '$groups' trouvé: " . $parcour);
+            } else {
+                error_log("⚠️  Groupe '$groups' non trouvé dans la base de données");
+            }
+        }
+    } else {
+        error_log("⚠️  Aucun groupe (parcour) fourni par Unilim");
+    }
+    
     $role = $payloadData['role'] ?? 'student';
     
     // ✅ ÉTAPE 8: Vérifier qu'on a bien récupéré les infos
-    $auth = new AuthRepository();
+    if (!isset($auth)) {
+        $auth = new AuthRepository();
+    }
     
     // Déterminer le rôle en fonction du domaine d'email
     if (strpos($email, '@etu.unilim.fr') !== false) {
@@ -334,7 +380,7 @@ try {
         $role = 'professor';
     }
     
-    error_log("✅ Infos complètes récupérées: username=" . $username . ", email=" . $email . ", role=" . $role);
+    error_log("✅ Infos complètes récupérées: username=" . $username . ", email=" . $email . ", role=" . $role . ", parcour=" . ($parcour ?? 'NULL'));
 
     // ✅ ÉTAPE 9: Traiter les professeurs et étudiants différemment
     $user = null;
@@ -381,10 +427,29 @@ try {
                 </body>
                 </html>
             ");
+        } else {
+            // 📝 Mettre à jour le parcours pour le professeur existant
+            if ($parcour !== null) {
+                $auth->updateParcour($user['id'], $parcour);
+                error_log("✅ Parcours mis à jour pour professeur: " . $user['id']);
+                // Recharger l'utilisateur pour avoir les données à jour
+                $user = $auth->findById($user['id']);
+            }
         }
     } else {
         // 👨‍🎓 ÉTUDIANT: Auto-création si n'existe pas
-        $user = $auth->findOrCreateByEmail($email, $username, $role);
+        $user = $auth->findOrCreateByEmail($email, $username, $role, $parcour);
+        
+        // Si l'utilisateur existait déjà, mettre à jour le parcours
+        if ($user && $parcour !== null) {
+            // Vérifier si le parcours a changé
+            if (($user['parcour'] ?? null) !== $parcour) {
+                $auth->updateParcour($user['id'], $parcour);
+                error_log("✅ Parcours mis à jour pour étudiant: " . $user['id']);
+                // Recharger l'utilisateur
+                $user = $auth->findById($user['id']);
+            }
+        }
     }
     
     if (!$user) {
@@ -397,7 +462,8 @@ try {
         'userId' => $user['id'],
         'email' => $email,
         'username' => $username,
-        'role' => $role
+        'role' => $role,
+        'parcour' => $parcour
     ]);
 
     // ✅ ÉTAPE 10: Générer le token JWT de l'app
@@ -418,7 +484,8 @@ try {
     // Ceci évitera la boucle car le frontend verra que l'utilisateur est connecté
     logAction("UNILIM_CALLBACK_COMPLETE", [
         'userId' => $user['id'],
-        'email' => $email
+        'email' => $email,
+        'parcour' => $parcour
     ]);
     
     header("Location: /cvtek/");

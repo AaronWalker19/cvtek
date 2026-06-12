@@ -32,6 +32,33 @@ CREATE TABLE IF NOT EXISTS users (
   COMMENT='Utilisateurs de CVTEK';
 
 -- ============================================
+-- Table: parcours
+-- ============================================
+CREATE TABLE IF NOT EXISTS parcours (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  identification VARCHAR(255) NOT NULL COMMENT 'Identifiant unique du groupe (ex: TLMM13-231)',
+  libellé VARCHAR(255) NOT NULL COMMENT 'Libellé du parcours (ex: BUT3 MMI : Développement web)',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  -- Indexes
+  INDEX idx_identification (identification),
+  UNIQUE KEY uk_identification_libelle (identification, libellé)
+  
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+  COMMENT='Référence des parcours/programmes d\'études';
+
+-- ============================================
+-- Données: Parcours disponibles
+-- ============================================
+INSERT IGNORE INTO parcours (identification, libellé) VALUES 
+  ('TLMM11-221', 'BUT1 MMI'),
+  ('TLMM12-221', 'BUT2 MMI : Création numérique (CN)'),
+  ('TLMM12-221', 'BUT2 MMI : Développement web et dispositifs interactifs'),
+  ('TLMM23-231', 'BUT3 MMI : Création numérique (CN)'),
+  ('TLMM13-231', 'BUT3 MMI : Développement web et dispositifs interactifs');
+
+-- ============================================
 -- Table: documents
 -- ============================================
 CREATE TABLE IF NOT EXISTS documents (

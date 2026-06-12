@@ -188,11 +188,18 @@ class DocumentController extends Controller
                     $stmt->execute([$userId]);
                     $profInfos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     
-                    error_log("[DOC] Profs abonnes trouves: " . count($profInfos));
+                    $profCount = count($profInfos);
+                    error_log("[DOC] Profs abonnes trouves: " . $profCount);
                     
                     if (!empty($profInfos)) {
                         // Extraire les emails pour l'envoi
                         $profEmails = array_column($profInfos, 'email');
+                        
+                        // 🆕 Logs améliorés pour le multi-email
+                        error_log("[DOC] 📧 Envoi à $profCount destinataire(s):");
+                        foreach ($profEmails as $idx => $email) {
+                            error_log("[DOC]    [" . ($idx + 1) . "/$profCount] $email");
+                        }
                         
                         // Envoyer un email à chaque professeur abonné
                         $result = $this->emailService->sendNewDocumentNotification(
@@ -210,6 +217,8 @@ class DocumentController extends Controller
                         if ($result['success']) {
                             $emailSent = true;
                             $recipientsCount = count($profInfos);
+                            $sentCount = $result['sent_count'] ?? $recipientsCount;
+                            
                             // Formater les infos des destinataires
                             foreach ($profInfos as $prof) {
                                 $recipientEmails[] = [
@@ -217,7 +226,7 @@ class DocumentController extends Controller
                                     'name' => $prof['username']
                                 ];
                             }
-                            error_log("[DOC] ✅ Notifications d'emails déclenchées avec succès");
+                            error_log("[DOC] ✅ Notifications envoyées: $sentCount/$profCount emails reussis");
                         } else {
                             $emailError = $result['error'] ?? 'Erreur inconnue';
                             error_log("[DOC] ⚠️ Erreur lors de l'envoi des notifications: $emailError");
@@ -236,8 +245,14 @@ class DocumentController extends Controller
             'id' => $docId,
             'email_sent' => $emailSent,
             'recipients_count' => $recipientsCount,
-            'recipient_emails' => $recipientEmails
+            'recipient_emails' => $recipientEmails,
+            'sent_count' => $result['sent_count'] ?? 0  // 🆕 Nombre réel d'emails envoyés
         ];
+        
+        // 🆕 Inclure les logs pour le debugging au client
+        if (!empty($emailLogs)) {
+            $response['debug_logs'] = $emailLogs;
+        }
         
         if ($emailError) {
             $response['email_error'] = $emailError;
