@@ -425,7 +425,7 @@ export default function FileView() {
       setAddingComment(true);
       console.log('⏳ Envoi du commentaire en cours...');
       
-      const newCommentData = await addComment(selectedVersionId, newComment.trim());
+      const newCommentData = await addComment(selectedVersionId, newComment.trim(), user?.id);
       
       console.log('✅ Commentaire créé avec succès!');
       console.log('   ID:', newCommentData.id);

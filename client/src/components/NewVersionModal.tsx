@@ -122,7 +122,8 @@ export default function NewVersionModal({
             </div>
           ) : (
             <div>
-              <p className="text-[#a4a4a4] font-medium">Cliquez ou glissez pour changer</p>
+              <p className="text-[#a4a4a4] font-medium">Cliquez ou glissez votre fichier PDF</p>
+              <p style={{ color: accentColor }} className="text-xs mt-2 font-medium">📄 Format PDF uniquement</p>
             </div>
           )}
         </div>
@@ -130,6 +131,7 @@ export default function NewVersionModal({
         <input
           ref={fileInputRef}
           type="file"
+          accept="application/pdf,.pdf"
           onChange={handleFileChange}
           className="hidden"
         />

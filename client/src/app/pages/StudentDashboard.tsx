@@ -158,7 +158,23 @@ export default function StudentDashboard() {
     return version?.url_fichier || doc.url_fichier;
   };
 
+  // Validation stricte PDF
+  const isPdfFile = (file: File): boolean => {
+    const isPdfByExtension = file.name.toLowerCase().endsWith('.pdf');
+    const isPdfByMimeType = file.type === 'application/pdf';
+    return isPdfByExtension || isPdfByMimeType;
+  };
+
   const handleFileSelected = (file: File) => {
+    setValidationError('');
+    
+    // Vérifier que c'est un PDF
+    if (!isPdfFile(file)) {
+      setValidationError('⚠️ Seuls les fichiers PDF sont acceptés');
+      setSelectedFile(null);
+      return;
+    }
+    
     setSelectedFile(file);
     setNewFileName(file.name);
   };
@@ -212,7 +228,12 @@ export default function StudentDashboard() {
     }
 
     if (sourceType === 'fichier' && !selectedFile) {
-      setValidationError('Veuillez sélectionner un fichier');
+      setValidationError('Veuillez sélectionner un fichier PDF');
+      return;
+    }
+
+    if (sourceType === 'fichier' && selectedFile && !isPdfFile(selectedFile)) {
+      setValidationError('⚠️ Seuls les fichiers PDF sont acceptés');
       return;
     }
 
@@ -351,6 +372,17 @@ export default function StudentDashboard() {
       return;
     }
 
+    // Vérifier que c'est un PDF
+    if (!isPdfFile(newVersionFile)) {
+      console.error('❌ Seuls les fichiers PDF sont acceptés');
+      alert('⚠️ Seuls les fichiers PDF sont acceptés');
+      setNewVersionFile(null);
+      if (newVersionFileInputRef.current) {
+        newVersionFileInputRef.current.value = '';
+      }
+      return;
+    }
+
     if (!newVersionModal.doc) {
       return;
     }
@@ -482,12 +514,16 @@ export default function StudentDashboard() {
                               <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[#a4a4a4] text-[14px] mt-[5px]">Cliquez ou glissez pour changer</p>
                             </div>
                           ) : (
-                            <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[#a4a4a4] text-[24px] whitespace-nowrap">Uploader un fichier</p>
+                            <div>
+                              <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[#a4a4a4] text-[24px] whitespace-nowrap">Uploader un fichier PDF</p>
+                              <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[#b51621] text-[12px] mt-[5px]">Format PDF uniquement</p>
+                            </div>
                           )}
                         </div>
                         <input
                           ref={fileInputRef}
                           type="file"
+                          accept="application/pdf,.pdf"
                           onChange={handleFileInputChange}
                           className="hidden"
                         />
@@ -521,10 +557,10 @@ export default function StudentDashboard() {
                                 fileInputRef.current.value = '';
                               }
                             }}
-                            className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic bg-transparent outline-none text-[#36302a] text-[16px] w-[100px]"
+                            className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic bg-transparent outline-none text-[#36302a] text-[16px] w-auto cursor-pointer"
                           >
-                            <option value="fichier">fichier</option>
-                            <option value="url">url</option>
+                            <option value="fichier">Fichier</option>
+                            <option value="url">URL</option>
                           </select>
                         </div>
                         <div className="content-stretch flex flex-col gap-[2px] relative shrink-0">
@@ -536,11 +572,13 @@ export default function StudentDashboard() {
                                 setNewFileType(e.target.value);
                                 setValidationError('');
                               }}
-                              className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic bg-transparent outline-none text-[#36302a] text-[16px] w-[120px]"
+                              className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic bg-transparent outline-none text-[#36302a] text-[16px] w-[150px] cursor-pointer"
                             >
-                              <option value=""><span style={{color: '#b51621'}}>*</span> Sélectionner</option>
+                              <option value=""><span style={{color: '#b51621'}}>*</span> Catégorie</option>
                               {getAvailableFileTypes().map(type => (
-                                <option key={type} value={type}>{type}</option>
+                                <option key={type} value={type}>
+                                  {type === 'cv' ? 'CV' : type === 'portfolio' ? 'Portfolio' : 'Autre'}
+                                </option>
                               ))}
                             </select>
                           </div>

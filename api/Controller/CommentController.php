@@ -86,16 +86,26 @@ class CommentController extends Controller
 
     protected function processPostRequest(HttpRequest $request): ?array
     {
-        // En MODE DÉMO: utiliser l'ID 17 (professeur) par défaut pour les commentaires
-        // En MODE DÉMO: essayer d'abord de récupérer l'ID utilisateur depuis le token
+        // Essayer de récupérer l'ID utilisateur depuis le token JWT
         $userId = $this->checkAuth();
         
-        // Fallback: utiliser l'ID du professeur en démo
-        if (!$userId) {
-            $userId = 17; // ID du professeur en démo
+        $data = $request->getJson();
+        
+        // PRIORITÉ: utiliser l'ID du body si fourni (meilleure fiabilité que le token seul)
+        if (!empty($data['id_user'])) {
+            $userId = (int)$data['id_user'];
+            error_log("[COM] ✅ ID utilisateur pris du body (id_user): $userId");
         }
         
-        $data = $request->getJson();
+        // Fallback: utiliser l'ID du professeur en démo si le token n'est pas fourni et pas d'id_user
+        if (!$userId) {
+            error_log("[COM] ⚠️  AVERTISSEMENT: Aucun token reçu ET pas d'id_user en body! Fallback sur ID professeur (17)");
+            error_log("[COM]    Authorization header: " . ($_SERVER['HTTP_AUTHORIZATION'] ?? 'NON REÇU'));
+            error_log("[COM]    💡 CONSEIL: Vérifiez que le client envoie le header Authorization: Bearer <token>");
+            error_log("[COM]    💡 Le token devrait être stocké dans sessionStorage lors de la connexion Unilim");
+            $userId = 17; // ID du professeur en démo (FALLBACK)
+        }
+        
         $docVersionId = $data['id_docversion'] ?? null;
         $text = $data['text'] ?? null;
 
@@ -120,7 +130,7 @@ class CommentController extends Controller
 
         error_log("========== COMMENT CONTROLLER ==========");
         error_log("[COM] 💬 CRÉATION COMMENTAIRE");
-        error_log("[COM] 👤 Professeur ID: $userId");
+        error_log("[COM] 👤 Utilisateur ID: $userId");
         error_log("[COM] 📌 Version ID: $docVersionId");
         error_log("[COM] 📝 Texte: " . substr($text, 0, 60) . (strlen($text) > 60 ? '...' : ''));
         error_log("[COM] 📊 Longueur: " . strlen($text) . " caractères");
@@ -390,8 +400,10 @@ class CommentController extends Controller
     private function checkAuth(): ?int
     {
         $token = $this->getAuthToken();
+        
         if (!$token) {
-            error_log("❌ Pas de token trouvé dans Authorization header");
+            error_log("[AUTH] ❌ Pas de token trouvé dans Authorization header");
+            error_log("[AUTH]    HTTP_AUTHORIZATION: " . ($_SERVER['HTTP_AUTHORIZATION'] ?? 'NON DÉFINI'));
             return null;
         }
 
@@ -399,7 +411,7 @@ class CommentController extends Controller
             // Décoder le payload du JWT
             $parts = explode('.', $token);
             if (count($parts) !== 3) {
-                error_log("❌ Token JWT invalide (ne contient pas 3 parties)");
+                error_log("[AUTH] ❌ Token JWT invalide (ne contient pas 3 parties, trouvé: " . count($parts) . ")");
                 return null;
             }
 
@@ -407,15 +419,16 @@ class CommentController extends Controller
             $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
             
             if (!$payload || !isset($payload['sub'])) {
-                error_log("❌ Payload du token invalide ou sans 'sub'");
+                error_log("[AUTH] ❌ Payload du token invalide ou sans 'sub'");
+                error_log("[AUTH]    Payload: " . json_encode($payload));
                 return null;
             }
 
             $userId = (int)$payload['sub'];
-            error_log("✅ Token décodé avec succès. User ID: $userId");
+            error_log("[AUTH] ✅ Token décodé avec succès. User ID: $userId");
             return $userId;
         } catch (Exception $e) {
-            error_log("❌ Erreur décodage token: " . $e->getMessage());
+            error_log("[AUTH] ❌ Erreur décodage token: " . $e->getMessage());
             return null;
         }
     }
@@ -450,10 +463,15 @@ class CommentController extends Controller
     {
         $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
         
+        error_log("[TOKEN_HEADER] HTTP_AUTHORIZATION reçu: " . ($authHeader ? 'OUI (longueur: ' . strlen($authHeader) . ')' : 'NON'));
+        
         if (!$authHeader || strpos($authHeader, 'Bearer ') !== 0) {
+            error_log("[TOKEN_HEADER] ❌ En-tête Authorization invalide ou absent");
             return null;
         }
 
-        return substr($authHeader, 7); // Enlever "Bearer "
+        $token = substr($authHeader, 7); // Enlever "Bearer "
+        error_log("[TOKEN_HEADER] ✅ Token extracté (longueur: " . strlen($token) . " caractères)");
+        return $token;
     }
 }

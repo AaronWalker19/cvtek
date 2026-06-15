@@ -18,10 +18,10 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/Repository/Repository.php';
 require_once __DIR__ . '/Repository/AuthRepository.php';
 
-// Récupérer les paramètres
-$code = $_GET['code'] ?? null;
-$state = $_GET['state'] ?? null;
-$error = $_GET['error'] ?? null;
+// Récupérer les paramètres (GET ou POST)
+$code = $_GET['code'] ?? $_POST['code'] ?? null;
+$state = $_GET['state'] ?? $_POST['state'] ?? null;
+$error = $_GET['error'] ?? $_POST['error'] ?? null;
 
 // ✅ Étape 1: Vérifier les erreurs Unilim
 if ($error) {
@@ -480,15 +480,18 @@ try {
     ];
     $_SESSION['unilim_payload'] = $payloadData;
     
-    // ✅ ÉTAPE 12: Rediriger vers le dashboard (sans paramètres!)
-    // Ceci évitera la boucle car le frontend verra que l'utilisateur est connecté
+    // ✅ ÉTAPE 12: Rediriger vers l'application (la session contient déjà l'utilisateur)
     logAction("UNILIM_CALLBACK_COMPLETE", [
         'userId' => $user['id'],
         'email' => $email,
         'parcour' => $parcour
     ]);
-    
-    header("Location: /cvtek/");
+
+    $redirectPath = ($user['role'] === 'professor' || $user['role'] === 'admin')
+        ? '/cvtek/professor'
+        : '/cvtek/';
+
+    header("Location: $redirectPath");
     exit;
 
 } catch (Exception $e) {

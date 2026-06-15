@@ -5,15 +5,15 @@ RewriteBase /cvtek/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 
-
-# Unilim Callback - Route PHP directe (AVANT React Router)
-RewriteCond %{REQUEST_URI} ^/cvtek/auth/callback$
-RewriteRule ^auth/callback$ api/callback.php [L]
+# API endpoints - Route API directe (fichiers PHP existants)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^/cvtek/api/
+RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 
 # React Router - Rediriger toutes les routes React (sauf fichiers/dossiers existants et API) vers index.html
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} ^/cvtek
 RewriteCond %{REQUEST_URI} !^/cvtek/api/
-RewriteCond %{REQUEST_URI} !^/cvtek/auth/callback$
 RewriteRule ^(.*)$ /cvtek/index.html [L]

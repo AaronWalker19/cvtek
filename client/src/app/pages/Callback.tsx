@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { storeToken } from '../../api/client';
+import type { User } from '../../api/client';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * Callback - Page de redirection d'Unilim
@@ -11,6 +14,8 @@ import { useSearchParams } from 'react-router-dom';
  */
 export default function Callback() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,13 +46,50 @@ export default function Callback() {
           return;
         }
 
-        // TODO: Traiter le callback ici
-        // Pour l'instant, afficher le chargement
-        console.log('✅ Code et state reçus:', { code, state });
+        console.log('✅ Code et state reçus, appel à /api/auth/callback...');
         
-        // À faire: appel à l'API backend
+        // Appel au backend pour traiter le callback Unilim
+        const response = await fetch('/api/auth/callback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ code, state }),
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Erreur HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
         
-        setLoading(false);
+        if (!data.success || !data.data?.token || !data.data?.user) {
+          throw new Error(data.error || 'Réponse du serveur invalide');
+        }
+
+        console.log('✅ Token reçu du serveur');
+        console.log('👤 Utilisateur:', data.data.user);
+
+        // Stocker le token et l'utilisateur
+        storeToken(data.data.token);
+        sessionStorage.setItem('auth_user', JSON.stringify(data.data.user));
+
+        console.log('✅ Token et utilisateur stockés dans sessionStorage');
+        console.log('🔐 Token stocké (longueur:', data.data.token.length, 'caractères)');
+
+        // Rediriger vers le dashboard approprié
+        setTimeout(() => {
+          const userRole = data.data.user.role;
+          if (userRole === 'student') {
+            navigate('/student');
+          } else if (userRole === 'professor' || userRole === 'admin') {
+            navigate('/professor');
+          } else {
+            navigate('/');
+          }
+        }, 500);
 
       } catch (err: any) {
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -58,7 +100,7 @@ export default function Callback() {
     };
 
     processCallback();
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   // Afficher l'écran de chargement ou d'erreur
   if (error) {

@@ -170,6 +170,7 @@ class AuthController extends Controller
     /**
      * Gère l'authentification externe
      * Crée ou récupère un utilisateur à partir de l'email
+     * Met à jour le parcours s'il existe déjà
      */
     private function handleExternalAuth(HttpRequest $request): ?array
     {
@@ -191,7 +192,9 @@ class AuthController extends Controller
         logAction("EXTERNAL_AUTH", ['email' => $email, 'username' => $username]);
 
         // Créer ou récupérer l'utilisateur
-        $user = $this->auth->findOrCreateByEmail($email, $username, $role, $parcour);
+        // Mettre à jour le parcours s'il existe déjà (pour les étudiants)
+        $shouldUpdateParcour = ($role === 'student' && $parcour !== null);
+        $user = $this->auth->findOrCreateByEmail($email, $username, $role, $parcour, $shouldUpdateParcour);
 
         if (!$user) {
             return ['error' => 'Erreur création utilisateur', 'code' => 500];
@@ -738,6 +741,29 @@ class AuthController extends Controller
                 $role = 'student';
             }
             
+            // Extraire et traiter le parcours à partir des groupes Unilim
+            $parcour = null;
+            if (isset($payload['groups']) && !empty($payload['groups'])) {
+                $groups = $payload['groups'];
+                
+                if (is_array($groups)) {
+                    // Chercher la correspondance dans la table parcours
+                    $parcour = $this->auth->findFirstMatchingLibelle($groups);
+                    if ($parcour) {
+                        logAction("UNILIM_PARCOUR_FOUND", ['parcour' => $parcour, 'groups' => $groups]);
+                    } else {
+                        logAction("UNILIM_NO_MATCHING_PARCOUR", ['groups' => $groups]);
+                    }
+                } else if (is_string($groups)) {
+                    // Si c'est une string, chercher directement
+                    $libelles = $this->auth->findLibellesByIdentification($groups);
+                    if (!empty($libelles)) {
+                        $parcour = $libelles[0];
+                        logAction("UNILIM_PARCOUR_FOUND_STRING", ['parcour' => $parcour]);
+                    }
+                }
+            }
+            
             // ============================================================
             // VÉRIFICATION DU DOMAINE D'EMAIL - CONTRÔLE D'ACCÈS
             // ============================================================
@@ -758,7 +784,9 @@ class AuthController extends Controller
             }
             
             // Créer ou récupérer l'utilisateur
-            $user = $this->auth->findOrCreateByEmail($email, $username, $role);
+            // Mettre à jour le parcours s'il existe déjà (pour les étudiants)
+            $shouldUpdateParcour = ($role === 'student' && $parcour !== null);
+            $user = $this->auth->findOrCreateByEmail($email, $username, $role, $parcour, $shouldUpdateParcour);
             
             if (!$user) {
                 logAction("UNILIM_USER_CREATION_FAILED", ['email' => $email]);

@@ -13,7 +13,7 @@ class UserRepository extends Repository
     {
         error_log("[DEBUG] findById: id=" . $id . ", type=" . gettype($id));
         
-        $sql = "SELECT id, username, email, role, parcour, created_at, updated_at FROM users WHERE id = ?";
+        $sql = "SELECT id, username, email, role, parcour, created_at FROM users WHERE id = ?";
         error_log("[DEBUG] findById SQL: " . $sql);
         error_log("[DEBUG] findById params: " . json_encode([$id]));
         
@@ -39,7 +39,7 @@ class UserRepository extends Repository
     public function findByEmail(string $email): ?array
     {
         return $this->executeOne(
-            "SELECT id, username, email, role, parcour, created_at, updated_at 
+            "SELECT id, username, email, role, parcour, created_at 
              FROM users 
              WHERE email = ?",
             [$email]
@@ -52,7 +52,7 @@ class UserRepository extends Repository
     public function findByUsername(string $username): ?array
     {
         return $this->executeOne(
-            "SELECT id, username, email, role, parcour, created_at, updated_at 
+            "SELECT id, username, email, role, parcour, created_at 
              FROM users 
              WHERE username = ?",
             [$username]
@@ -181,7 +181,7 @@ class UserRepository extends Repository
         if (!$result) {
             error_log("[DEBUG] findByEmail also failed, using manual SELECT with latest created_at");
             $result = $this->executeOne(
-                "SELECT id, username, email, role, parcour, created_at, updated_at 
+                "SELECT id, username, email, role, parcour, created_at 
                  FROM users 
                  WHERE email = ? 
                  ORDER BY created_at DESC 
@@ -208,7 +208,7 @@ class UserRepository extends Repository
     public function findAll(): array
     {
         $results = $this->execute(
-            "SELECT id, username, email, role, parcour, created_at, updated_at 
+            "SELECT id, username, email, role, parcour, created_at 
              FROM users 
              ORDER BY username ASC"
         );

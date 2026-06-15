@@ -122,15 +122,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    console.log('🔄 Démarrage du logout...');
     try {
+      console.log('📡 Appel API logout...');
       await apiLogout();
+      console.log('✅ Logout API réussi');
     } catch (err) {
-      console.error('Erreur logout:', err);
+      console.error('⚠️ Erreur lors de l\'appel API logout:', err);
+      // On continue même si l'API échoue, car on veut nettoyer le client
     } finally {
+      console.log('🧹 Nettoyage du contexte d\'authentification...');
       clearToken();
       clearUserFromStorage();
       setIsAuthenticated(false);
       setUser(null);
+      console.log('✅ Logout local terminé');
     }
   };
 

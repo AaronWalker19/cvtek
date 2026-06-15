@@ -46,12 +46,26 @@ class AuthRepository extends Repository
 
     /**
      * Crée ou retourne un utilisateur existant (pour authentification externe)
+     * Peut optionnellement mettre à jour le parcours si l'utilisateur existe
+     * 
+     * @param string $email Email de l'utilisateur
+     * @param string $username Nom d'utilisateur
+     * @param string $role Rôle (student, professor, admin)
+     * @param string|null $parcour Parcours/cursus (optionnel)
+     * @param bool $updateParcourIfExists Si true, met à jour le parcours si l'utilisateur existe
+     * @return array|null Données utilisateur ou null en cas d'erreur
      */
-    public function findOrCreateByEmail(string $email, string $username, string $role = 'student', ?string $parcour = null): ?array
+    public function findOrCreateByEmail(string $email, string $username, string $role = 'student', ?string $parcour = null, bool $updateParcourIfExists = false): ?array
     {
         // Chercher d'abord
         $user = $this->findByEmail($email);
         if ($user) {
+            // Utilisateur existe: mettre à jour le parcours si demandé et si parcour fourni
+            if ($updateParcourIfExists && $parcour !== null) {
+                $this->updateParcour($user['id'], $parcour);
+                // Retourner l'utilisateur avec le parcours mis à jour
+                $user['parcour'] = $parcour;
+            }
             return $user;
         }
         

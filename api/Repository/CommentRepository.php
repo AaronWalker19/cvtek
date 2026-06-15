@@ -58,17 +58,19 @@ class CommentRepository extends Repository
 
     /**
      * Récupère tous les commentaires sur les documents d'un utilisateur (propriétaire)
+     * Inclut les informations du document/version commenté (titre, nom de fichier, numéro de version)
      */
     public function findByDocumentOwnerId(int $ownerId): array
     {
         $results = $this->execute(
-            "SELECT c.id, c.id_user, c.id_docversion, c.text, c.date, u.username, u.email
+            "SELECT c.id, c.id_user, c.id_docversion, c.text, c.date, u.username, u.email,
+                    d.id as doc_id, d.titre, d.nom_fichier, dv.version
              FROM commentaire c
              LEFT JOIN users u ON c.id_user = u.id
-             LEFT JOIN document_version dv ON c.id_docversion = dv.id
-             LEFT JOIN documents d ON dv.id_document = d.id
+             LEFT JOIN doc_version dv ON c.id_docversion = dv.id
+             LEFT JOIN documents d ON dv.id_doc = d.id
              WHERE d.user_id = ?
-             ORDER BY c.date DESC",
+             ORDER BY d.id ASC, dv.version ASC, c.date ASC",
             [$ownerId]
         );
 

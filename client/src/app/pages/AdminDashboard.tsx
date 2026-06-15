@@ -11,13 +11,13 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!user) {
       // Pas connecté - rediriger vers login
-      navigate('/cvtek/');
+      navigate('/', { replace: true });
       return;
     }
 
     if (user.role !== 'admin') {
       // Pas admin - rediriger vers page d'accès refusé
-      navigate('/cvtek/access-denied');
+      navigate('/access-denied', { replace: true });
       return;
     }
   }, [user, navigate]);
@@ -28,9 +28,14 @@ export default function AdminDashboard() {
   }
 
   const handleLogout = async () => {
-    await logout();
-    // Redirection directe vers la racine (recharge la page)
-    window.location.href = '/cvtek/';
+    try {
+      await logout();
+      console.log('✅ Logout réussi, redirection...');
+    } catch (err) {
+      console.error('❌ Erreur logout:', err);
+    }
+    // Utiliser navigate au lieu de window.location.href pour garder le contexte React
+    navigate('/cvtek/professor', { replace: true });
   };
 
   return <PageAdmin onLogout={handleLogout} />;

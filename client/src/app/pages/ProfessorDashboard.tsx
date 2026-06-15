@@ -592,7 +592,7 @@ export default function ProfessorDashboard() {
                 className="absolute border-[#4b575f] border-b-3 border-solid inset-0 pointer-events-none"
               />
               <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[#4b575f] text-[32px] whitespace-nowrap">
-                Documents postée
+                Documents postés
               </p>
               <div className="flex items-center gap-[15px]">
               <button
@@ -905,8 +905,8 @@ export default function ProfessorDashboard() {
                     onClick={() => navigate(`/professor/file/${doc.id}`)}
                     className="content-stretch flex items-center justify-between py-[10px] px-[10px] relative shrink-0 w-full hover:bg-gray-50 border-b border-[#d9d9d9] cursor-pointer"
                   >
-                    <p className="flex-[1.5_0_0] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px]">
-                      {doc.nom_fichier}
+                    <p className="flex-[1.5_0_0] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px] truncate" title={doc.titre || doc.nom_fichier}>
+                      {doc.titre || doc.nom_fichier}
                     </p>
                     <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px] text-center">
                       {doc.type_fichier}

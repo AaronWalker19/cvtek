@@ -9,15 +9,18 @@
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Repository/DocumentRepository.php';
 require_once __DIR__ . '/../Repository/UserRepository.php';
+require_once __DIR__ . '/../Repository/CommentRepository.php';
 
 class ExportController extends Controller {
     private $documentRepo;
     private $userRepo;
+    private $commentRepo;
     private $uploadDir;
-    
+
     public function __construct() {
         $this->documentRepo = new DocumentRepository();
         $this->userRepo = new UserRepository();
+        $this->commentRepo = new CommentRepository();
         $this->uploadDir = __DIR__ . '/../../uploads';
         
         error_log("ExportController: uploadDir = " . $this->uploadDir);
@@ -124,7 +127,8 @@ class ExportController extends Controller {
                     
                     error_log("✅ Student: {$student['username']}");
                     $studentName = $student['username'];
-                    $studentFolder = "Étudiant_$studentId-$studentName";
+                    $parcour = $student['parcour'] ?? 'Sans formation';
+                    $studentFolder = "$parcour/Étudiant_$studentId-$studentName";
                     
                     // Récupérer les documents de l'étudiant
                     $allDocs = $this->documentRepo->findByUserId($studentId);
@@ -135,48 +139,54 @@ class ExportController extends Controller {
                         continue;
                     }
                     
-                    // Pour chaque document, récupérer ses versions
+                    // Pour chaque document, récupérer toutes ses versions
                     foreach ($allDocs as $doc) {
                         error_log("  Document: {$doc['nom_fichier']} (ID {$doc['id']})");
-                        
+
                         $docId = $doc['id'];
-                        
+
                         // Récupérer toutes les versions
                         $versions = $this->documentRepo->findVersions($docId);
                         error_log("    Versions: " . count($versions));
-                        
+
                         if (empty($versions)) {
                             error_log("    ⚠️ No versions for this document");
                             continue;
                         }
-                        
-                        // Prendre la dernière version
-                        $latestVersion = $versions[0];
-                        $urlFichier = $latestVersion['url_fichier'];
-                        error_log("    Latest version URL: $urlFichier");
-                        
-                        if (!$urlFichier) {
-                            error_log("    ❌ No URL for version");
-                            continue;
-                        }
-                        
-                        $fileName = basename($urlFichier);
-                        $parcour = isset($doc['parcour']) ? $doc['parcour'] : 'Sans formation';
-                        $zipPath = "$studentFolder/$parcour/$fileName";
-                        error_log("    ZIP path: $zipPath");
-                        
-                        // Chercher le fichier avec fallback multi-niveaux
-                        $filePath = $this->findFileByUrl($urlFichier, $doc['nom_fichier'], $docId);
-                        
-                        if ($filePath && file_exists($filePath)) {
-                            error_log("    ✅ File found, adding to ZIP: $filePath");
-                            $zip->addFile($filePath, $zipPath);
-                            $filesAdded++;
-                        } else {
-                            error_log("    ❌ File not found. URL: $urlFichier | Expected basename: $fileName | Doc: {$doc['nom_fichier']} (ID: $docId)");
+
+                        // Exporter chaque version du document
+                        foreach ($versions as $version) {
+                            $urlFichier = $version['url_fichier'];
+                            error_log("    Version {$version['version']} URL: $urlFichier");
+
+                            if (!$urlFichier) {
+                                error_log("    ❌ No URL for version {$version['version']}");
+                                continue;
+                            }
+
+                            $fileName = $this->buildVersionFileName($doc, $version);
+                            $zipPath = "$studentFolder/$fileName";
+                            error_log("    ZIP path: $zipPath");
+
+                            // Chercher le fichier avec fallback multi-niveaux
+                            $filePath = $this->findFileByUrl($urlFichier, $doc['nom_fichier'], $docId);
+
+                            if ($filePath && file_exists($filePath)) {
+                                error_log("    ✅ File found, adding to ZIP: $filePath");
+                                $zip->addFile($filePath, $zipPath);
+                                $filesAdded++;
+                            } else {
+                                error_log("    ❌ File not found. URL: $urlFichier | Expected basename: $fileName | Doc: {$doc['nom_fichier']} (ID: $docId)");
+                            }
                         }
                     }
-                    
+
+                    // Ajouter un fichier texte regroupant tous les commentaires de l'étudiant
+                    $comments = $this->commentRepo->findByDocumentOwnerId($studentId);
+                    $commentsTxt = $this->buildCommentsTxt($comments);
+                    $zip->addFromString("$studentFolder/commentaires.txt", $commentsTxt);
+                    $filesAdded++;
+
                 } catch (Exception $e) {
                     error_log("❌ Exception for student $studentId: " . $e->getMessage());
                     continue;
@@ -397,7 +407,80 @@ class ExportController extends Controller {
         
         // Remplacer les espaces et tirets multiples par un seul tiret
         $sanitized = preg_replace('/[\s\-_]+/', '-', $sanitized);
-        
+
         return $sanitized . $extension;
+    }
+
+    /**
+     * Construit le nom de fichier d'une version pour l'export: "{titre}-v{version}.{ext}"
+     * Utilise le titre du document (ou son nom de fichier si pas de titre)
+     * et conserve l'extension d'origine du fichier
+     */
+    private function buildVersionFileName(array $doc, array $version): string {
+        $ext = pathinfo($doc['nom_fichier'], PATHINFO_EXTENSION);
+        $title = !empty($doc['titre']) ? $doc['titre'] : pathinfo($doc['nom_fichier'], PATHINFO_FILENAME);
+        $title = $this->sanitizeFilename($title);
+        $versionLabel = $this->formatVersionLabel($version['version'] ?? null);
+
+        $fileName = "$title-v$versionLabel";
+        if ($ext !== '') {
+            $fileName .= ".$ext";
+        }
+
+        return $fileName;
+    }
+
+    /**
+     * Formate un numéro de version (ex: "1.0" -> "1", "2.5" -> "2.5")
+     */
+    private function formatVersionLabel($version): string {
+        if ($version === null) {
+            return '0';
+        }
+
+        $float = (float)$version;
+        if ($float == (int)$float) {
+            return (string)(int)$float;
+        }
+
+        return (string)$float;
+    }
+
+    /**
+     * Nettoie une chaîne pour qu'elle soit utilisable comme nom de fichier
+     */
+    private function sanitizeFilename(string $str): string {
+        $str = preg_replace('/[\/\\\\:*?"<>|]/', '_', $str);
+        $str = trim($str);
+
+        return $str !== '' ? $str : 'document';
+    }
+
+    /**
+     * Construit le contenu du fichier texte regroupant tous les commentaires d'un étudiant
+     */
+    private function buildCommentsTxt(array $comments): string {
+        if (empty($comments)) {
+            return "Aucun commentaire.\n";
+        }
+
+        $lines = [];
+        foreach ($comments as $comment) {
+            $fileTitle = !empty($comment['titre']) ? $comment['titre'] : ($comment['nom_fichier'] ?? 'Document inconnu');
+            $versionLabel = $this->formatVersionLabel($comment['version'] ?? null);
+            $author = $comment['username'] ?? 'Inconnu';
+            if (!empty($comment['email'])) {
+                $author .= " ({$comment['email']})";
+            }
+
+            $lines[] = "Fichier : $fileTitle (v$versionLabel)";
+            $lines[] = "Auteur : $author";
+            $lines[] = "Date : {$comment['date']}";
+            $lines[] = "Contenu : {$comment['text']}";
+            $lines[] = str_repeat('-', 40);
+            $lines[] = '';
+        }
+
+        return implode("\n", $lines);
     }
 }

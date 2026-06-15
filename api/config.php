@@ -51,7 +51,7 @@ define('SESSION_NAME', getenv('SESSION_NAME') ?: 'CVTEK_SESSION');
 // Upload
 define('UPLOAD_DIR', getenv('UPLOAD_DIR') ?: __DIR__ . '/../uploads');
 define('MAX_UPLOAD_SIZE', (int)(getenv('MAX_UPLOAD_SIZE') ?: 52428800)); // 50MB
-define('ALLOWED_EXTENSIONS', ['pdf', 'doc', 'docx', 'txt', 'mp4', 'mov', 'avi', 'jpg', 'jpeg', 'png', 'gif']);
+define('ALLOWED_EXTENSIONS', ['pdf']); // Uniquement les fichiers PDF
 
 // JWT (optionnel)
 define('JWT_SECRET', getenv('JWT_SECRET') ?: 'change-me-in-production');

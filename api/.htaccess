@@ -9,3 +9,8 @@
     # Rediriger toutes les requêtes vers index.php
     RewriteRule ^(.*)$ index.php [L,QSA]
 </IfModule>
+
+# Passer l'en-tête Authorization à PHP
+<IfModule mod_setenvif.c>
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</IfModule>

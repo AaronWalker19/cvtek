@@ -767,11 +767,16 @@ export async function getCommentsByUserId(userId: number): Promise<Comment[]> {
  * Ajoute un commentaire à une version de document
  * Endpoint: POST /api/comments
  */
-export async function addComment(docVersionId: number, text: string): Promise<Comment> {
-    const requestBody = {
+export async function addComment(docVersionId: number, text: string, userId?: number): Promise<Comment> {
+    const requestBody: any = {
         id_docversion: docVersionId,
         text: text,
     };
+    
+    // Envoyer l'ID utilisateur s'il est disponible (fallback si token échoue)
+    if (userId) {
+        requestBody.id_user = userId;
+    }
     
     const response = await apiCall<{
         comment: Comment;
