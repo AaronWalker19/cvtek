@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { getProfessors, createProfessor, deleteProfessor, getProfessor, getCommentsByUserId, advanceAcademicYear, Professor, Comment } from '../../api/client';
+import { getProfessors, createProfessor, deleteProfessor, getProfessor, getCommentsByUserId, getStudents, deleteStudents, Professor, Comment } from '../../api/client';
 import ProfessorProfileModal from '../../components/ProfessorProfileModal';
 import DeleteConfirmationModal from '../../components/DeleteConfirmationModal';
-import AdvanceAcademicYearModal from '../../components/AdvanceAcademicYearModal';
+import ExportModal from '../../app/components/ExportModal';
 
 interface PageAdminProps {
   onLogout: () => void;
@@ -21,13 +21,14 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
   const [deleting, setDeleting] = useState<number | null>(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [selectedProfessorToDelete, setSelectedProfessorToDelete] = useState<Professor | null>(null);
-  const [showAdvanceYearModal, setShowAdvanceYearModal] = useState(false);
-  const [advancingYear, setAdvancingYear] = useState(false);
-  const [advanceYearResult, setAdvanceYearResult] = useState<any>(null);
+  const [students, setStudents] = useState<Array<{ name: string; license?: string; userId: number; email?: string }>>([]);
+  const [showDeleteStudentsModal, setShowDeleteStudentsModal] = useState(false);
+  const [deletingStudents, setDeletingStudents] = useState(false);
 
-  // Charger la liste des professeurs au montage
+  // Charger la liste des professeurs et des étudiants au montage
   useEffect(() => {
     loadProfessors();
+    loadStudents();
   }, []);
 
   const loadProfessors = async () => {
@@ -41,6 +42,20 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
       console.error('Erreur lors du chargement des professeurs:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadStudents = async () => {
+    try {
+      const data = await getStudents();
+      setStudents(data.map((s) => ({
+        name: s.username,
+        license: s.parcour || 'N/A',
+        userId: s.id,
+        email: s.email,
+      })));
+    } catch (err) {
+      console.error('Erreur lors du chargement des étudiants:', err);
     }
   };
 
@@ -145,34 +160,34 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
     }
   };
 
-  const handleAdvanceAcademicYear = async () => {
+  const handleDeleteStudents = async (studentIds: number[]) => {
     try {
-      setAdvancingYear(true);
-      const result = await advanceAcademicYear();
-      setAdvanceYearResult(result);
-      
+      setDeletingStudents(true);
+      const result = await deleteStudents(studentIds);
+
       // Afficher un résumé
-      console.group('📚 Résumé de la montée d\'année');
-      console.log('✅ Promus:', result.promoted.length);
-      console.log('🗑️ Supprimés:', result.deleted.length);
+      console.group('🗑️ Résumé de la suppression des étudiants');
+      console.log('✅ Supprimés:', result.deleted.length);
       console.log('❌ Erreurs:', result.errors.length);
       console.log('Détails:', result);
       console.groupEnd();
 
       // Afficher un message de succès
       alert(
-        `✅ Montée d'année effectuée!\n\n` +
-        `Promus: ${result.promoted.length}\n` +
+        `✅ Suppression effectuée!\n\n` +
         `Supprimés: ${result.deleted.length}\n` +
         `Erreurs: ${result.errors.length}`
       );
 
-      setShowAdvanceYearModal(false);
+      setShowDeleteStudentsModal(false);
+
+      // Recharger la liste des étudiants
+      await loadStudents();
     } catch (err) {
-      console.error('Erreur lors de l\'avancement:', err);
+      console.error('Erreur lors de la suppression des étudiants:', err);
       alert('❌ Erreur: ' + (err instanceof Error ? err.message : 'Erreur inconnue'));
     } finally {
-      setAdvancingYear(false);
+      setDeletingStudents(false);
     }
   };
 
@@ -193,15 +208,15 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
     <div className="bg-[#ffffff] content-stretch flex items-stretch relative h-screen w-full">
       {/* Sidebar */}
       <div className="bg-[#4b575f] h-full relative shrink-0 flex flex-col items-center justify-between py-[20px] px-[30px] w-[220px]">
-        {/* Bouton de montée d'année */}
+        {/* Bouton de suppression d'étudiants */}
         <button
-          onClick={() => setShowAdvanceYearModal(true)}
-          disabled={advancingYear}
+          onClick={() => setShowDeleteStudentsModal(true)}
+          disabled={deletingStudents}
           className="bg-[#e5e7eb] content-stretch flex items-center justify-center p-[10px] relative rounded-[4px] shrink-0 w-full hover:bg-[#d1d5db] transition-colors disabled:opacity-50 mb-4"
-          title="Avancer l'année universitaire (+1 pour tous les étudiants, suppression pour année 4)"
+          title="Supprimer des étudiants et toutes leurs données"
         >
           <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic text-[#374151] text-[16px] whitespace-nowrap">
-            {advancingYear ? 'Traitement...' : 'Montée d\'année'}
+            {deletingStudents ? 'Traitement...' : 'Gestions étudiants'}
           </p>
         </button>
 
@@ -352,15 +367,14 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
         }}
       />
 
-      {/* Modal de montée d'année */}
-      <AdvanceAcademicYearModal
-        isOpen={showAdvanceYearModal}
-        isLoading={advancingYear}
-        onConfirm={handleAdvanceAcademicYear}
-        onCancel={() => {
-          setShowAdvanceYearModal(false);
-          setAdvanceYearResult(null);
-        }}
+      {/* Modal de suppression d'étudiants */}
+      <ExportModal
+        isOpen={showDeleteStudentsModal}
+        onClose={() => setShowDeleteStudentsModal(false)}
+        students={students}
+        onDelete={handleDeleteStudents}
+        isLoading={deletingStudents}
+        mode="delete"
       />
     </div>
   );

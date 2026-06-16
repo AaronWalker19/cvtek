@@ -1045,31 +1045,43 @@ export async function deleteProfessor(professorId: number): Promise<void> {
 }
 
 /**
- * Avance l'année universitaire de tous les étudiants
- * Endpoint: POST /api/admin/advance-academic-year
- * 
- * Résultat:
- * - Année 1→2, 2→3, 3→4
- * - Année 4 → Suppression complète
+ * Récupère la liste de tous les étudiants
+ * Endpoint: GET /api/admin/students
  */
-export async function advanceAcademicYear(): Promise<{
-    promoted: Array<{ student_id: number; email: string; from_year: number; to_year: number }>;
+export async function getStudents(): Promise<User[]> {
+    const response = await apiCall<{ students: User[] }>(
+        '/admin/students',
+        { method: 'GET' }
+    );
+
+    if (!response.success) {
+        throw new Error(response.error || 'Erreur lors de la récupération des étudiants');
+    }
+
+    return response.data?.students ?? [];
+}
+
+/**
+ * Supprime plusieurs étudiants et toutes leurs données (documents, commentaires, fichiers)
+ * Endpoint: POST /api/admin/delete-students
+ */
+export async function deleteStudents(studentIds: number[]): Promise<{
     deleted: Array<{ student_id: number; email: string; files_deleted: number; status: string }>;
-    total_processed: number;
-    errors: Array<{ student_id: number; email: string; error: string }>;
+    errors: Array<{ student_id: number; email?: string; error: string }>;
 }> {
     const response = await apiCall<{
-        promoted: Array<{ student_id: number; email: string; from_year: number; to_year: number }>;
         deleted: Array<{ student_id: number; email: string; files_deleted: number; status: string }>;
-        total_processed: number;
-        errors: Array<{ student_id: number; email: string; error: string }>;
+        errors: Array<{ student_id: number; email?: string; error: string }>;
     }>(
-        `/admin/advance-academic-year`,
-        { method: 'POST', throwOnError: true }
+        `/admin/delete-students`,
+        {
+            method: 'POST',
+            body: JSON.stringify({ student_ids: studentIds }),
+        }
     );
 
     if (!response.success || !response.data) {
-        throw new Error(response.error || 'Erreur lors de l\'avancement de l\'année');
+        throw new Error(response.error || 'Erreur lors de la suppression des étudiants');
     }
 
     return response.data;

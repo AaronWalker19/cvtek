@@ -43,7 +43,12 @@ class AdminController extends Controller
         if ($resource === 'admin' && $action === 'professors') {
             return $this->handleListProfessors($request);
         }
-        
+
+        // GET /api/admin/students -> liste des étudiants
+        if ($resource === 'admin' && $action === 'students') {
+            return $this->handleListStudents($request);
+        }
+
         // GET /api/admin/professors/123 -> détails d'un professeur avec ses commentaires
         if ($resource === 'admin' && is_numeric($action)) {
             return $this->handleGetProfessor($request, (int)$action);
@@ -70,6 +75,11 @@ class AdminController extends Controller
         // POST /api/admin/advance-academic-year -> avancer l'année universitaire
         if ($resource === 'admin' && $action === 'advance-academic-year') {
             return $this->handleAdvanceAcademicYear($request);
+        }
+
+        // POST /api/admin/delete-students -> supprimer plusieurs étudiants et leurs données
+        if ($resource === 'admin' && $action === 'delete-students') {
+            return $this->handleDeleteStudents($request);
         }
 
         return ["error" => "Endpoint non trouvé"];
@@ -182,6 +192,25 @@ class AdminController extends Controller
     }
 
     /**
+     * Liste tous les étudiants
+     */
+    private function handleListStudents(HttpRequest $request): ?array
+    {
+        // Vérifier que c'est un admin
+        $user = requireAdmin();
+
+        logAction("ADMIN_LIST_STUDENTS", ['requester' => $user['id']]);
+
+        $students = $this->users->findByRole('student');
+
+        return [
+            'success' => true,
+            'count' => count($students),
+            'students' => $students,
+        ];
+    }
+
+    /**
      * Récupère les détails d'un professeur avec ses commentaires
      */
     private function handleGetProfessor(HttpRequest $request, int $professorId): ?array
@@ -275,6 +304,65 @@ class AdminController extends Controller
             'success' => true,
             'message' => 'Utilisateur supprimé avec succès',
         ];
+    }
+
+    /**
+     * Supprime plusieurs étudiants et toutes leurs données
+     * POST /api/admin/delete-students
+     * Body: { "student_ids": [1, 2, 3] }
+     */
+    private function handleDeleteStudents(HttpRequest $request): ?array
+    {
+        // Vérifier que c'est un admin
+        $user = requireAdmin();
+
+        $data = $request->getJson();
+        $studentIds = $data['student_ids'] ?? [];
+
+        if (!is_array($studentIds) || empty($studentIds)) {
+            return ['error' => 'Liste d\'identifiants d\'étudiants requise', 'code' => 400];
+        }
+
+        logAction("ADMIN_DELETE_STUDENTS_START", [
+            'requester' => $user['id'],
+            'studentIds' => $studentIds,
+        ]);
+
+        $results = [
+            'deleted' => [],
+            'errors' => [],
+        ];
+
+        foreach ($studentIds as $studentId) {
+            $studentId = (int)$studentId;
+            $student = $this->users->findById($studentId);
+
+            if (!$student || $student['role'] !== 'student') {
+                $results['errors'][] = [
+                    'student_id' => $studentId,
+                    'error' => 'Étudiant non trouvé',
+                ];
+                continue;
+            }
+
+            try {
+                $this->deleteStudentAndData($studentId, $student['email'], $results);
+            } catch (Exception $e) {
+                $results['errors'][] = [
+                    'student_id' => $studentId,
+                    'email' => $student['email'],
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
+        logAction("ADMIN_DELETE_STUDENTS_END", [
+            'requester' => $user['id'],
+            'deleted' => count($results['deleted']),
+            'errors' => count($results['errors']),
+        ]);
+
+        return $results;
     }
 
     /**

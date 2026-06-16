@@ -11,9 +11,11 @@ interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   students: Student[];
-  onExport: (studentIds: number[]) => Promise<void>;
+  onExport?: (studentIds: number[]) => Promise<void>;
+  onDelete?: (studentIds: number[]) => Promise<void>;
   isLoading?: boolean;
   subscriptions?: Set<number>;
+  mode?: 'export' | 'delete';
 }
 
 export default function ExportModal({
@@ -21,14 +23,17 @@ export default function ExportModal({
   onClose,
   students,
   onExport,
+  onDelete,
   isLoading = false,
   subscriptions = new Set(),
+  mode = 'export',
 }: ExportModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLicenses, setSelectedLicenses] = useState<Set<string>>(new Set());
   const [selectedFollowStatus, setSelectedFollowStatus] = useState<Set<'followed' | 'unfollowed'>>(new Set());
+  // En mode suppression, ne rien présélectionner par sécurité (action destructive)
   const [selectedStudents, setSelectedStudents] = useState<Set<number>>(
-    new Set(students.map(s => s.userId))
+    mode === 'delete' ? new Set() : new Set(students.map(s => s.userId))
   );
 
   // Récupérer les licences uniques
@@ -114,13 +119,23 @@ export default function ExportModal({
     setSelectedStudents(newSelected);
   };
 
-  // Gérer l'export
-  const handleExport = async () => {
+  // Gérer l'action principale (export ou suppression)
+  const handleAction = async () => {
     if (selectedStudents.size === 0) {
       alert("Veuillez sélectionner au moins un étudiant");
       return;
     }
-    await onExport(Array.from(selectedStudents));
+
+    if (mode === 'delete') {
+      const confirmed = window.confirm(
+        `⚠️ Êtes-vous sûr de vouloir supprimer définitivement ${selectedStudents.size} étudiant(s) ?\n\n` +
+        `Cette action supprimera leur compte, leurs documents, commentaires et fichiers. Cette action est irréversible.`
+      );
+      if (!confirmed) return;
+      await onDelete?.(Array.from(selectedStudents));
+    } else {
+      await onExport?.(Array.from(selectedStudents));
+    }
   };
 
   if (!isOpen) return null;
@@ -137,7 +152,7 @@ export default function ExportModal({
         {/* Header */}
         <div className="flex items-center justify-between p-[30px] border-b-2 border-[#4b575f] shrink-0">
           <h2 className="font-['Inter:Bold',sans-serif] font-bold text-[24px] text-[#4b575f]">
-            Exporter les fichiers des étudiants
+            {mode === 'delete' ? 'Supprimer des étudiants' : 'Exporter les fichiers des étudiants'}
           </h2>
           <button
             onClick={onClose}
@@ -212,37 +227,39 @@ export default function ExportModal({
           )}
 
           {/* Filtre Suivi */}
-          <div className="bg-[#f5f5f5] rounded-lg p-[15px] border border-[#d9d9d9]">
-            <p className="font-['Inter:Medium',sans-serif] font-medium text-[#36302a] text-[14px] mb-[10px]">
-              Statut de suivi :
-            </p>
-            <div className="flex flex-wrap gap-[15px]">
-              <label className="flex items-center gap-[8px] cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedFollowStatus.has('followed')}
-                  onChange={() => toggleFollowStatus('followed')}
-                  className="w-[18px] h-[18px] cursor-pointer"
-                  disabled={isLoading}
-                />
-                <span className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[14px]">
-                  Suivi
-                </span>
-              </label>
-              <label className="flex items-center gap-[8px] cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedFollowStatus.has('unfollowed')}
-                  onChange={() => toggleFollowStatus('unfollowed')}
-                  className="w-[18px] h-[18px] cursor-pointer"
-                  disabled={isLoading}
-                />
-                <span className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[14px]">
-                  Non suivi
-                </span>
-              </label>
+          {mode !== 'delete' && (
+            <div className="bg-[#f5f5f5] rounded-lg p-[15px] border border-[#d9d9d9]">
+              <p className="font-['Inter:Medium',sans-serif] font-medium text-[#36302a] text-[14px] mb-[10px]">
+                Statut de suivi :
+              </p>
+              <div className="flex flex-wrap gap-[15px]">
+                <label className="flex items-center gap-[8px] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedFollowStatus.has('followed')}
+                    onChange={() => toggleFollowStatus('followed')}
+                    className="w-[18px] h-[18px] cursor-pointer"
+                    disabled={isLoading}
+                  />
+                  <span className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[14px]">
+                    Suivi
+                  </span>
+                </label>
+                <label className="flex items-center gap-[8px] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedFollowStatus.has('unfollowed')}
+                    onChange={() => toggleFollowStatus('unfollowed')}
+                    className="w-[18px] h-[18px] cursor-pointer"
+                    disabled={isLoading}
+                  />
+                  <span className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[14px]">
+                    Non suivi
+                  </span>
+                </label>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Reset Filters Button */}
           {(selectedLicenses.size > 0 || selectedFollowStatus.size > 0) && (
@@ -309,7 +326,7 @@ export default function ExportModal({
           {/* Info */}
           <div className="bg-[#e8f4f8] border border-[#4b575f] rounded p-[15px]">
             <p className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[14px]">
-              <span className="font-medium">{selectedStudents.size}</span> étudiant(s) sélectionné(s) pour l'export
+              <span className="font-medium">{selectedStudents.size}</span> étudiant(s) sélectionné(s) pour {mode === 'delete' ? 'la suppression' : "l'export"}
             </p>
           </div>
         </div>
@@ -324,14 +341,20 @@ export default function ExportModal({
             Annuler
           </button>
           <button
-            onClick={handleExport}
+            onClick={handleAction}
             disabled={isLoading || selectedStudents.size === 0}
-            className="px-6 py-2 rounded font-['Inter:Medium',sans-serif] font-medium bg-[#4b575f] text-white hover:bg-[#36302a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-[8px]"
+            className={`px-6 py-2 rounded font-['Inter:Medium',sans-serif] font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-[8px] ${
+              mode === 'delete' ? 'bg-[#b51621] hover:bg-[#8e1119]' : 'bg-[#4b575f] hover:bg-[#36302a]'
+            }`}
           >
             {isLoading ? (
               <>
                 <span className="inline-block animate-spin">⏳</span>
-                Préparation...
+                {mode === 'delete' ? 'Suppression...' : 'Préparation...'}
+              </>
+            ) : mode === 'delete' ? (
+              <>
+                🗑️ Supprimer
               </>
             ) : (
               <>
