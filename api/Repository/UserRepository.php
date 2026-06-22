@@ -65,14 +65,42 @@ class UserRepository extends Repository
     public function findByRole(string $role): array
     {
         $results = $this->execute(
-            "SELECT id, username, email, role, parcour, created_at 
-             FROM users 
-             WHERE role = ? 
+            "SELECT id, username, email, role, parcour, created_at
+             FROM users
+             WHERE role = ? AND (corbeille = 0 OR corbeille IS NULL)
              ORDER BY username ASC",
             [$role]
         );
 
         return $results ?? [];
+    }
+
+    public function findTrashedStudents(): array
+    {
+        $results = $this->execute(
+            "SELECT id, username, email, role, parcour, created_at
+             FROM users
+             WHERE role = 'student' AND corbeille = 1
+             ORDER BY username ASC"
+        );
+
+        return $results ?? [];
+    }
+
+    public function trashStudent(int $id): bool
+    {
+        return $this->executeUpdate(
+            "UPDATE users SET corbeille = 1 WHERE id = ?",
+            [$id]
+        );
+    }
+
+    public function restoreStudent(int $id): bool
+    {
+        return $this->executeUpdate(
+            "UPDATE users SET corbeille = 0 WHERE id = ?",
+            [$id]
+        );
     }
 
     /**

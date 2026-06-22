@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
     CHECK(role IN ('admin', 'professor', 'student')),
   parcour VARCHAR(255) NULLABLE COMMENT 'Parcours/cursus de l\'étudiant',
   année INT DEFAULT 1 COMMENT 'Année scolaire (1 à 4)',
+  corbeille TINYINT(1) DEFAULT 0 COMMENT 'Soft delete: 0 = actif, 1 = à la corbeille',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   

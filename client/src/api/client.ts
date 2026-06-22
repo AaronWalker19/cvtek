@@ -1062,15 +1062,15 @@ export async function getStudents(): Promise<User[]> {
 }
 
 /**
- * Supprime plusieurs étudiants et toutes leurs données (documents, commentaires, fichiers)
+ * Met des étudiants à la corbeille
  * Endpoint: POST /api/admin/delete-students
  */
-export async function deleteStudents(studentIds: number[]): Promise<{
-    deleted: Array<{ student_id: number; email: string; files_deleted: number; status: string }>;
+export async function trashStudents(studentIds: number[]): Promise<{
+    trashed: Array<{ student_id: number; email: string }>;
     errors: Array<{ student_id: number; email?: string; error: string }>;
 }> {
     const response = await apiCall<{
-        deleted: Array<{ student_id: number; email: string; files_deleted: number; status: string }>;
+        trashed: Array<{ student_id: number; email: string }>;
         errors: Array<{ student_id: number; email?: string; error: string }>;
     }>(
         `/admin/delete-students`,
@@ -1081,7 +1081,76 @@ export async function deleteStudents(studentIds: number[]): Promise<{
     );
 
     if (!response.success || !response.data) {
-        throw new Error(response.error || 'Erreur lors de la suppression des étudiants');
+        throw new Error(response.error || 'Erreur lors de la mise à la corbeille');
+    }
+
+    return response.data;
+}
+
+/**
+ * Récupère les étudiants à la corbeille
+ * Endpoint: GET /api/admin/trashed-students
+ */
+export async function getTrashedStudents(): Promise<User[]> {
+    const response = await apiCall<{ students: User[] }>(
+        '/admin/trashed-students',
+        { method: 'GET' }
+    );
+
+    if (!response.success) {
+        throw new Error(response.error || 'Erreur lors de la récupération de la corbeille');
+    }
+
+    return response.data?.students ?? [];
+}
+
+/**
+ * Restaure des étudiants depuis la corbeille
+ * Endpoint: POST /api/admin/restore-students
+ */
+export async function restoreStudents(studentIds: number[]): Promise<{
+    restored: Array<{ student_id: number }>;
+    errors: Array<{ student_id: number; error: string }>;
+}> {
+    const response = await apiCall<{
+        restored: Array<{ student_id: number }>;
+        errors: Array<{ student_id: number; error: string }>;
+    }>(
+        `/admin/restore-students`,
+        {
+            method: 'POST',
+            body: JSON.stringify({ student_ids: studentIds }),
+        }
+    );
+
+    if (!response.success || !response.data) {
+        throw new Error(response.error || 'Erreur lors de la restauration');
+    }
+
+    return response.data;
+}
+
+/**
+ * Supprime définitivement des étudiants
+ * Endpoint: POST /api/admin/permanent-delete-students
+ */
+export async function permanentDeleteStudents(studentIds: number[]): Promise<{
+    deleted: Array<{ student_id: number; email: string; files_deleted: number; status: string }>;
+    errors: Array<{ student_id: number; email?: string; error: string }>;
+}> {
+    const response = await apiCall<{
+        deleted: Array<{ student_id: number; email: string; files_deleted: number; status: string }>;
+        errors: Array<{ student_id: number; email?: string; error: string }>;
+    }>(
+        `/admin/permanent-delete-students`,
+        {
+            method: 'POST',
+            body: JSON.stringify({ student_ids: studentIds }),
+        }
+    );
+
+    if (!response.success || !response.data) {
+        throw new Error(response.error || 'Erreur lors de la suppression définitive');
     }
 
     return response.data;

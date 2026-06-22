@@ -89,7 +89,7 @@ function Frame5() {
         <div className="relative shrink-0 size-[35px]" data-name="mingcute:checkbox-fill">
           <Group />
         </div>
-        <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[#36302a] text-[16px] whitespace-nowrap">Suivre l’étudiant</p>
+        <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[#36302a] text-[16px] whitespace-nowrap">Marquer l’étudiant</p>
       </div>
       <div className="bg-[#4b575f] flex-[1_0_0] min-w-px relative rounded-[4px]">
         <div className="flex flex-row items-center justify-center size-full">

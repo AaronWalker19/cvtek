@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { getProfessors, createProfessor, deleteProfessor, getProfessor, getCommentsByUserId, getStudents, deleteStudents, Professor, Comment } from '../../api/client';
+import { getProfessors, createProfessor, deleteProfessor, getProfessor, getCommentsByUserId, getStudents, trashStudents, getTrashedStudents, restoreStudents, permanentDeleteStudents, Professor, Comment } from '../../api/client';
 import ProfessorProfileModal from '../../components/ProfessorProfileModal';
 import DeleteConfirmationModal from '../../components/DeleteConfirmationModal';
 import ExportModal from '../../app/components/ExportModal';
+import TrashModal from '../../app/components/TrashModal';
 
 interface PageAdminProps {
   onLogout: () => void;
@@ -24,11 +25,15 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
   const [students, setStudents] = useState<Array<{ name: string; license?: string; userId: number; email?: string }>>([]);
   const [showDeleteStudentsModal, setShowDeleteStudentsModal] = useState(false);
   const [deletingStudents, setDeletingStudents] = useState(false);
+  const [trashedStudents, setTrashedStudents] = useState<Array<{ name: string; license?: string; userId: number; email?: string }>>([]);
+  const [showTrashModal, setShowTrashModal] = useState(false);
+  const [trashLoading, setTrashLoading] = useState(false);
 
   // Charger la liste des professeurs et des étudiants au montage
   useEffect(() => {
     loadProfessors();
     loadStudents();
+    loadTrashedStudents();
   }, []);
 
   const loadProfessors = async () => {
@@ -56,6 +61,20 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
       })));
     } catch (err) {
       console.error('Erreur lors du chargement des étudiants:', err);
+    }
+  };
+
+  const loadTrashedStudents = async () => {
+    try {
+      const data = await getTrashedStudents();
+      setTrashedStudents(data.map((s) => ({
+        name: s.username,
+        license: s.parcour || 'N/A',
+        userId: s.id,
+        email: s.email,
+      })));
+    } catch (err) {
+      console.error('Erreur lors du chargement de la corbeille:', err);
     }
   };
 
@@ -160,34 +179,42 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
     }
   };
 
-  const handleDeleteStudents = async (studentIds: number[]) => {
+  const handleTrashStudents = async (studentIds: number[]) => {
     try {
       setDeletingStudents(true);
-      const result = await deleteStudents(studentIds);
-
-      // Afficher un résumé
-      console.group('🗑️ Résumé de la suppression des étudiants');
-      console.log('✅ Supprimés:', result.deleted.length);
-      console.log('❌ Erreurs:', result.errors.length);
-      console.log('Détails:', result);
-      console.groupEnd();
-
-      // Afficher un message de succès
-      alert(
-        `✅ Suppression effectuée!\n\n` +
-        `Supprimés: ${result.deleted.length}\n` +
-        `Erreurs: ${result.errors.length}`
-      );
-
+      await trashStudents(studentIds);
       setShowDeleteStudentsModal(false);
-
-      // Recharger la liste des étudiants
       await loadStudents();
+      await loadTrashedStudents();
     } catch (err) {
-      console.error('Erreur lors de la suppression des étudiants:', err);
-      alert('❌ Erreur: ' + (err instanceof Error ? err.message : 'Erreur inconnue'));
+      console.error('Erreur lors de la mise à la corbeille:', err);
     } finally {
       setDeletingStudents(false);
+    }
+  };
+
+  const handleRestoreStudents = async (studentIds: number[]) => {
+    try {
+      setTrashLoading(true);
+      await restoreStudents(studentIds);
+      await loadStudents();
+      await loadTrashedStudents();
+    } catch (err) {
+      console.error('Erreur lors de la restauration:', err);
+    } finally {
+      setTrashLoading(false);
+    }
+  };
+
+  const handlePermanentDeleteStudents = async (studentIds: number[]) => {
+    try {
+      setTrashLoading(true);
+      await permanentDeleteStudents(studentIds);
+      await loadTrashedStudents();
+    } catch (err) {
+      console.error('Erreur lors de la suppression définitive:', err);
+    } finally {
+      setTrashLoading(false);
     }
   };
 
@@ -208,12 +235,12 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
     <div className="bg-[#ffffff] content-stretch flex items-stretch relative h-screen w-full">
       {/* Sidebar */}
       <div className="bg-[#4b575f] h-full relative shrink-0 flex flex-col items-center justify-between py-[20px] px-[30px] w-[220px]">
-        {/* Bouton de suppression d'étudiants */}
+        {/* Bouton de gestion étudiants */}
         <button
           onClick={() => setShowDeleteStudentsModal(true)}
           disabled={deletingStudents}
-          className="bg-[#e5e7eb] content-stretch flex items-center justify-center p-[10px] relative rounded-[4px] shrink-0 w-full hover:bg-[#d1d5db] transition-colors disabled:opacity-50 mb-4"
-          title="Supprimer des étudiants et toutes leurs données"
+          className="bg-[#e5e7eb] content-stretch flex items-center justify-center p-[10px] relative rounded-[4px] shrink-0 w-full hover:bg-[#d1d5db] transition-colors disabled:opacity-50"
+          title="Gérer les étudiants"
         >
           <p className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic text-[#374151] text-[16px] whitespace-nowrap">
             {deletingStudents ? 'Traitement...' : 'Gestions étudiants'}
@@ -367,14 +394,25 @@ export default function PageAdmin({ onLogout }: PageAdminProps) {
         }}
       />
 
-      {/* Modal de suppression d'étudiants */}
+      {/* Modal de gestion étudiants (mise à la corbeille) */}
       <ExportModal
         isOpen={showDeleteStudentsModal}
         onClose={() => setShowDeleteStudentsModal(false)}
         students={students}
-        onDelete={handleDeleteStudents}
+        onDelete={handleTrashStudents}
+        onOpenTrash={() => { setShowTrashModal(true); loadTrashedStudents(); }}
         isLoading={deletingStudents}
         mode="delete"
+      />
+
+      {/* Modal corbeille */}
+      <TrashModal
+        isOpen={showTrashModal}
+        onClose={() => setShowTrashModal(false)}
+        students={trashedStudents}
+        onRestore={handleRestoreStudents}
+        onPermanentDelete={handlePermanentDeleteStudents}
+        isLoading={trashLoading}
       />
     </div>
   );

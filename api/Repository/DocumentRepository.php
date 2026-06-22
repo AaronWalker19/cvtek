@@ -12,13 +12,14 @@ class DocumentRepository extends Repository
     public function findAll(): array
     {
         $results = $this->execute(
-            "SELECT d.id, d.user_id, d.nom_fichier, d.titre, d.type_fichier, 
+            "SELECT d.id, d.user_id, d.nom_fichier, d.titre, d.type_fichier,
                     d.description, d.created_at, u.username, u.email,
                     COUNT(c.id) as comment_count
              FROM documents d
              LEFT JOIN users u ON d.user_id = u.id
              LEFT JOIN doc_version dv ON dv.id_doc = d.id
              LEFT JOIN commentaire c ON c.id_docversion = dv.id
+             WHERE (u.corbeille = 0 OR u.corbeille IS NULL)
              GROUP BY d.id
              ORDER BY d.created_at DESC"
         );

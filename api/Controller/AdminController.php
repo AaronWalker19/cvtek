@@ -49,6 +49,11 @@ class AdminController extends Controller
             return $this->handleListStudents($request);
         }
 
+        // GET /api/admin/trashed-students -> liste des étudiants à la corbeille
+        if ($resource === 'admin' && $action === 'trashed-students') {
+            return $this->handleListTrashedStudents($request);
+        }
+
         // GET /api/admin/professors/123 -> détails d'un professeur avec ses commentaires
         if ($resource === 'admin' && is_numeric($action)) {
             return $this->handleGetProfessor($request, (int)$action);
@@ -77,9 +82,19 @@ class AdminController extends Controller
             return $this->handleAdvanceAcademicYear($request);
         }
 
-        // POST /api/admin/delete-students -> supprimer plusieurs étudiants et leurs données
+        // POST /api/admin/delete-students -> mettre à la corbeille
         if ($resource === 'admin' && $action === 'delete-students') {
-            return $this->handleDeleteStudents($request);
+            return $this->handleTrashStudents($request);
+        }
+
+        // POST /api/admin/restore-students -> restaurer depuis la corbeille
+        if ($resource === 'admin' && $action === 'restore-students') {
+            return $this->handleRestoreStudents($request);
+        }
+
+        // POST /api/admin/permanent-delete-students -> suppression définitive
+        if ($resource === 'admin' && $action === 'permanent-delete-students') {
+            return $this->handlePermanentDeleteStudents($request);
         }
 
         return ["error" => "Endpoint non trouvé"];
@@ -211,6 +226,22 @@ class AdminController extends Controller
     }
 
     /**
+     * Liste les étudiants à la corbeille
+     */
+    private function handleListTrashedStudents(HttpRequest $request): ?array
+    {
+        $user = requireAdmin();
+
+        $students = $this->users->findTrashedStudents();
+
+        return [
+            'success' => true,
+            'count' => count($students),
+            'students' => $students,
+        ];
+    }
+
+    /**
      * Récupère les détails d'un professeur avec ses commentaires
      */
     private function handleGetProfessor(HttpRequest $request, int $professorId): ?array
@@ -307,13 +338,12 @@ class AdminController extends Controller
     }
 
     /**
-     * Supprime plusieurs étudiants et toutes leurs données
+     * Met des étudiants à la corbeille (soft delete)
      * POST /api/admin/delete-students
      * Body: { "student_ids": [1, 2, 3] }
      */
-    private function handleDeleteStudents(HttpRequest $request): ?array
+    private function handleTrashStudents(HttpRequest $request): ?array
     {
-        // Vérifier que c'est un admin
         $user = requireAdmin();
 
         $data = $request->getJson();
@@ -323,7 +353,106 @@ class AdminController extends Controller
             return ['error' => 'Liste d\'identifiants d\'étudiants requise', 'code' => 400];
         }
 
-        logAction("ADMIN_DELETE_STUDENTS_START", [
+        logAction("ADMIN_TRASH_STUDENTS", [
+            'requester' => $user['id'],
+            'studentIds' => $studentIds,
+        ]);
+
+        $results = [
+            'trashed' => [],
+            'errors' => [],
+        ];
+
+        foreach ($studentIds as $studentId) {
+            $studentId = (int)$studentId;
+            $student = $this->users->findById($studentId);
+
+            if (!$student || $student['role'] !== 'student') {
+                $results['errors'][] = [
+                    'student_id' => $studentId,
+                    'error' => 'Étudiant non trouvé',
+                ];
+                continue;
+            }
+
+            try {
+                $this->users->trashStudent($studentId);
+                $results['trashed'][] = [
+                    'student_id' => $studentId,
+                    'email' => $student['email'],
+                ];
+            } catch (Exception $e) {
+                $results['errors'][] = [
+                    'student_id' => $studentId,
+                    'email' => $student['email'],
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Restaure des étudiants depuis la corbeille
+     * POST /api/admin/restore-students
+     * Body: { "student_ids": [1, 2, 3] }
+     */
+    private function handleRestoreStudents(HttpRequest $request): ?array
+    {
+        $user = requireAdmin();
+
+        $data = $request->getJson();
+        $studentIds = $data['student_ids'] ?? [];
+
+        if (!is_array($studentIds) || empty($studentIds)) {
+            return ['error' => 'Liste d\'identifiants d\'étudiants requise', 'code' => 400];
+        }
+
+        logAction("ADMIN_RESTORE_STUDENTS", [
+            'requester' => $user['id'],
+            'studentIds' => $studentIds,
+        ]);
+
+        $results = [
+            'restored' => [],
+            'errors' => [],
+        ];
+
+        foreach ($studentIds as $studentId) {
+            $studentId = (int)$studentId;
+
+            try {
+                $this->users->restoreStudent($studentId);
+                $results['restored'][] = ['student_id' => $studentId];
+            } catch (Exception $e) {
+                $results['errors'][] = [
+                    'student_id' => $studentId,
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Supprime définitivement des étudiants et toutes leurs données
+     * POST /api/admin/permanent-delete-students
+     * Body: { "student_ids": [1, 2, 3] }
+     */
+    private function handlePermanentDeleteStudents(HttpRequest $request): ?array
+    {
+        $user = requireAdmin();
+
+        $data = $request->getJson();
+        $studentIds = $data['student_ids'] ?? [];
+
+        if (!is_array($studentIds) || empty($studentIds)) {
+            return ['error' => 'Liste d\'identifiants d\'étudiants requise', 'code' => 400];
+        }
+
+        logAction("ADMIN_PERMANENT_DELETE_STUDENTS", [
             'requester' => $user['id'],
             'studentIds' => $studentIds,
         ]);
@@ -355,12 +484,6 @@ class AdminController extends Controller
                 ];
             }
         }
-
-        logAction("ADMIN_DELETE_STUDENTS_END", [
-            'requester' => $user['id'],
-            'deleted' => count($results['deleted']),
-            'errors' => count($results['errors']),
-        ]);
 
         return $results;
     }
@@ -433,7 +556,7 @@ class AdminController extends Controller
             $cnx = Database::getConnection();
 
             // Récupérer tous les étudiants
-            $sql = "SELECT id, email, année FROM users WHERE role = 'student' ORDER BY année DESC";
+            $sql = "SELECT id, email, année FROM users WHERE role = 'student' AND (corbeille = 0 OR corbeille IS NULL) ORDER BY année DESC";
             $stmt = $cnx->prepare($sql);
             $stmt->execute();
             $students = $stmt->fetchAll(PDO::FETCH_ASSOC);

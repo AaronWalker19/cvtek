@@ -13,6 +13,7 @@ interface ExportModalProps {
   students: Student[];
   onExport?: (studentIds: number[]) => Promise<void>;
   onDelete?: (studentIds: number[]) => Promise<void>;
+  onOpenTrash?: () => void;
   isLoading?: boolean;
   subscriptions?: Set<number>;
   mode?: 'export' | 'delete';
@@ -24,6 +25,7 @@ export default function ExportModal({
   students,
   onExport,
   onDelete,
+  onOpenTrash,
   isLoading = false,
   subscriptions = new Set(),
   mode = 'export',
@@ -95,7 +97,7 @@ export default function ExportModal({
     setSelectedLicenses(newSelected);
   };
 
-  // Basculer le statut de suivi
+  // Basculer le statut de marquage
   const toggleFollowStatus = (status: 'followed' | 'unfollowed') => {
     const newSelected = new Set(selectedFollowStatus);
     if (newSelected.has(status)) {
@@ -127,11 +129,6 @@ export default function ExportModal({
     }
 
     if (mode === 'delete') {
-      const confirmed = window.confirm(
-        `⚠️ Êtes-vous sûr de vouloir supprimer définitivement ${selectedStudents.size} étudiant(s) ?\n\n` +
-        `Cette action supprimera leur compte, leurs documents, commentaires et fichiers. Cette action est irréversible.`
-      );
-      if (!confirmed) return;
       await onDelete?.(Array.from(selectedStudents));
     } else {
       await onExport?.(Array.from(selectedStudents));
@@ -152,7 +149,7 @@ export default function ExportModal({
         {/* Header */}
         <div className="flex items-center justify-between p-[30px] border-b-2 border-[#4b575f] shrink-0">
           <h2 className="font-['Inter:Bold',sans-serif] font-bold text-[24px] text-[#4b575f]">
-            {mode === 'delete' ? 'Supprimer des étudiants' : 'Exporter les fichiers des étudiants'}
+            {mode === 'delete' ? 'Mettre à la corbeille' : 'Exporter les fichiers des étudiants'}
           </h2>
           <button
             onClick={onClose}
@@ -226,11 +223,11 @@ export default function ExportModal({
             </div>
           )}
 
-          {/* Filtre Suivi */}
+          {/* Filtre Marqué */}
           {mode !== 'delete' && (
             <div className="bg-[#f5f5f5] rounded-lg p-[15px] border border-[#d9d9d9]">
               <p className="font-['Inter:Medium',sans-serif] font-medium text-[#36302a] text-[14px] mb-[10px]">
-                Statut de suivi :
+                Étudiant marqué :
               </p>
               <div className="flex flex-wrap gap-[15px]">
                 <label className="flex items-center gap-[8px] cursor-pointer">
@@ -242,7 +239,7 @@ export default function ExportModal({
                     disabled={isLoading}
                   />
                   <span className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[14px]">
-                    Suivi
+                    Marqué
                   </span>
                 </label>
                 <label className="flex items-center gap-[8px] cursor-pointer">
@@ -254,7 +251,7 @@ export default function ExportModal({
                     disabled={isLoading}
                   />
                   <span className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[14px]">
-                    Non suivi
+                    Non marqué
                   </span>
                 </label>
               </div>
@@ -326,7 +323,7 @@ export default function ExportModal({
           {/* Info */}
           <div className="bg-[#e8f4f8] border border-[#4b575f] rounded p-[15px]">
             <p className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[14px]">
-              <span className="font-medium">{selectedStudents.size}</span> étudiant(s) sélectionné(s) pour {mode === 'delete' ? 'la suppression' : "l'export"}
+              <span className="font-medium">{selectedStudents.size}</span> étudiant(s) sélectionné(s) pour {mode === 'delete' ? 'la mise en corbeille' : "l'export"}
             </p>
           </div>
         </div>
@@ -340,25 +337,32 @@ export default function ExportModal({
           >
             Annuler
           </button>
+          {mode === 'delete' && onOpenTrash && (
+            <button
+              onClick={() => { onClose(); onOpenTrash(); }}
+              disabled={isLoading}
+              className="px-6 py-2 rounded font-['Inter:Medium',sans-serif] font-medium text-[#36302a] border border-[#4b575f] hover:bg-[#f0f0f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Corbeille
+            </button>
+          )}
           <button
             onClick={handleAction}
             disabled={isLoading || selectedStudents.size === 0}
-            className={`px-6 py-2 rounded font-['Inter:Medium',sans-serif] font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-[8px] ${
-              mode === 'delete' ? 'bg-[#b51621] hover:bg-[#8e1119]' : 'bg-[#4b575f] hover:bg-[#36302a]'
-            }`}
+            className="px-6 py-2 rounded font-['Inter:Medium',sans-serif] font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-[8px] bg-[#4b575f] hover:bg-[#36302a]"
           >
             {isLoading ? (
               <>
                 <span className="inline-block animate-spin">⏳</span>
-                {mode === 'delete' ? 'Suppression...' : 'Préparation...'}
+                {mode === 'delete' ? 'Traitement...' : 'Préparation...'}
               </>
             ) : mode === 'delete' ? (
               <>
-                🗑️ Supprimer
+                Mettre à la corbeille
               </>
             ) : (
               <>
-                📥 Télécharger ZIP
+                Télécharger ZIP
               </>
             )}
           </button>

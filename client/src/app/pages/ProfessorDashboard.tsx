@@ -476,7 +476,7 @@ export default function ProfessorDashboard() {
     setSelectedLicenses(newSelected);
   };
 
-  // Basculer la sélection du statut de suivi
+  // Basculer la sélection du statut de marquage
   const toggleFollowStatusFilter = (status: 'followed' | 'unfollowed') => {
     const newSelected = new Set(selectedFollowStatus);
     if (newSelected.has(status)) {
@@ -487,7 +487,7 @@ export default function ProfessorDashboard() {
     setSelectedFollowStatus(newSelected);
   };
 
-  // Filtrer les étudiants selon la recherche, les licences ET le statut de suivi
+  // Filtrer les étudiants selon la recherche, les licences ET le statut de marquage
   const getFilteredStudents = () => {
     let result = allStudents.filter(
       (student) =>
@@ -500,7 +500,7 @@ export default function ProfessorDashboard() {
       result = result.filter((student) => selectedLicenses.has(student.license || ''));
     }
 
-    // Si des statuts de suivi sont sélectionnés, filtrer par statut
+    // Si des statuts de marquage sont sélectionnés, filtrer par statut
     if (selectedFollowStatus.size > 0) {
       result = result.filter((student) => {
         const isFollowed = allSubscriptions.has(student.userId);
@@ -560,11 +560,9 @@ export default function ProfessorDashboard() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      alert('✅ Export réussi ! Votre fichier ZIP a été téléchargé.');
       setShowExportModal(false);
     } catch (error) {
       console.error('❌ Erreur lors de l\'export:', error);
-      alert('❌ Erreur lors de l\'export des fichiers');
     } finally {
       setExportLoading(false);
     }
@@ -694,9 +692,9 @@ export default function ProfessorDashboard() {
                     ))}
                   </div>
                   
-                  {/* Filtre Suivi */}
+                  {/* Filtre Marqué */}
                   <p className="font-['Inter:Medium',sans-serif] font-medium text-[#36302a] text-[16px] mt-[15px]">
-                    Statut de suivi :
+                    Étudiant marqué :
                   </p>
                   <div className="flex flex-col gap-[10px]">
                     <label className="flex items-center gap-[10px] cursor-pointer">
@@ -707,7 +705,7 @@ export default function ProfessorDashboard() {
                         className="w-[18px] h-[18px] cursor-pointer"
                       />
                       <span className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px]">
-                        Suivi
+                        Marqué
                       </span>
                     </label>
                     <label className="flex items-center gap-[10px] cursor-pointer">
@@ -718,7 +716,7 @@ export default function ProfessorDashboard() {
                         className="w-[18px] h-[18px] cursor-pointer"
                       />
                       <span className="font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px]">
-                        Non suivi
+                        Non marqué
                       </span>
                     </label>
                   </div>
@@ -859,10 +857,10 @@ export default function ProfessorDashboard() {
                       ? 'bg-red-500 hover:bg-red-600 text-[#ffffff]'
                       : 'bg-[#4b575f] hover:bg-[#36302a] text-[#ffffff]'
                   } ${loadingSubscription ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                  title={subscriptions.has(selectedStudent.userId) ? 'Cliquez pour arrêter de suivre' : 'Cliquez pour suivre cet étudiant'}
+                  title={subscriptions.has(selectedStudent.userId) ? 'Cliquez pour démarquer cet étudiant' : 'Cliquez pour marquer cet étudiant'}
                 >
                   <span className="inline-block">
-                    {loadingSubscription ? '⏳ ...' : (subscriptions.has(selectedStudent.userId) ? '✓ Suivi' : '+ Suivre')}
+                    {loadingSubscription ? '⏳ ...' : (subscriptions.has(selectedStudent.userId) ? '✓ Marqué' : '+ Marquer')}
                   </span>
                 </button>
 

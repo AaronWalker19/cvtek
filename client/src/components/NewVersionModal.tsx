@@ -21,6 +21,8 @@ interface NewVersionModalProps {
   isDragging: boolean;
   uploadingVersion: boolean;
   accentColor?: string;
+  comment?: string;
+  onCommentChange?: (comment: string) => void;
   onClose: () => void;
   onFileSelected: (file: File) => void;
   onUpload: () => Promise<void>;
@@ -36,6 +38,8 @@ export default function NewVersionModal({
   isDragging,
   uploadingVersion,
   accentColor = '#b51621',
+  comment = '',
+  onCommentChange,
   onClose,
   onFileSelected,
   onUpload,
@@ -135,6 +139,20 @@ export default function NewVersionModal({
           onChange={handleFileChange}
           className="hidden"
         />
+
+        {/* Commentaire optionnel */}
+        <div className="mb-6">
+          <label className="text-[#36302a] text-sm font-medium block mb-2">
+            Ajouter un commentaire <span className="text-[#a4a4a4] font-normal">(optionnel)</span>
+          </label>
+          <textarea
+            value={comment}
+            onChange={(e) => onCommentChange?.(e.target.value)}
+            placeholder="Ajouter un commentaire sur cette version..."
+            className="w-full p-3 border-2 border-[#e0e0e0] rounded bg-[#ffffff] text-[14px] font-['Inter:Regular',sans-serif] focus:outline-none focus:border-[#36302a] resize-none transition-colors"
+            rows={3}
+          />
+        </div>
 
         <div className="flex gap-4">
           <button

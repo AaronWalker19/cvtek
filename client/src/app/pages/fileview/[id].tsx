@@ -92,6 +92,7 @@ export default function FileView() {
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [newVersionModal, setNewVersionModal] = useState<{ show: boolean; doc: Document | null }>({ show: false, doc: null });
+  const [newVersionComment, setNewVersionComment] = useState('');
   const [otherStudentDocuments, setOtherStudentDocuments] = useState<Document[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [addingComment, setAddingComment] = useState(false);
@@ -320,17 +321,34 @@ export default function FileView() {
       await addVersion(newVersionModal.doc.id, fileUrl);
 
       // Recharger le document
+      let newVersionId: number | null = null;
       try {
         const updatedDoc = await getDocument(newVersionModal.doc.id);
         setDocument(updatedDoc as any);
         setSelectedVersion(updatedDoc.version);
+
+        if (updatedDoc.availableVersions && updatedDoc.availableVersions.length > 0) {
+          newVersionId = updatedDoc.availableVersions[0].id;
+          setSelectedVersionId(newVersionId);
+        }
       } catch (err) {
         // Erreur lors de la recharge
+      }
+
+      // Ajouter le commentaire sur la nouvelle version si renseigné
+      if (newVersionComment.trim() && newVersionId) {
+        try {
+          const commentData = await addComment(newVersionId, newVersionComment.trim(), user?.id);
+          setComments([commentData]);
+        } catch (err) {
+          console.error('Erreur lors de l\'ajout du commentaire sur la nouvelle version:', err);
+        }
       }
 
       // Réinitialiser le modal
       setSelectedFile(null);
       setNewVersionModal({ show: false, doc: null });
+      setNewVersionComment('');
       setIsDragging(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -368,6 +386,7 @@ export default function FileView() {
   const handleCloseVersionModal = () => {
     setNewVersionModal({ show: false, doc: null });
     setSelectedFile(null);
+    setNewVersionComment('');
     setIsDragging(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -503,7 +522,7 @@ export default function FileView() {
     // Vérifier que c'est un professeur
     if (!user || user.role !== 'professor') {
       console.error("Seul un professeur peut s'abonner à un étudiant");
-      alert("Erreur : Seul un professeur peut suivre un étudiant.");
+      alert("Erreur : Seul un professeur peut marquer un étudiant.");
       return;
     }
     
@@ -569,11 +588,12 @@ export default function FileView() {
                 className="absolute border-b-3 border-solid inset-0 pointer-events-none"
                 style={{ borderColor: accentColor }}
               />
-              <div className="flex items-center gap-[20px]">
+              <div className="flex items-center gap-[20px] min-w-0">
                 <button
                   onClick={() => navigate(-1)}
-                  className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[32px] whitespace-nowrap hover:underline cursor-pointer"
+                  className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative text-[32px] hover:underline cursor-pointer truncate max-w-[700px]"
                   style={{ color: accentColor }}
+                  title={document.titre || document.nom_fichier}
                 >
                   ← {document.titre || document.nom_fichier}
                 </button>
@@ -685,7 +705,7 @@ export default function FileView() {
                                     <p className="flex-[1_0_0] font-['Inter:Regular',sans-serif] font-normal leading-[normal] min-w-px not-italic relative text-[16px] text-[#ffffff]">
                                       {comment.text}
                                     </p>
-                                    {!isStudent && (
+                                    {(!isStudent || comment.id_user === user?.id) && (
                                       <div className="content-stretch flex flex-row gap-[5px] items-center relative shrink-0">
                                         <button
                                           onClick={() => {
@@ -765,7 +785,7 @@ export default function FileView() {
                           className="relative shrink-0 w-[20px] h-[20px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                         <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[#36302a] text-[16px] whitespace-nowrap">
-                          Suivre l'étudiant
+                          Marquer l'étudiant
                         </p>
                       </div>
                       <button
@@ -830,6 +850,8 @@ export default function FileView() {
           isDragging={isDragging}
           uploadingVersion={uploadingVersion}
           accentColor={accentColor}
+          comment={newVersionComment}
+          onCommentChange={setNewVersionComment}
           onClose={handleCloseVersionModal}
           onFileSelected={setSelectedFile}
           onUpload={handleUploadVersion}
