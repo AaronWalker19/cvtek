@@ -5,15 +5,16 @@ import Sidebar from '../components/Sidebar';
 import NewVersionModal from '../../components/NewVersionModal';
 import EditDocumentModal from '../../components/EditDocumentModal';
 import svgPaths from '../../imports/PageDeBase/svg-m4lsbi1cy8';
-import { 
-  getDocuments, 
+import {
+  getDocuments,
   getVersions,
-  createDocument, 
-  updateDocument, 
-  deleteDocument, 
+  createDocument,
+  updateDocument,
+  deleteDocument,
   uploadFile,
   addVersion,
-  Document as ApiDocument 
+  addComment,
+  Document as ApiDocument
 } from '../../api/client';
 
 interface Document {
@@ -53,6 +54,7 @@ export default function StudentDashboard() {
   const [newVersionFile, setNewVersionFile] = useState<File | null>(null);
   const [isDraggingVersion, setIsDraggingVersion] = useState(false);
   const [uploadingVersion, setUploadingVersion] = useState(false);
+  const [versionComment, setVersionComment] = useState('');
   const newVersionFileInputRef = useRef<HTMLInputElement>(null);
   const [documentVersions, setDocumentVersions] = useState<{ [docId: number]: any[] }>({});
   const [selectedVersion, setSelectedVersion] = useState<{ [docId: number]: number }>({});
@@ -399,10 +401,19 @@ export default function StudentDashboard() {
       
       // Ajouter la version
       await addVersion(docId, newFileUrl);
-      
+
       // Recharger les versions du document
       await loadVersionsForDocument(docId);
-      
+
+      // Si un commentaire a été saisi, l'ajouter à la nouvelle version
+      if (versionComment.trim()) {
+        const versions = await getVersions(docId);
+        if (versions.length > 0) {
+          const latestVersion = versions[0];
+          await addComment(latestVersion.id, versionComment.trim(), user?.id);
+        }
+      }
+
       // Mettre à jour la version du document dans la liste
       const updatedDocs = documents.map(doc =>
         doc.id === docId
@@ -410,9 +421,10 @@ export default function StudentDashboard() {
           : doc
       );
       setDocuments(updatedDocs);
-      
+
       setNewVersionModal({ show: false, doc: null });
       setNewVersionFile(null);
+      setVersionComment('');
       setIsDraggingVersion(false);
       if (newVersionFileInputRef.current) {
         newVersionFileInputRef.current.value = '';
@@ -429,6 +441,7 @@ export default function StudentDashboard() {
     setNewVersionModal({ show: false, doc: null });
     setNewVersionFile(null);
     setIsDraggingVersion(false);
+    setVersionComment('');
     if (newVersionFileInputRef.current) {
       newVersionFileInputRef.current.value = '';
     }
@@ -608,7 +621,7 @@ export default function StudentDashboard() {
                       </div>
                       <button
                         onClick={handleAddFile}
-                        className="bg-[#b51621] relative rounded-[4px] shrink-0 w-full"
+                        className="bg-[#b51621] relative rounded-[4px] shrink-0 w-full hover:opacity-80 transition-opacity duration-150"
                       >
                         <div className="flex flex-row items-center justify-center size-full">
                           <div className="content-stretch flex items-center justify-center p-[10px] relative size-full">
@@ -647,7 +660,7 @@ export default function StudentDashboard() {
                 filteredDocuments.map((doc) => (
                   <div
                     key={doc.id}
-                    className="content-stretch flex items-center justify-between py-[12px] px-[12px] relative shrink-0 w-full hover:bg-gray-50 border-b border-[#36302a] border-solid group"
+                    className="content-stretch flex items-center justify-between py-[12px] px-[12px] relative shrink-0 w-full hover:bg-[#f0e8e8] border-b border-[#36302a] border-solid group transition-colors duration-150 cursor-pointer rounded"
                   >
                     {/* Nom du fichier */}
                     <Link
@@ -774,7 +787,7 @@ export default function StudentDashboard() {
                               setEditModal({ show: true, doc });
                               setOpenMenuId(null);
                             }}
-                            className="w-full text-left px-4 py-2 text-[#36302a] text-[14px] hover:bg-[#ebebeb] border-b border-[#e0e0e0] bg-[#ffffff]"
+                            className="w-full text-left px-4 py-2 text-[#36302a] text-[14px] hover:bg-[#ebebeb] border-b border-[#e0e0e0] bg-[#ffffff] transition-colors duration-150"
                           >
                             Modifier
                           </button>
@@ -784,7 +797,7 @@ export default function StudentDashboard() {
                               setNewVersionModal({ show: true, doc });
                               setOpenMenuId(null);
                             }}
-                            className="w-full text-left px-4 py-2 text-[#36302a] text-[14px] hover:bg-[#ebebeb] border-b border-[#e0e0e0] bg-[#ffffff]"
+                            className="w-full text-left px-4 py-2 text-[#36302a] text-[14px] hover:bg-[#ebebeb] border-b border-[#e0e0e0] bg-[#ffffff] transition-colors duration-150"
                           >
                             Nouvelle version
                           </button>
@@ -794,7 +807,7 @@ export default function StudentDashboard() {
                               setDeleteConfirm({ show: true, docId: doc.id });
                               setOpenMenuId(null);
                             }}
-                            className="w-full text-left px-4 py-2 text-red-600 text-[14px] hover:bg-[#fff5f5] bg-[#ffffff]"
+                            className="w-full text-left px-4 py-2 text-red-600 text-[14px] hover:bg-[#fff5f5] bg-[#ffffff] transition-colors duration-150"
                           >
                             Supprimer
                           </button>
@@ -817,7 +830,7 @@ export default function StudentDashboard() {
               <div className="flex gap-4">
                 <button
                   onClick={() => setDeleteConfirm({ show: false, docId: null })}
-                  className="flex-1 px-4 py-2 bg-gray-300 text-[#36302a] rounded hover:bg-gray-400 font-medium"
+                  className="flex-1 px-4 py-2 bg-gray-300 text-[#36302a] rounded hover:bg-gray-400 font-medium transition-colors duration-150"
                 >
                   Annuler
                 </button>
@@ -828,7 +841,7 @@ export default function StudentDashboard() {
                     }
                     setDeleteConfirm({ show: false, docId: null });
                   }}
-                  className="flex-1 px-4 py-2 bg-red-600 text-[#ffffff] rounded hover:bg-red-700 font-medium"
+                  className="flex-1 px-4 py-2 bg-red-600 text-[#ffffff] rounded hover:bg-red-700 font-medium transition-colors duration-150"
                 >
                   Supprimer
                 </button>
@@ -845,6 +858,8 @@ export default function StudentDashboard() {
           isDragging={isDraggingVersion}
           uploadingVersion={uploadingVersion}
           accentColor="#b51621"
+          comment={versionComment}
+          onCommentChange={setVersionComment}
           onClose={handleCloseVersionModal}
           onFileSelected={setNewVersionFile}
           onUpload={handleNewVersion}

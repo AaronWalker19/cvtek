@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import HelpModal from './HelpModal';
+import WelcomeModal from './WelcomeModal';
 
 interface SidebarProps {
   bgColor: string;
@@ -8,6 +11,7 @@ interface SidebarProps {
 
 export default function Sidebar({ bgColor, showAdmin = false }: SidebarProps) {
   const { user } = useAuth();
+  const [showHelp, setShowHelp] = useState(false);
 
   if (!user) return null;
 
@@ -71,6 +75,29 @@ export default function Sidebar({ bgColor, showAdmin = false }: SidebarProps) {
           </div>
         </div>
       </div>
+
+      {/* Help Button - fixed bottom right */}
+      <button
+        onClick={() => setShowHelp(true)}
+        className="fixed bottom-[24px] right-[24px] z-50 w-[48px] h-[48px] rounded-full bg-[#183542] hover:bg-[#0f2835] shadow-lg flex items-center justify-center transition-colors"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <path d="M12 17h.01" />
+        </svg>
+      </button>
+
+      <HelpModal
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
+        role={user.role as "student" | "professor" | "admin"}
+      />
+
+      <WelcomeModal
+        username={user.username}
+        role={user.role as "student" | "professor" | "admin"}
+      />
     </div>
   );
 }

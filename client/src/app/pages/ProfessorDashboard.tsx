@@ -646,7 +646,7 @@ export default function ProfessorDashboard() {
               </div>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="bg-[#4b575f] content-stretch flex gap-[10px] items-center p-[10px] relative rounded-[76px] shrink-0"
+                className="bg-[#4b575f] content-stretch flex gap-[10px] items-center p-[10px] relative rounded-[76px] shrink-0 hover:opacity-80 transition-opacity duration-150"
               >
                 <p className="font-['Inter:Regular',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[20px] text-[#ffffff] whitespace-nowrap">
                   Filtre
@@ -764,6 +764,9 @@ export default function ProfessorDashboard() {
                     dernier commentaire
                     <SortArrow column="lastComment" />
                   </button>
+                  <p className="w-[80px] relative shrink-0 text-center">
+                    marqué
+                  </p>
                 </div>
 
                 <div className="content-stretch flex flex-col gap-[15px] items-start relative shrink-0 w-full">
@@ -771,7 +774,7 @@ export default function ProfessorDashboard() {
                     <div
                       key={index}
                       onClick={() => setSelectedStudent(student)}
-                      className="content-stretch flex items-center justify-between py-[10px] px-[10px] relative shrink-0 w-full hover:bg-gray-50 border-b border-[#d9d9d9] cursor-pointer"
+                      className="content-stretch flex items-center justify-between py-[10px] px-[10px] relative shrink-0 w-full hover:bg-[#e8eaec] border-b border-[#d9d9d9] cursor-pointer transition-colors duration-150 rounded"
                     >
                       <p className="flex-[1.5_0_0] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px]">
                         {student.name}
@@ -793,6 +796,13 @@ export default function ProfessorDashboard() {
                           year: "numeric",
                         }) || '-'}
                       </p>
+                      <div className="w-[80px] flex items-center justify-center">
+                        {allSubscriptions.has(student.userId) ? (
+                          <span className="inline-block w-[12px] h-[12px] rounded-full bg-[#4b575f]" title="Marqué" />
+                        ) : (
+                          <span className="inline-block w-[12px] h-[12px] rounded-full border-2 border-[#c0c0c0]" title="Non marqué" />
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -901,7 +911,7 @@ export default function ProfessorDashboard() {
                   <div
                     key={doc.id}
                     onClick={() => navigate(`/professor/file/${doc.id}`)}
-                    className="content-stretch flex items-center justify-between py-[10px] px-[10px] relative shrink-0 w-full hover:bg-gray-50 border-b border-[#d9d9d9] cursor-pointer"
+                    className="content-stretch flex items-center justify-between py-[10px] px-[10px] relative shrink-0 w-full hover:bg-[#e8eaec] border-b border-[#d9d9d9] cursor-pointer transition-colors duration-150 rounded"
                   >
                     <p className="flex-[1.5_0_0] font-['Inter:Regular',sans-serif] font-normal text-[#36302a] text-[16px] truncate" title={doc.titre || doc.nom_fichier}>
                       {doc.titre || doc.nom_fichier}

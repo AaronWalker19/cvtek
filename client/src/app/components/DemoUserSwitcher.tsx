@@ -31,9 +31,9 @@ export default function DemoUserSwitcher() {
           <button
             key={demoUser.id}
             onClick={() => handleSwitchUser(demoUser.id)}
-            className={`text-xs px-3 py-2 rounded transition-colors ${
+            className={`text-xs px-3 py-2 rounded transition-colors duration-150 ${
               user.id === demoUser.id
-                ? 'bg-blue-500 text-[#ffffff] font-semibold'
+                ? 'bg-blue-500 text-[#ffffff] font-semibold hover:bg-blue-600'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >

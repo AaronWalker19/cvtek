@@ -127,7 +127,7 @@ export default function Callback() {
             <p className="text-gray-600 mb-6">{error}</p>
             <button
               onClick={() => (window.location.href = '/cvtek')}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors duration-150"
             >
               Retourner à l'accueil
             </button>

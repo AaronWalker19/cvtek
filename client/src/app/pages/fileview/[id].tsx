@@ -101,6 +101,7 @@ export default function FileView() {
   const [showDeleteCommentConfirmation, setShowDeleteCommentConfirmation] = useState(false);
   const [selectedCommentToDelete, setSelectedCommentToDelete] = useState<Comment | null>(null);
   const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(true);
 
   useEffect(() => {
     const fetchDocument = async () => {
@@ -580,7 +581,7 @@ export default function FileView() {
 
       <div className="flex-[1_0_0] h-screen overflow-y-auto w-full min-w-px relative">
         <div className="flex flex-col items-stretch w-full h-full">
-          <div className="content-stretch flex flex-col gap-[50px] items-stretch p-[40px] relative w-full h-full">
+          <div className="content-stretch flex flex-col gap-[50px] items-stretch p-[40px] pb-[80px] relative w-full min-h-full">
             {/* Header */}
             <div className="content-stretch flex items-center justify-between py-[10px] relative shrink-0 w-full">
               <div
@@ -591,7 +592,7 @@ export default function FileView() {
               <div className="flex items-center gap-[20px] min-w-0">
                 <button
                   onClick={() => navigate(-1)}
-                  className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative text-[32px] hover:underline cursor-pointer truncate max-w-[700px]"
+                  className="font-['Inter:Bold',sans-serif] font-bold leading-[normal] not-italic relative text-[32px] hover:underline hover:opacity-80 cursor-pointer truncate max-w-[700px] transition-opacity duration-150"
                   style={{ color: accentColor }}
                   title={document.titre || document.nom_fichier}
                 >
@@ -628,7 +629,7 @@ export default function FileView() {
             {/* Content */}
             <div className="content-stretch flex flex-[1_0_0] gap-[20px] items-start min-h-px relative w-full">
               {/* PDF Preview */}
-              <div className="bg-[#d9d9d9] content-stretch flex flex-col gap-[10px] h-[901px] items-center justify-center relative shrink-0 w-[701px] overflow-hidden">
+              <div className={`bg-[#d9d9d9] content-stretch flex flex-col gap-[10px] items-center justify-center relative overflow-hidden transition-all duration-300 ${isPanelOpen ? 'shrink-0 w-[701px] h-[901px]' : 'flex-1 h-[901px]'}`}>
                 <div aria-hidden="true" className="absolute border-9 border-black border-solid inset-0 pointer-events-none" />
                 {getDisplayFileUrl() ? (
                   getDisplayFileUrl().toLowerCase().includes('.pdf') ? (
@@ -659,8 +660,23 @@ export default function FileView() {
                 )}
               </div>
 
-              {/* Comments Section */}
-              <div className="content-stretch flex flex-[1_0_0] flex-col gap-[10px] h-full items-start min-w-px relative">
+              {/* Right Panel (toggle + comments) */}
+              <div className={`flex items-stretch bg-[#f2f2f2] rounded-[8px] transition-all duration-300 ${isPanelOpen ? 'flex-[1_0_0] min-w-px' : ''}`}>
+                {/* Toggle Panel Button */}
+                <button
+                  onClick={() => setIsPanelOpen(!isPanelOpen)}
+                  className="shrink-0 flex items-center justify-center w-[28px] rounded-l-[8px] transition-all duration-150 cursor-pointer hover:opacity-70"
+                  style={{ backgroundColor: `${accentColor}30` }}
+                  title={isPanelOpen ? 'Réduire le panneau' : 'Ouvrir le panneau'}
+                >
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"
+                    style={{ transform: isPanelOpen ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.3s' }}>
+                    <path d="M12 4L6 10L12 16" stroke={accentColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                {/* Comments Section */}
+                <div className={`content-stretch flex-col gap-[10px] h-full items-start relative transition-all duration-300 overflow-hidden p-[15px] ${isPanelOpen ? 'flex flex-[1_0_0] min-w-0' : 'hidden'}`}>
                 {/* Description Section */}
                 {document.description && (
                   <div className="bg-[#f7f7f7] relative shrink-0 w-full rounded-[4px]">
@@ -712,7 +728,7 @@ export default function FileView() {
                                             setEditingCommentId(comment.id);
                                             setEditCommentText(comment.text);
                                           }}
-                                          className="relative shrink-0 size-[16px]"
+                                          className="relative shrink-0 size-[16px] hover:opacity-70 transition-opacity duration-150"
                                         >
                                           <div className="absolute inset-[8.33%]">
                                             <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 20.0007 20.0007">
@@ -722,7 +738,7 @@ export default function FileView() {
                                         </button>
                                         <button
                                           onClick={() => handleDeleteComment(comment)}
-                                          className="relative shrink-0 size-[16px]"
+                                          className="relative shrink-0 size-[16px] hover:opacity-70 transition-opacity duration-150"
                                         >
                                           <div className="absolute inset-[12.5%_20.83%]">
                                             <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 14 18">
@@ -753,7 +769,7 @@ export default function FileView() {
                 {isStudent ? (
                   <button
                     onClick={handleNewVersion}
-                    className="relative rounded-[4px] shrink-0 w-full"
+                    className="relative rounded-[4px] shrink-0 w-full hover:opacity-80 transition-opacity duration-150"
                     style={{ backgroundColor: accentColor }}
                   >
                     <div className="flex flex-row items-center justify-center size-full">
@@ -791,7 +807,7 @@ export default function FileView() {
                       <button
                         onClick={handleAddComment}
                         disabled={addingComment || !newComment.trim()}
-                        className="flex-[1_0_0] min-w-px relative rounded-[4px] disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-[1_0_0] min-w-px relative rounded-[4px] disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80 transition-opacity duration-150"
                         style={{ backgroundColor: accentColor }}
                       >
                         <div className="flex flex-row items-center justify-center size-full">
@@ -838,6 +854,7 @@ export default function FileView() {
                   </div>
                 )}
               </div>
+              </div>
             </div>
           </div>
         </div>
@@ -880,13 +897,13 @@ export default function FileView() {
                     setEditingCommentId(null);
                     setEditCommentText('');
                   }}
-                  className="px-[15px] py-[8px] border border-[#d9d9d9] rounded text-[14px] font-['Inter:Medium',sans-serif] text-[#36302a] hover:bg-[#f7f7f7]"
+                  className="px-[15px] py-[8px] border border-[#d9d9d9] rounded text-[14px] font-['Inter:Medium',sans-serif] text-[#36302a] hover:bg-[#f7f7f7] transition-colors duration-150"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={() => handleUpdateComment(editingCommentId)}
-                  className="px-[15px] py-[8px] rounded text-[14px] font-['Inter:Medium',sans-serif] text-[#ffffff]"
+                  className="px-[15px] py-[8px] rounded text-[14px] font-['Inter:Medium',sans-serif] text-[#ffffff] hover:opacity-80 transition-opacity duration-150"
                   style={{ backgroundColor: accentColor }}
                 >
                   Sauvegarder
